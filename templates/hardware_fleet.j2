@@ -3,20 +3,22 @@
 <b>🤖 {{ title|default("Hardware Fleet") }}</b>
 
 {% if devices %}
-{% for device in devices %}
-{{ emoji_connection(device.status) }} <code>{{ "%-12s"|format(device.name[:12]) }}</code>
+<pre>
+{%- for device in devices %}
+{{ emoji_connection(device.status) }} {{ "%-12s"|format(device.name[:12]) }}
 {%- if device.cpu is defined %} CPU {{ "%3.0f"|format(device.cpu) }}%{% endif %}
 {%- if device.ram_used is defined and device.ram_total is defined %} RAM {{ "%2.0f"|format(device.ram_used) }}/{{ "%.0f"|format(device.ram_total) }}GB{% endif %}
 {%- if device.gpu is defined %} GPU {{ "%3.0f"|format(device.gpu) }}%{% endif %}
 {%- if device.temp is defined %} {{ emoji_status(device.temp, 100, inverted=true) }}{{ "%2.0f"|format(device.temp) }}°C{% endif %}
 {%- if device.load is defined %} 🔥{{ device.load }}{% endif %}
-{% endfor %}
+
+{%- endfor %}
+</pre>
 {% else %}
 <i>No devices online</i>
 {% endif %}
 
 {% if summary is defined %}
-
 <b>Summary:</b>
 Online: {{ summary.online|default(0) }} | Offline: {{ summary.offline|default(0) }}
 Avg CPU: {{ "%.0f"|format(summary.avg_cpu|default(0)) }}% | Avg RAM: {{ "%.0f"|format(summary.avg_ram|default(0)) }}%

@@ -12,11 +12,12 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Callable, Awaitable
 
 import httpx
 
 from .exceptions import TelegramAPIError
+from .commands import CommandRegistry, PollingManager
 
 
 class TelegramAPI:
@@ -33,6 +34,8 @@ class TelegramAPI:
     def __init__(self, base_url: str = "http://localhost:8081", timeout: float = 30.0):
         self.base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(base_url=self.base_url, timeout=timeout)
+        self._command_registry = CommandRegistry()
+        self._polling_manager: PollingManager | None = None
 
     async def close(self) -> None:
         """Закрыть HTTP-клиент."""
@@ -594,6 +597,83 @@ class TelegramAPI:
         """Информация о боте (getMe)."""
         data = await self._get("/v1/bot/me")
         return data.get("bot", data)
+
+    # === CommandHandler Pattern ===
+
+    def command(
+        self,
+        command: str,
+        chat_id: int | str | None = None,
+        user_id: int | str | None = None,
+    ) -> Callable[[Callable[[dict, list[str]], Awaitable[None]]], Callable[[dict, list[str]], Awaitable[None]]]:
+        """
+        Декоратор для регистрации обработчика команды.
+
+        Args:
+            command: Имя команды (без /)
+            chat_id: Фильтр по chat_id (guard pattern)
+            user_id: Фильтр по user_id (guard pattern)
+
+        Пример:
+            @api.command("start")
+            async def start_handler(update, args):
+                chat_id = update["message"]["chat"]["id"]
+                await api.send_message(chat_id, "Привет!")
+
+            @api.command("admin", chat_id=-100123456)  # Только этот чат
+            async def admin_handler(update, args):
+                # Доступно только в чате -100123456
+                await api.send_message(update["message"]["chat"]["id"], "Admin panel")
+        """
+        def decorator(handler: Callable[[dict, list[str]], Awaitable[None]]) -> Callable[[dict, list[str]], Awaitable[None]]:
+            self._command_registry.register(command, handler, chat_id=chat_id, user_id=user_id)
+            return handler
+        return decorator
+
+    async def start_polling(
+        self,
+        timeout: int = 30,
+        limit: int = 100,
+        allowed_updates: list[str] | None = None,
+    ) -> None:
+        """
+        Запуск long polling для получения обновлений и обработки команд.
+
+        Args:
+            timeout: Таймаут long polling (секунды)
+            limit: Максимум обновлений за раз
+            allowed_updates: Фильтр типов обновлений (["message", "callback_query", ...])
+
+        Пример:
+            api = TelegramAPI("http://localhost:8081")
+
+            @api.command("start")
+            async def start(update, args):
+                await api.send_message(
+                    chat_id=update["message"]["chat"]["id"],
+                    text="Привет! Я бот."
+                )
+
+            # Запуск polling (блокирующий вызов)
+            await api.start_polling()
+        """
+        if self._polling_manager is None:
+            self._polling_manager = PollingManager(self, self._command_registry)
+
+        await self._polling_manager.start(
+            timeout=timeout,
+            limit=limit,
+            allowed_updates=allowed_updates,
+        )
+
+    def stop_polling(self) -> None:
+        """Остановка long polling."""
+        if self._polling_manager:
+            self._polling_manager.stop()
+
+    def list_commands(self) -> list[str]:
+        """Список зарегистрированных команд."""
+        return self._command_registry.list_commands()
 
 
 class ProgressContext:

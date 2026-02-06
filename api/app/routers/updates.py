@@ -6,11 +6,18 @@ import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from ..db import fetch_all, fetch_one, execute
 from ..telegram_client import call_api
 
 router = APIRouter(prefix="/v1/updates", tags=["updates"])
+
+
+class AckRequest(BaseModel):
+    """Запрос на подтверждение offset."""
+
+    offset: int
 
 
 @router.get("/poll")
@@ -53,7 +60,7 @@ async def poll_updates(
     """
     # Получаем текущий offset из БД если не передан
     if offset is None:
-        offset_row = await fetch_one("SELECT offset FROM update_offset ORDER BY id DESC LIMIT 1")
+        offset_row = await fetch_one('SELECT "offset" FROM update_offset ORDER BY id DESC LIMIT 1')
         offset = offset_row["offset"] if offset_row else 0
 
     # Вызываем getUpdates
@@ -90,7 +97,7 @@ async def poll_updates(
 
 
 @router.post("/ack")
-async def acknowledge_updates(offset: int) -> dict[str, Any]:
+async def acknowledge_updates(request: AckRequest) -> dict[str, Any]:
     """
     Подтверждение обработки обновлений (обновление offset).
 
@@ -103,8 +110,8 @@ async def acknowledge_updates(offset: int) -> dict[str, Any]:
 
     После успешной обработки обновлений, вызовите этот эндпоинт с новым offset.
     """
-    await execute("UPDATE update_offset SET offset = %s, updated_at = NOW() WHERE id = 1", [offset])
-    return {"ok": True, "offset": offset}
+    await execute('UPDATE update_offset SET "offset" = %s, updated_at = NOW() WHERE id = 1', [request.offset])
+    return {"ok": True, "offset": request.offset}
 
 
 @router.get("/offset")
@@ -120,10 +127,10 @@ async def get_current_offset() -> dict[str, Any]:
     }
     ```
     """
-    row = await fetch_one("SELECT offset, updated_at FROM update_offset ORDER BY id DESC LIMIT 1")
+    row = await fetch_one('SELECT "offset", updated_at FROM update_offset ORDER BY id DESC LIMIT 1')
     if not row:
         # Инициализируем offset если таблица пустая
-        await execute("INSERT INTO update_offset (offset) VALUES (0)")
+        await execute('INSERT INTO update_offset ("offset") VALUES (0)')
         return {"offset": 0, "updated_at": None}
 
     return {"offset": row["offset"], "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None}

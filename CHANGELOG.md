@@ -6,6 +6,34 @@
 
 ---
 
+## [2025.04.1] - 2025-02-06
+
+### Добавлено
+
+#### CommandHandler Pattern в SDK
+- Декоратор `@api.command("name")` для регистрации обработчиков команд
+- Guard-фильтры: `chat_id`, `user_id` для ограничения доступа к командам
+- Long polling механизм через `api.start_polling()` и `api.stop_polling()`
+- Класс `CommandRegistry` для управления зарегистрированными командами
+- Класс `PollingManager` для автоматической обработки обновлений
+- Парсинг аргументов команд: `/test arg1 arg2` → `handler(update, ["arg1", "arg2"])`
+- Метод `api.list_commands()` для просмотра зарегистрированных команд
+- Модули: `sdk/telegram_api_client/commands.py`, обновления в `client.py`
+- Тестовый скрипт: `scripts/test_command_handler.py`
+
+#### Синхронизация команд с Telegram
+- Поддержка `setMyCommands` через `api.sync_commands(command_set_id)`
+- Автоматические подсказки при вводе "/" в чатах
+- Тестовый скрипт: `scripts/test_commands.py --sync`
+
+### Исправлено
+- SQL синтаксис: зарезервированное слово `offset` теперь в кавычках во всех запросах
+- API endpoint `/v1/updates/ack` теперь принимает JSON body с Pydantic моделью
+- Экспорты `CommandRegistry` и `PollingManager` в `sdk/telegram_api_client/__init__.py`
+- Применена миграция `04_updates_and_threads.sql` (таблица `update_offset`)
+
+---
+
 ## [2025.03.1] - 2025-02-06
 
 ### Добавлено

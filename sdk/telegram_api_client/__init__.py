@@ -9,6 +9,7 @@ telegram-api-client — Python SDK для telegram-api микросервиса.
 """
 
 from .client import TelegramAPI, ProgressContext
+from .commands import CommandRegistry, PollingManager
 from .exceptions import TelegramAPIError
 
-__all__ = ["TelegramAPI", "ProgressContext", "TelegramAPIError"]
+__all__ = ["TelegramAPI", "ProgressContext", "TelegramAPIError", "CommandRegistry", "PollingManager"]

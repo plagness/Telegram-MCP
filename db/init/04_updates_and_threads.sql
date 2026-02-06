@@ -22,12 +22,12 @@ CREATE INDEX IF NOT EXISTS idx_updates_processed ON updates(processed, created_a
 -- Таблица для offset (long polling)
 CREATE TABLE IF NOT EXISTS update_offset (
     id SERIAL PRIMARY KEY,
-    offset INTEGER NOT NULL DEFAULT 0,
+    "offset" INTEGER NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Инициализируем offset (если таблица пустая)
-INSERT INTO update_offset (offset) VALUES (0) ON CONFLICT DO NOTHING;
+INSERT INTO update_offset ("offset") VALUES (0) ON CONFLICT DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CHAT ACTIONS (typing индикаторы)
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS inline_queries (
     inline_query_id TEXT NOT NULL UNIQUE,
     user_id TEXT NOT NULL,
     query TEXT,
-    offset TEXT,
+    "offset" TEXT,
     chat_type TEXT,
     location_latitude DOUBLE PRECISION,
     location_longitude DOUBLE PRECISION,
