@@ -1,8 +1,14 @@
 # Telegram-MCP
 
+[![Version](https://img.shields.io/badge/version-2025.02.1-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-25-orange.svg)](docs/mcp.md)
+
 Автономный микросервис для стандартизации работы с Telegram Bot API через MCP (Model Context Protocol).
 
-Централизует отправку сообщений, медиа, управление командами, приём вебхуков и предоставляет 25 MCP-инструментов для интеграции с LLM (Claude, ChatGPT и др.).
+Централизует отправку сообщений, медиа, управление командами, приём вебхуков и предоставляет **25 MCP-инструментов** для интеграции с LLM (Claude, ChatGPT и др.).
 
 ## Возможности
 
