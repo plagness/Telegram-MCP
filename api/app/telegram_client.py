@@ -208,6 +208,16 @@ async def copy_message(payload: dict[str, Any]) -> dict[str, Any]:
     return await _call("copyMessage", payload)
 
 
+async def pin_chat_message(payload: dict[str, Any]) -> dict[str, Any]:
+    """pinChatMessage — закрепление сообщения в чате."""
+    return await _call("pinChatMessage", payload)
+
+
+async def unpin_chat_message(payload: dict[str, Any]) -> dict[str, Any]:
+    """unpinChatMessage — открепление сообщения в чате."""
+    return await _call("unpinChatMessage", payload)
+
+
 # === Медиа ===
 
 

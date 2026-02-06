@@ -212,6 +212,19 @@ class CopyMessageIn(BaseModel):
     reply_markup: dict[str, Any] | None = None
 
 
+class PinMessageIn(BaseModel):
+    """Закрепление сообщения в чате."""
+    disable_notification: bool = Field(
+        default=True,
+        description="Не отправлять уведомление о закреплении (по умолчанию True для тихого пина)"
+    )
+
+
+class UnpinMessageIn(BaseModel):
+    """Открепление сообщения в чате (опционально)."""
+    pass  # Пустая модель, все параметры берутся из URL
+
+
 # === Вебхуки ===
 
 

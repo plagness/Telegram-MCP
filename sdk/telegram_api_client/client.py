@@ -178,6 +178,34 @@ class TelegramAPI:
         data = await self._get("/v1/messages", params)
         return data.get("items", [])
 
+    async def pin_message(self, message_id: int, disable_notification: bool = True) -> dict[str, Any]:
+        """
+        Закрепить сообщение в чате.
+
+        Args:
+            message_id: Внутренний ID сообщения
+            disable_notification: Не отправлять уведомление (по умолчанию True для тихого пина)
+
+        Returns:
+            Результат операции от Telegram API
+        """
+        payload = {"disable_notification": disable_notification}
+        data = await self._post(f"/v1/messages/{message_id}/pin", payload)
+        return data
+
+    async def unpin_message(self, message_id: int) -> dict[str, Any]:
+        """
+        Открепить сообщение в чате.
+
+        Args:
+            message_id: Внутренний ID сообщения
+
+        Returns:
+            Результат операции от Telegram API
+        """
+        data = await self._delete(f"/v1/messages/{message_id}/pin")
+        return data
+
     # === Медиа ===
 
     async def send_photo(
@@ -319,7 +347,12 @@ class TelegramAPI:
 
     # === Прогресс-нотификатор ===
 
-    def progress(self, chat_id: int | str, parse_mode: str | None = "HTML") -> ProgressContext:
+    def progress(
+        self,
+        chat_id: int | str,
+        parse_mode: str | None = "HTML",
+        auto_pin: bool = False,
+    ) -> ProgressContext:
         """
         Контекстный менеджер для прогресс-сообщений (send → edit → delete).
 
@@ -328,8 +361,14 @@ class TelegramAPI:
                 await p.update(1, 5, "Загрузка данных...")
                 await p.update(2, 5, "Обработка...")
             # Сообщение автоматически удаляется при выходе
+
+        Автопин (для мониторинга долгих процессов):
+            async with api.progress(chat_id, auto_pin=True) as p:
+                await p.update(1, 10, "Загрузка большого файла...")
+            # Сообщение закреплено (без уведомления) пока идёт процесс,
+            # автоматически открепляется при завершении
         """
-        return ProgressContext(self, chat_id, parse_mode=parse_mode)
+        return ProgressContext(self, chat_id, parse_mode=parse_mode, auto_pin=auto_pin)
 
     # === Шаблоны ===
 
@@ -686,6 +725,10 @@ class ProgressContext:
     - При выходе из контекста — удаляет сообщение
 
     Аналог ProgressNotifier из монолита, но через telegram-api.
+
+    Поддержка автопина:
+    - При auto_pin=True сообщение автоматически закрепляется (без уведомления)
+    - При завершении — автоматически открепляется
     """
 
     def __init__(
@@ -694,13 +737,16 @@ class ProgressContext:
         chat_id: int | str,
         parse_mode: str | None = "HTML",
         min_interval: float = 0.8,
+        auto_pin: bool = False,
     ):
         self._api = api
         self._chat_id = chat_id
         self._parse_mode = parse_mode
         self._min_interval = min_interval
+        self._auto_pin = auto_pin
         self._message_id: int | None = None
         self._last_edit_ts: float = 0.0
+        self._is_pinned: bool = False
 
     async def __aenter__(self) -> ProgressContext:
         return self
@@ -732,6 +778,14 @@ class ProgressContext:
             )
             self._message_id = msg.get("id")
             self._last_edit_ts = now
+
+            # Автопин (тихий, без уведомления)
+            if self._auto_pin and self._message_id:
+                try:
+                    await self._api.pin_message(self._message_id, disable_notification=True)
+                    self._is_pinned = True
+                except Exception:
+                    pass  # Игнорируем ошибки пина (могут быть права доступа)
         else:
             # Throttle — не чаще min_interval
             if now - self._last_edit_ts < self._min_interval:
@@ -746,6 +800,15 @@ class ProgressContext:
         """Завершить прогресс: показать финальный текст или удалить сообщение."""
         if self._message_id is None:
             return
+
+        # Автоанпин перед завершением
+        if self._is_pinned:
+            try:
+                await self._api.unpin_message(self._message_id)
+                self._is_pinned = False
+            except Exception:
+                pass
+
         if final_text:
             try:
                 await self._api.edit_message(self._message_id, text=final_text, parse_mode=self._parse_mode)

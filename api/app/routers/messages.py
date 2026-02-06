@@ -6,7 +6,14 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from ..models import EditMessageIn, SendMessageIn, ForwardMessageIn, CopyMessageIn
+from ..models import (
+    EditMessageIn,
+    SendMessageIn,
+    ForwardMessageIn,
+    CopyMessageIn,
+    PinMessageIn,
+    UnpinMessageIn,
+)
 from ..services import messages as message_service
 from ..services import templates as template_service
 from ..telegram_client import (
@@ -16,6 +23,8 @@ from ..telegram_client import (
     delete_message,
     forward_message,
     copy_message,
+    pin_chat_message,
+    unpin_chat_message,
 )
 
 router = APIRouter(prefix="/v1/messages", tags=["messages"])
@@ -231,6 +240,62 @@ async def copy_message_api(payload: CopyMessageIn) -> dict[str, Any]:
 
     try:
         result = await copy_message(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+@router.post("/{message_id}/pin")
+async def pin_message_api(message_id: int, payload: PinMessageIn) -> dict[str, Any]:
+    """
+    Закрепление сообщения в чате (pinChatMessage).
+
+    **Параметры**:
+    - message_id: ID сообщения из БД
+    - disable_notification: Не отправлять уведомление (по умолчанию True)
+
+    **Примечание**: Для тихого закрепления (без пуша в чат) используйте disable_notification=True.
+    """
+    # Получаем chat_id и telegram_message_id из БД
+    msg_record = await message_service.get_message(message_id)
+    if not msg_record:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    telegram_payload: dict[str, Any] = {
+        "chat_id": msg_record["chat_id"],
+        "message_id": msg_record["telegram_message_id"],
+        "disable_notification": payload.disable_notification,
+    }
+
+    try:
+        result = await pin_chat_message(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+@router.delete("/{message_id}/pin")
+async def unpin_message_api(message_id: int) -> dict[str, Any]:
+    """
+    Открепление сообщения в чате (unpinChatMessage).
+
+    **Параметры**:
+    - message_id: ID сообщения из БД
+    """
+    # Получаем chat_id и telegram_message_id из БД
+    msg_record = await message_service.get_message(message_id)
+    if not msg_record:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    telegram_payload: dict[str, Any] = {
+        "chat_id": msg_record["chat_id"],
+        "message_id": msg_record["telegram_message_id"],
+    }
+
+    try:
+        result = await unpin_chat_message(telegram_payload)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
