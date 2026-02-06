@@ -18,13 +18,11 @@ pool = AsyncConnectionPool(
 
 
 async def init_pool() -> None:
-    if not pool.opened:
-        await pool.open()
+    await pool.open()
 
 
 async def close_pool() -> None:
-    if pool.opened:
-        await pool.close()
+    await pool.close()
 
 
 async def fetch_one(query: str, params: Iterable[Any] | None = None) -> dict | None:
