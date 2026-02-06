@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from psycopg.types.json import Json
+
 from ..db import execute, execute_returning, fetch_all, fetch_one
 
 
@@ -41,13 +43,13 @@ async def create_poll(
             chat_id,
             telegram_message_id,
             question,
-            options,
+            Json(options),
             poll_type,
             is_anonymous,
             allows_multiple_answers,
             correct_option_id,
             explanation,
-            explanation_entities,
+            Json(explanation_entities) if explanation_entities else None,
             open_period,
             close_date,
         ],
@@ -77,7 +79,7 @@ async def update_poll(
         values.append(total_voter_count)
     if results is not None:
         updates.append("results = %s")
-        values.append(results)
+        values.append(Json(results))
 
     if not updates:
         return
@@ -120,7 +122,7 @@ async def add_poll_answer(
         VALUES (%s, %s, %s)
         RETURNING *
     """
-    return await execute_returning(sql, [poll_id, user_id, option_ids])
+    return await execute_returning(sql, [poll_id, user_id, Json(option_ids)])
 
 
 async def get_poll_answers(poll_id: str) -> list[dict[str, Any]]:
