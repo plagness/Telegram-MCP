@@ -832,6 +832,203 @@ class TelegramAPI:
         }
         return await self._post("/v1/stories/repost", payload)
 
+    # === Prediction Markets (Betting) ===
+
+    async def create_prediction_event(
+        self,
+        title: str,
+        description: str,
+        options: list[dict[str, Any]],
+        creator_id: int,
+        *,
+        chat_id: int | str | None = None,
+        deadline: str | None = None,
+        resolution_date: str | None = None,
+        min_bet: int = 1,
+        max_bet: int = 1000,
+        is_anonymous: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Создать событие для ставок (Polymarket-style).
+
+        Args:
+            title: Заголовок события
+            description: Описание
+            options: Варианты ответов [{"id": "1", "text": "16%", "value": "16"}, ...]
+            creator_id: ID создателя
+            chat_id: ID чата для публикации (None = личное)
+            deadline: ISO datetime дедлайна ставок
+            resolution_date: ISO datetime разрешения
+            min_bet: Минимальная ставка в Stars
+            max_bet: Максимальная ставка в Stars
+            is_anonymous: Обезличенные ставки (default: True)
+
+        Returns:
+            {"event_id": N}
+        """
+        payload = {
+            "title": title,
+            "description": description,
+            "options": options,
+            "creator_id": creator_id,
+            "chat_id": chat_id,
+            "deadline": deadline,
+            "resolution_date": resolution_date,
+            "min_bet": min_bet,
+            "max_bet": max_bet,
+            "is_anonymous": is_anonymous,
+        }
+        return await self._post("/v1/predictions/events", payload)
+
+    async def place_bet(
+        self,
+        event_id: int,
+        option_id: str,
+        amount: int,
+        user_id: int,
+    ) -> dict[str, Any]:
+        """
+        Разместить ставку на событие.
+
+        Args:
+            event_id: ID события
+            option_id: ID варианта
+            amount: Сумма ставки в Stars
+            user_id: ID пользователя
+
+        Returns:
+            {"bet_id": N, "transaction_id": M, "invoice": {...}}
+        """
+        payload = {
+            "event_id": event_id,
+            "option_id": option_id,
+            "amount": amount,
+            "user_id": user_id,
+        }
+        return await self._post("/v1/predictions/bets", payload)
+
+    async def resolve_prediction_event(
+        self,
+        event_id: int,
+        winning_option_ids: list[str],
+        resolution_source: str,
+        resolution_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Разрешить событие и выплатить выигрыши.
+
+        Args:
+            event_id: ID события
+            winning_option_ids: ID победивших вариантов
+            resolution_source: Источник решения (llm-mcp/ollama/openrouter/manual)
+            resolution_data: Данные от LLM/новости
+
+        Returns:
+            {"winners": N, "total_payout": M}
+        """
+        payload = {
+            "event_id": event_id,
+            "winning_option_ids": winning_option_ids,
+            "resolution_source": resolution_source,
+            "resolution_data": resolution_data,
+        }
+        return await self._post(f"/v1/predictions/events/{event_id}/resolve", payload)
+
+    async def list_prediction_events(
+        self,
+        status: str | None = None,
+        chat_id: int | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Список событий для ставок."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if status:
+            params["status"] = status
+        if chat_id:
+            params["chat_id"] = chat_id
+        data = await self._get("/v1/predictions/events", params)
+        return data.get("events", [])
+
+    async def get_prediction_event(self, event_id: int) -> dict[str, Any]:
+        """Детали события."""
+        data = await self._get(f"/v1/predictions/events/{event_id}")
+        return data.get("event", {})
+
+    async def list_user_bets(
+        self,
+        user_id: int,
+        event_id: int | None = None,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Ставки пользователя."""
+        params: dict[str, Any] = {"user_id": user_id, "limit": limit}
+        if event_id:
+            params["event_id"] = event_id
+        if status:
+            params["status"] = status
+        data = await self._get("/v1/predictions/bets", params)
+        return data.get("bets", [])
+
+    # === Stars Payments ===
+
+    async def create_star_invoice(
+        self,
+        chat_id: int | str,
+        title: str,
+        description: str,
+        amount: int,
+        payload: str,
+    ) -> dict[str, Any]:
+        """
+        Создать счёт на оплату Stars.
+
+        Args:
+            chat_id: ID чата
+            title: Заголовок счёта
+            description: Описание
+            amount: Сумма в Stars
+            payload: Внутренний ID для идентификации
+
+        Returns:
+            Invoice данные
+        """
+        invoice_payload = {
+            "chat_id": chat_id,
+            "title": title,
+            "description": description,
+            "payload": payload,
+            "currency": "XTR",
+            "prices": [{"label": title, "amount": amount}],
+        }
+        return await self._post("/v1/stars/invoice", invoice_payload)
+
+    async def refund_star_payment(
+        self,
+        user_id: int,
+        telegram_payment_charge_id: str,
+    ) -> dict[str, Any]:
+        """Возврат Stars платежа."""
+        payload = {
+            "user_id": user_id,
+            "telegram_payment_charge_id": telegram_payment_charge_id,
+        }
+        return await self._post("/v1/stars/refund", payload)
+
+    async def get_star_transactions(
+        self,
+        user_id: int | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """История транзакций Stars."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if user_id:
+            params["user_id"] = user_id
+        data = await self._get("/v1/stars/transactions", params)
+        return data.get("transactions", [])
+
     # === Мониторинг ===
 
     async def health(self) -> dict[str, Any]:

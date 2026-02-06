@@ -6,6 +6,64 @@
 
 ---
 
+## [2026.02.7] - 2026-02-06
+
+### Добавлено
+
+#### 🎯 Prediction Markets (Polymarket-style Betting System)
+
+**Основная функциональность:**
+- Создание событий для ставок Stars с мультипликатором
+- Размещение ставок через invoice (автоматическое списание Stars)
+- Разрешение событий с выплатой выигрышей
+- Обезличенные и публичные ставки
+- Работа в каналах и личных чатах
+
+**API Endpoints:**
+- `POST /v1/predictions/events` — создание события
+- `GET /v1/predictions/events` — список событий
+- `GET /v1/predictions/events/{id}` — детали события
+- `POST /v1/predictions/bets` — размещение ставки
+- `POST /v1/predictions/events/{id}/resolve` — разрешение события
+- `GET /v1/predictions/bets` — ставки пользователя
+
+**Stars Payments (полная поддержка):**
+- `POST /v1/stars/invoice` — создание счёта на оплату
+- `POST /v1/stars/refund` — возврат платежа
+- `GET /v1/stars/transactions` — история транзакций
+- Функции: `send_invoice()`, `create_invoice_link()`, `answer_pre_checkout_query()`, `refund_star_payment()`, `get_star_transactions()`
+
+**SDK методы:**
+- `api.create_prediction_event()` — создание события
+- `api.place_bet()` — размещение ставки
+- `api.resolve_prediction_event()` — разрешение
+- `api.list_prediction_events()`, `api.get_prediction_event()`, `api.list_user_bets()`
+- `api.create_star_invoice()`, `api.refund_star_payment()`, `api.get_star_transactions()`
+
+**MCP tools (+9 инструментов, теперь 40 всего):**
+- `predictions.create_event`, `predictions.place_bet`, `predictions.resolve`, `predictions.list`, `predictions.get`, `predictions.user_bets`
+- `stars.invoice`, `stars.refund`, `stars.transactions`
+
+**LLM Integration для принятия решений:**
+- Модуль `llm_resolver.py` с поддержкой llm-mcp, Ollama, OpenRouter
+- Автоматическое разрешение событий через LLM
+- Агрегация новостей через channel-mcp для событий без фиксированной даты
+- Обработка граничных случаев (нет правильного ответа → полный возврат, между вариантами → распределение)
+
+**База данных:**
+- Таблицы: `star_transactions`, `prediction_events`, `prediction_options`, `prediction_bets`, `prediction_resolutions`, `prediction_llm_config`
+- Миграция: `db/init/05_predictions_and_payments.sql`
+
+**Jinja2 шаблон:**
+- `templates/prediction_event.j2` — красивое отображение событий с коэффициентами
+
+**Инфраструктура:**
+- Новый роутер: `api/app/routers/predictions.py`
+- Модуль LLM: `api/app/llm_resolver.py`
+- Модели: `PredictionOption`, `CreatePredictionEventIn`, `PlaceBetIn`, `ResolveEventIn`, `SendInvoiceIn`, `RefundStarPaymentIn`, `LabeledPrice`
+
+---
+
 ## [2026.02.6] - 2026-02-06
 
 ### Добавлено

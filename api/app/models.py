@@ -456,3 +456,70 @@ class RepostStoryIn(BaseModel):
     chat_id: int | str
     from_chat_id: int | str
     story_id: int
+
+
+# === Stars Payments ===
+
+
+class LabeledPrice(BaseModel):
+    """Цена с описанием."""
+    label: str
+    amount: int  # Сумма в минимальных единицах (для Stars = количество звёзд)
+
+
+class SendInvoiceIn(BaseModel):
+    """Создание счёта на оплату Stars."""
+    chat_id: int | str
+    title: str = Field(..., max_length=32)
+    description: str = Field(..., max_length=255)
+    payload: str = Field(..., max_length=128, description="Внутренний ID для идентификации платежа")
+    currency: str = Field(default="XTR", description="Валюта (XTR для Stars)")
+    prices: list[LabeledPrice] = Field(..., min_length=1)
+    message_thread_id: int | None = None
+    reply_to_message_id: int | None = None
+
+
+class RefundStarPaymentIn(BaseModel):
+    """Возврат Stars платежа."""
+    user_id: int
+    telegram_payment_charge_id: str
+
+
+# === Prediction Markets (Betting) ===
+
+
+class PredictionOption(BaseModel):
+    """Вариант ответа в событии."""
+    id: str = Field(..., description="Уникальный ID варианта")
+    text: str = Field(..., max_length=100, description="Текст варианта")
+    value: str | None = Field(None, description="Числовое значение (например, '16.5%')")
+
+
+class CreatePredictionEventIn(BaseModel):
+    """Создание события для ставок."""
+    title: str = Field(..., max_length=200)
+    description: str = Field(..., max_length=1000)
+    options: list[PredictionOption] = Field(..., min_length=2, max_length=10)
+    deadline: str | None = Field(None, description="ISO datetime дедлайна события")
+    resolution_date: str | None = Field(None, description="ISO datetime разрешения (если без фиксированной даты, нейронка решит)")
+    min_bet: int = Field(default=1, ge=1, description="Минимальная ставка в Stars")
+    max_bet: int = Field(default=1000, ge=1, description="Максимальная ставка в Stars")
+    is_anonymous: bool = Field(default=True, description="Обезличенные ставки")
+    chat_id: int | str | None = Field(None, description="Чат для публикации (если None, личное событие)")
+    creator_id: int = Field(..., description="ID создателя события")
+
+
+class PlaceBetIn(BaseModel):
+    """Размещение ставки."""
+    event_id: int
+    option_id: str
+    amount: int = Field(..., ge=1, description="Сумма ставки в Stars")
+    user_id: int
+
+
+class ResolveEventIn(BaseModel):
+    """Разрешение события (определение победителя)."""
+    event_id: int
+    winning_option_ids: list[str] = Field(..., min_length=1, description="ID победивших вариантов (может быть несколько)")
+    resolution_source: str = Field(..., description="Источник решения (llm-mcp/ollama/openrouter/manual)")
+    resolution_data: dict[str, Any] | None = Field(None, description="Данные от LLM/новости")

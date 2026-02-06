@@ -472,3 +472,31 @@ async def gift_premium_subscription(payload: dict[str, Any]) -> dict[str, Any]:
 async def repost_story(payload: dict[str, Any]) -> dict[str, Any]:
     """repostStory — репост истории в канал (Bot API 9.3)."""
     return await _call("repostStory", payload)
+
+
+# === Stars Payments ===
+
+
+async def send_invoice(payload: dict[str, Any]) -> dict[str, Any]:
+    """sendInvoice — создание счёта на оплату (Stars)."""
+    return await _call("sendInvoice", payload)
+
+
+async def create_invoice_link(payload: dict[str, Any]) -> dict[str, Any]:
+    """createInvoiceLink — создание ссылки на оплату (Stars)."""
+    return await _call("createInvoiceLink", payload)
+
+
+async def answer_pre_checkout_query(payload: dict[str, Any]) -> dict[str, Any]:
+    """answerPreCheckoutQuery — подтверждение предзаказа."""
+    return await _call("answerPreCheckoutQuery", payload)
+
+
+async def refund_star_payment(payload: dict[str, Any]) -> dict[str, Any]:
+    """refundStarPayment — возврат Stars платежа."""
+    return await _call("refundStarPayment", payload)
+
+
+async def get_star_transactions(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """getStarTransactions — история транзакций Stars."""
+    return await _call("getStarTransactions", payload or {})

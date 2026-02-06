@@ -11,7 +11,7 @@ from .config import get_settings
 from .db import init_pool, close_pool
 from .telegram_client import close_client
 from .services import templates as template_service
-from .routers import health, messages, media, templates, commands, callbacks, chats, webhook, polls, reactions, updates, actions, checklists
+from .routers import health, messages, media, templates, commands, callbacks, chats, webhook, polls, reactions, updates, actions, checklists, predictions
 
 settings = get_settings()
 
@@ -46,3 +46,4 @@ app.include_router(reactions.router)
 app.include_router(updates.router)
 app.include_router(actions.router)
 app.include_router(checklists.router)
+app.include_router(predictions.router)

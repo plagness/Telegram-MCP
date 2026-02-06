@@ -1,0 +1,35 @@
+{# Шаблон для события Prediction Market (Polymarket-style) #}
+<b>🎯 {{ title }}</b>
+
+{{ description }}
+
+<b>📊 Варианты и текущие коэффициенты:</b>
+{% for option in options %}
+{% set total = total_pool if total_pool > 0 else 1 %}
+{% set option_pool = option.total_amount %}
+{% set percentage = (option_pool / total * 100)|round(1) if total > 0 else 0 %}
+{% set multiplier = (total / option_pool)|round(2) if option_pool > 0 else 0 %}
+  {{ loop.index }}. {{ option.text }}{% if option.value %} <code>({{ option.value }})</code>{% endif %}
+     └ {{ option.total_bets }} ставок • {{ option_pool }} ⭐ • <b>×{{ multiplier }}</b>
+     └ {{ percentage }}% банка
+{% endfor %}
+
+<b>💰 Общий банк:</b> {{ total_pool }} ⭐
+<b>🎲 Ставка:</b> {{ min_bet }}-{{ max_bet }} ⭐
+{% if deadline %}<b>⏰ Дедлайн:</b> {{ deadline|datetime_format }}{% endif %}
+{% if resolution_date %}<b>📅 Разрешение:</b> {{ resolution_date|datetime_format }}{% endif %}
+<b>👤 Режим:</b> {{ "Обезличенный 🕶️" if is_anonymous else "Публичный 👀" }}
+<b>📈 Статус:</b> {{ status_emoji(status) }} {{ status.upper() }}
+
+{% if status == 'active' %}
+<i>Для ставки используйте /bet {{ event_id }} [номер_варианта] [сумма]</i>
+{% elif status == 'resolved' and resolution %}
+<b>🏆 Результат:</b>
+{% for winner_id in resolution.winning_option_ids %}
+{% set winner = options|selectattr('id', 'equalto', winner_id)|first %}
+  ✅ {{ winner.text }}{% if winner.value %} <code>({{ winner.value }})</code>{% endif %}
+{% endfor %}
+<b>💸 Выплачено:</b> {{ resolution.total_payout }} ⭐ победителям ({{ resolution.total_winners }} чел.)
+{% endif %}
+
+<i>ID события: {{ event_id }}</i>
