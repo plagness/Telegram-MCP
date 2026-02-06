@@ -408,3 +408,51 @@ class SetMessageReactionIn(BaseModel):
     message_id: int  # telegram_message_id (не внутренний ID)
     reaction: list[ReactionType] | None = None
     is_big: bool = False
+
+
+# === Checklists (Bot API 9.1) ===
+
+
+class ChecklistTask(BaseModel):
+    """Задача в чек-листе."""
+    text: str = Field(..., max_length=256)
+    is_completed: bool = False
+
+
+class InputChecklist(BaseModel):
+    """Чек-лист (Bot API 9.1)."""
+    title: str = Field(..., max_length=128)
+    tasks: list[ChecklistTask] = Field(..., min_length=1, max_length=30)
+
+
+class SendChecklistIn(BaseModel):
+    """Отправка чек-листа (Bot API 9.1)."""
+    chat_id: int | str
+    checklist: InputChecklist
+    business_connection_id: str | None = None
+    message_thread_id: int | None = None
+    reply_to_message_id: int | None = None
+    request_id: str | None = None
+
+
+class EditChecklistIn(BaseModel):
+    """Редактирование чек-листа."""
+    checklist: InputChecklist
+    business_connection_id: str | None = None
+
+
+# === Stars & Gifts (Bot API 9.1+) ===
+
+
+class GiftPremiumIn(BaseModel):
+    """Подарить премиум-подписку за звёзды."""
+    user_id: int
+    duration_months: int = Field(..., ge=1, le=12)
+    star_count: int
+
+
+class RepostStoryIn(BaseModel):
+    """Репост истории (Bot API 9.3)."""
+    chat_id: int | str
+    from_chat_id: int | str
+    story_id: int

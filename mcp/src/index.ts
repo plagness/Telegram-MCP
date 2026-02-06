@@ -507,6 +507,101 @@ addTool({
   }),
 });
 
+// --- Чеклисты (Bot API 9.1) ---
+
+addTool({
+  name: "checklists.send",
+  description: "Отправить чек-лист с интерактивными задачами (Bot API 9.1). До 30 задач с галочками.",
+  parameters: z.object({
+    chat_id: z.union([z.string(), z.number()]),
+    title: z.string().max(128).describe("Заголовок чек-листа"),
+    tasks: z.array(z.object({
+      text: z.string().max(256),
+      is_completed: z.boolean().optional().default(false),
+    })).min(1).max(30),
+    message_thread_id: z.number().int().optional(),
+    reply_to_message_id: z.number().int().optional(),
+    request_id: z.string().optional(),
+  }),
+  execute: async (params) => apiRequest("/v1/checklists/send", {
+    method: "POST",
+    body: JSON.stringify(params),
+  }),
+});
+
+addTool({
+  name: "checklists.edit",
+  description: "Редактировать существующий чек-лист (обновить задачи).",
+  parameters: z.object({
+    message_id: z.number().int().describe("Внутренний ID сообщения с чек-листом"),
+    tasks: z.array(z.object({
+      text: z.string().max(256),
+      is_completed: z.boolean().optional().default(false),
+    })).min(1).max(30),
+  }),
+  execute: async (params) => apiRequest(`/v1/messages/${params.message_id}/checklist`, {
+    method: "PUT",
+    body: JSON.stringify({ tasks: params.tasks }),
+  }),
+});
+
+// --- Звёзды и Подарки (Bot API 9.1+) ---
+
+addTool({
+  name: "stars.balance",
+  description: "Получить баланс звёзд бота (Bot API 9.1). Возвращает star_count.",
+  parameters: z.object({}).optional(),
+  execute: async () => apiRequest("/v1/stars/balance"),
+});
+
+addTool({
+  name: "gifts.premium",
+  description: "Подарить премиум-подписку пользователю за звёзды (Bot API 9.3). Списывает звёзды с баланса бота.",
+  parameters: z.object({
+    user_id: z.number().int(),
+    duration_months: z.number().int().min(1).max(12).describe("Длительность подписки (1-12 месяцев)"),
+    star_count: z.number().int().describe("Стоимость в звёздах"),
+  }),
+  execute: async (params) => apiRequest("/v1/gifts/premium", {
+    method: "POST",
+    body: JSON.stringify(params),
+  }),
+});
+
+addTool({
+  name: "gifts.user",
+  description: "Получить список подарков пользователя (Bot API 9.3).",
+  parameters: z.object({
+    user_id: z.number().int(),
+  }),
+  execute: async (params) => apiRequest(`/v1/gifts/user/${params.user_id}`),
+});
+
+addTool({
+  name: "gifts.chat",
+  description: "Получить список подарков в чате (Bot API 9.3).",
+  parameters: z.object({
+    chat_id: z.union([z.string(), z.number()]),
+  }),
+  execute: async (params) => apiRequest(`/v1/gifts/chat/${params.chat_id}`),
+});
+
+// --- Истории (Bot API 9.3) ---
+
+addTool({
+  name: "stories.repost",
+  description: "Репостнуть историю из одного канала в другой (Bot API 9.3).",
+  parameters: z.object({
+    chat_id: z.union([z.string(), z.number()]).describe("ID канала-получателя"),
+    from_chat_id: z.union([z.string(), z.number()]).describe("ID канала-источника"),
+    story_id: z.number().int().describe("ID истории"),
+  }),
+  execute: async (params) => apiRequest("/v1/stories/repost", {
+    method: "POST",
+    body: JSON.stringify(params),
+  }),
+});
+
 // --- Бот ---
 
 addTool({

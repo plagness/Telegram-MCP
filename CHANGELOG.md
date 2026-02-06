@@ -6,6 +6,43 @@
 
 ---
 
+## [2026.02.6] - 2026-02-06
+
+### Добавлено
+
+#### Bot API 9.x — Чеклисты, Звёзды, Подарки, Истории
+
+**Checklists (Bot API 9.1)**
+- Интерактивные чек-листы с задачами (до 30 элементов с галочками)
+- Endpoints: `POST /v1/checklists/send`, `PUT /v1/messages/{id}/checklist`
+- Модели: `ChecklistTask`, `SendChecklistIn`, `EditChecklistIn`
+- SDK-методы: `api.send_checklist()`, `api.edit_checklist()`
+- MCP-инструменты: `checklists.send`, `checklists.edit`
+- Функции: `send_checklist()`, `edit_message_checklist()` в `telegram_client.py`
+
+**Stars & Gifts (Bot API 9.1+)**
+- Баланс звёзд бота: `GET /v1/stars/balance` → `api.get_star_balance()`
+- Подарки премиум-подписок: `POST /v1/gifts/premium` → `api.gift_premium()`
+- Список подарков: `GET /v1/gifts/user/{user_id}`, `/gifts/chat/{chat_id}`
+- SDK-методы: `api.get_user_gifts()`, `api.get_chat_gifts()`
+- MCP-инструменты: `stars.balance`, `gifts.premium`, `gifts.user`, `gifts.chat`
+- Модели: `GiftPremiumIn`
+- Функции: `get_my_star_balance()`, `gift_premium_subscription()`, `get_user_gifts()`, `get_chat_gifts()`
+
+**Stories (Bot API 9.3)**
+- Репост историй между каналами: `POST /v1/stories/repost`
+- Модель: `RepostStoryIn`
+- SDK-метод: `api.repost_story(chat_id, from_chat_id, story_id)`
+- MCP-инструмент: `stories.repost`
+- Функция: `repost_story()` в `telegram_client.py`
+
+#### Инфраструктура
+- Новый роутер: `api/app/routers/checklists.py` (чеклисты, stars, gifts, stories)
+- Зарегистрирован в `main.py`
+- Расширен MCP с +7 инструментов (теперь 31 всего)
+
+---
+
 ## [2026.02.5] - 2026-02-06
 
 ### Добавлено

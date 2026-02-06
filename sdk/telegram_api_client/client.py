@@ -671,6 +671,167 @@ class TelegramAPI:
         data = await self._get("/v1/reactions", params)
         return data.get("items", [])
 
+    # === Checklists (Bot API 9.1) ===
+
+    async def send_checklist(
+        self,
+        chat_id: int | str,
+        title: str,
+        tasks: list[dict[str, Any]],
+        *,
+        business_connection_id: str | None = None,
+        message_thread_id: int | None = None,
+        reply_to_message_id: int | None = None,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Отправить чек-лист (Bot API 9.1).
+
+        Args:
+            chat_id: ID чата
+            title: Заголовок чек-листа (до 128 символов)
+            tasks: Список задач [{"text": "...", "is_completed": False}, ...]
+            business_connection_id: ID бизнес-подключения (для бизнес-аккаунтов)
+            message_thread_id: ID топика (для супергрупп с топиками)
+            reply_to_message_id: ID сообщения для ответа
+            request_id: Произвольный ID запроса для трекинга
+
+        Returns:
+            Ответ с данными сообщения
+        """
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "checklist": {
+                "title": title,
+                "tasks": tasks,
+            },
+        }
+        if business_connection_id is not None:
+            payload["business_connection_id"] = business_connection_id
+        if message_thread_id is not None:
+            payload["message_thread_id"] = message_thread_id
+        if reply_to_message_id is not None:
+            payload["reply_to_message_id"] = reply_to_message_id
+        if request_id is not None:
+            payload["request_id"] = request_id
+        return await self._post("/v1/checklists/send", payload)
+
+    async def edit_checklist(
+        self,
+        message_id: int,
+        title: str,
+        tasks: list[dict[str, Any]],
+        business_connection_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Редактировать чек-лист.
+
+        Args:
+            message_id: Внутренний ID сообщения
+            title: Заголовок чек-листа
+            tasks: Обновлённый список задач
+            business_connection_id: ID бизнес-подключения
+
+        Returns:
+            Ответ с обновлённым сообщением
+        """
+        payload: dict[str, Any] = {
+            "checklist": {
+                "title": title,
+                "tasks": tasks,
+            },
+        }
+        if business_connection_id is not None:
+            payload["business_connection_id"] = business_connection_id
+        return await self._request("PUT", f"/v1/messages/{message_id}/checklist", json=payload)
+
+    # === Stars & Gifts (Bot API 9.1+) ===
+
+    async def get_star_balance(self) -> dict[str, Any]:
+        """
+        Получить баланс звёзд бота (Bot API 9.1).
+
+        Returns:
+            {"star_count": N}
+        """
+        return await self._get("/v1/stars/balance")
+
+    async def gift_premium(
+        self,
+        user_id: int,
+        duration_months: int,
+        star_count: int,
+    ) -> dict[str, Any]:
+        """
+        Подарить премиум-подписку пользователю за звёзды (Bot API 9.3).
+
+        Args:
+            user_id: ID пользователя
+            duration_months: Длительность (1-12 месяцев)
+            star_count: Стоимость в звёздах
+
+        Returns:
+            Подтверждение операции
+        """
+        payload = {
+            "user_id": user_id,
+            "duration_months": duration_months,
+            "star_count": star_count,
+        }
+        return await self._post("/v1/gifts/premium", payload)
+
+    async def get_user_gifts(self, user_id: int) -> list[dict[str, Any]]:
+        """
+        Получить подарки пользователя (Bot API 9.3).
+
+        Args:
+            user_id: ID пользователя
+
+        Returns:
+            Список подарков
+        """
+        data = await self._get(f"/v1/gifts/user/{user_id}")
+        return data.get("result", [])
+
+    async def get_chat_gifts(self, chat_id: int | str) -> list[dict[str, Any]]:
+        """
+        Получить подарки в чате (Bot API 9.3).
+
+        Args:
+            chat_id: ID чата
+
+        Returns:
+            Список подарков
+        """
+        data = await self._get(f"/v1/gifts/chat/{chat_id}")
+        return data.get("result", [])
+
+    # === Stories (Bot API 9.3) ===
+
+    async def repost_story(
+        self,
+        chat_id: int | str,
+        from_chat_id: int | str,
+        story_id: int,
+    ) -> dict[str, Any]:
+        """
+        Репостнуть историю в канал (Bot API 9.3).
+
+        Args:
+            chat_id: ID канала-получателя
+            from_chat_id: ID канала-источника
+            story_id: ID истории
+
+        Returns:
+            Данные репостнутой истории
+        """
+        payload = {
+            "chat_id": chat_id,
+            "from_chat_id": from_chat_id,
+            "story_id": story_id,
+        }
+        return await self._post("/v1/stories/repost", payload)
+
     # === Мониторинг ===
 
     async def health(self) -> dict[str, Any]:

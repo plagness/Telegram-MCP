@@ -428,3 +428,47 @@ async def promote_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
 async def set_chat_administrator_custom_title(payload: dict[str, Any]) -> dict[str, Any]:
     """setChatAdministratorCustomTitle — установка кастомного титула админа."""
     return await _call("setChatAdministratorCustomTitle", payload)
+
+
+# === Checklists (Bot API 9.1) ===
+
+
+async def send_checklist(payload: dict[str, Any]) -> dict[str, Any]:
+    """sendChecklist — отправка чек-листа (Bot API 9.1)."""
+    return await _call("sendChecklist", payload)
+
+
+async def edit_message_checklist(payload: dict[str, Any]) -> dict[str, Any]:
+    """editMessageChecklist — редактирование чек-листа."""
+    return await _call("editMessageChecklist", payload)
+
+
+# === Stars & Gifts (Bot API 9.1+) ===
+
+
+async def get_my_star_balance() -> dict[str, Any]:
+    """getMyStarBalance — баланс звёзд бота (Bot API 9.1)."""
+    return await _call("getMyStarBalance", {})
+
+
+async def get_user_gifts(payload: dict[str, Any]) -> dict[str, Any]:
+    """getUserGifts — подарки пользователя (Bot API 9.3)."""
+    return await _call("getUserGifts", payload)
+
+
+async def get_chat_gifts(payload: dict[str, Any]) -> dict[str, Any]:
+    """getChatGifts — подарки в чате (Bot API 9.3)."""
+    return await _call("getChatGifts", payload)
+
+
+async def gift_premium_subscription(payload: dict[str, Any]) -> dict[str, Any]:
+    """giftPremiumSubscription — подарить премиум за звёзды (Bot API 9.3)."""
+    return await _call("giftPremiumSubscription", payload)
+
+
+# === Stories (Bot API 9.3) ===
+
+
+async def repost_story(payload: dict[str, Any]) -> dict[str, Any]:
+    """repostStory — репост истории в канал (Bot API 9.3)."""
+    return await _call("repostStory", payload)
