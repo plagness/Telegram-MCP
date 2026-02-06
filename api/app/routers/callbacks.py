@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 
 from ..db import execute, execute_returning, fetch_all, fetch_one
 from ..models import AnswerCallbackIn
+from ..services.bots import BotRegistry
 from ..telegram_client import TelegramError, answer_callback_query
 
 router = APIRouter(prefix="/v1/callbacks", tags=["callbacks"])
@@ -29,7 +30,8 @@ async def answer_callback_api(payload: AnswerCallbackIn) -> dict[str, Any]:
         telegram_payload["cache_time"] = payload.cache_time
 
     try:
-        result = await answer_callback_query(telegram_payload)
+        bot_token = await BotRegistry.get_bot_token(payload.bot_id)
+        result = await answer_callback_query(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 

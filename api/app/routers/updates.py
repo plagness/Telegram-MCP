@@ -2,27 +2,144 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
 
 from ..db import fetch_all, fetch_one, execute
+from ..models import UpdatesAckIn
+from ..services.bots import BotRegistry
 from ..telegram_client import call_api
 
 router = APIRouter(prefix="/v1/updates", tags=["updates"])
 
 
-class AckRequest(BaseModel):
-    """Запрос на подтверждение offset."""
+async def _default_offset_value() -> int:
+    row = await fetch_one(
+        """
+        SELECT "offset"
+        FROM update_offset
+        WHERE bot_id IS NULL
+        ORDER BY updated_at DESC NULLS LAST, id DESC
+        LIMIT 1
+        """
+    )
+    return int(row["offset"]) if row else 0
 
-    offset: int
+
+async def _get_or_create_offset(bot_id: int | None) -> int:
+    if bot_id is None:
+        row = await fetch_one(
+            """
+            SELECT "offset"
+            FROM update_offset
+            WHERE bot_id IS NULL
+            ORDER BY updated_at DESC NULLS LAST, id DESC
+            LIMIT 1
+            """
+        )
+        if row:
+            return int(row["offset"])
+
+        await execute(
+            """
+            INSERT INTO update_offset ("offset", bot_id, updated_at)
+            VALUES (0, NULL, NOW())
+            """
+        )
+        return 0
+
+    row = await fetch_one(
+        """
+        SELECT "offset"
+        FROM update_offset
+        WHERE bot_id = %s
+        ORDER BY updated_at DESC NULLS LAST, id DESC
+        LIMIT 1
+        """,
+        [bot_id],
+    )
+    if row:
+        return int(row["offset"])
+
+    fallback_offset = await _default_offset_value()
+    await execute(
+        """
+        INSERT INTO update_offset ("offset", bot_id, updated_at)
+        VALUES (%s, %s, NOW())
+        """,
+        [fallback_offset, bot_id],
+    )
+    return fallback_offset
+
+
+async def _save_offset(bot_id: int | None, offset: int) -> None:
+    if bot_id is None:
+        row = await fetch_one(
+            """
+            SELECT id
+            FROM update_offset
+            WHERE bot_id IS NULL
+            ORDER BY updated_at DESC NULLS LAST, id DESC
+            LIMIT 1
+            """
+        )
+        if row:
+            await execute(
+                """
+                UPDATE update_offset
+                SET "offset" = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                """,
+                [offset, row["id"]],
+            )
+            return
+
+        await execute(
+            """
+            INSERT INTO update_offset ("offset", bot_id, updated_at)
+            VALUES (%s, NULL, NOW())
+            """,
+            [offset],
+        )
+        return
+
+    row = await fetch_one(
+        """
+        SELECT id
+        FROM update_offset
+        WHERE bot_id = %s
+        ORDER BY updated_at DESC NULLS LAST, id DESC
+        LIMIT 1
+        """,
+        [bot_id],
+    )
+    if row:
+        await execute(
+            """
+            UPDATE update_offset
+            SET "offset" = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            [offset, row["id"]],
+        )
+        return
+
+    await execute(
+        """
+        INSERT INTO update_offset ("offset", bot_id, updated_at)
+        VALUES (%s, %s, NOW())
+        """,
+        [offset, bot_id],
+    )
 
 
 @router.get("/poll")
 async def poll_updates(
-    offset: int = Query(None, description="Update ID для начала (None = текущий offset из БД)"),
+    bot_id: int | None = Query(None, description="ID бота для мультибот-поллинга"),
+    offset: int | None = Query(None, description="Update ID для начала (None = текущий offset из БД для bot_id)"),
     limit: int = Query(100, ge=1, le=100, description="Максимум обновлений за раз"),
     timeout: int = Query(30, ge=0, le=60, description="Long polling timeout (секунды)"),
     allowed_updates: list[str] | None = Query(
@@ -60,8 +177,7 @@ async def poll_updates(
     """
     # Получаем текущий offset из БД если не передан
     if offset is None:
-        offset_row = await fetch_one('SELECT "offset" FROM update_offset ORDER BY id DESC LIMIT 1')
-        offset = offset_row["offset"] if offset_row else 0
+        offset = await _get_or_create_offset(bot_id)
 
     # Вызываем getUpdates
     params = {
@@ -73,7 +189,8 @@ async def poll_updates(
         params["allowed_updates"] = allowed_updates
 
     try:
-        response = await call_api("getUpdates", params)
+        bot_token = await BotRegistry.get_bot_token(bot_id)
+        response = await call_api("getUpdates", params, bot_token=bot_token)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get updates: {str(e)}")
 
@@ -97,7 +214,7 @@ async def poll_updates(
 
 
 @router.post("/ack")
-async def acknowledge_updates(request: AckRequest) -> dict[str, Any]:
+async def acknowledge_updates(request: UpdatesAckIn) -> dict[str, Any]:
     """
     Подтверждение обработки обновлений (обновление offset).
 
@@ -110,12 +227,12 @@ async def acknowledge_updates(request: AckRequest) -> dict[str, Any]:
 
     После успешной обработки обновлений, вызовите этот эндпоинт с новым offset.
     """
-    await execute('UPDATE update_offset SET "offset" = %s, updated_at = NOW() WHERE id = 1', [request.offset])
-    return {"ok": True, "offset": request.offset}
+    await _save_offset(request.bot_id, request.offset)
+    return {"ok": True, "offset": request.offset, "bot_id": request.bot_id}
 
 
 @router.get("/offset")
-async def get_current_offset() -> dict[str, Any]:
+async def get_current_offset(bot_id: int | None = Query(None, description="ID бота для отдельного offset")) -> dict[str, Any]:
     """
     Получение текущего offset.
 
@@ -127,13 +244,51 @@ async def get_current_offset() -> dict[str, Any]:
     }
     ```
     """
-    row = await fetch_one('SELECT "offset", updated_at FROM update_offset ORDER BY id DESC LIMIT 1')
-    if not row:
-        # Инициализируем offset если таблица пустая
-        await execute('INSERT INTO update_offset ("offset") VALUES (0)')
-        return {"offset": 0, "updated_at": None}
+    if bot_id is None:
+        row = await fetch_one(
+            """
+            SELECT "offset", updated_at, bot_id
+            FROM update_offset
+            WHERE bot_id IS NULL
+            ORDER BY updated_at DESC NULLS LAST, id DESC
+            LIMIT 1
+            """
+        )
+        if not row:
+            await execute('INSERT INTO update_offset ("offset", bot_id, updated_at) VALUES (0, NULL, NOW())')
+            return {"offset": 0, "updated_at": None, "bot_id": None}
+        return {
+            "offset": row["offset"],
+            "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+            "bot_id": None,
+        }
 
-    return {"offset": row["offset"], "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None}
+    row = await fetch_one(
+        """
+        SELECT "offset", updated_at, bot_id
+        FROM update_offset
+        WHERE bot_id = %s
+        ORDER BY updated_at DESC NULLS LAST, id DESC
+        LIMIT 1
+        """,
+        [bot_id],
+    )
+    if not row:
+        fallback_offset = await _default_offset_value()
+        await execute(
+            """
+            INSERT INTO update_offset ("offset", bot_id, updated_at)
+            VALUES (%s, %s, NOW())
+            """,
+            [fallback_offset, bot_id],
+        )
+        return {"offset": fallback_offset, "updated_at": None, "bot_id": bot_id}
+
+    return {
+        "offset": row["offset"],
+        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+        "bot_id": row["bot_id"],
+    }
 
 
 @router.post("/process")

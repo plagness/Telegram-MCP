@@ -1,5 +1,11 @@
 FROM python:3.11-slim
 
+LABEL org.opencontainers.image.title="tgapi" \
+      org.opencontainers.image.description="Telegram-MCP API service" \
+      org.opencontainers.image.source="https://github.com/plagness/Telegram-MCP.git" \
+      ns.module="telegram" \
+      ns.component="api"
+
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 

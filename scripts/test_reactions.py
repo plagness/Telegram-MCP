@@ -26,6 +26,7 @@ async def test_reactions(
     api: TelegramAPI,
     chat_id: int | str,
     message_id: int | None = None,
+    bot_id: int | None = None,
 ) -> None:
     """Тест реакций на сообщение."""
     # Если message_id не указан, отправляем тестовое сообщение
@@ -34,6 +35,7 @@ async def test_reactions(
         try:
             msg = await api.send_message(
                 chat_id=chat_id,
+                bot_id=bot_id,
                 text="<b>Тест реакций</b>\n\nБот будет ставить реакции на это сообщение.",
                 parse_mode="HTML",
             )
@@ -53,6 +55,7 @@ async def test_reactions(
         await api.set_reaction(
             chat_id=chat_id,
             message_id=message_id,
+            bot_id=bot_id,
             reaction=[{"type": "emoji", "emoji": "👍"}],
         )
         print("   Реакция 👍 установлена")
@@ -66,6 +69,7 @@ async def test_reactions(
         await api.set_reaction(
             chat_id=chat_id,
             message_id=message_id,
+            bot_id=bot_id,
             reaction=[{"type": "emoji", "emoji": "🔥"}],
         )
         print("   Реакция изменена на 🔥")
@@ -79,6 +83,7 @@ async def test_reactions(
         await api.set_reaction(
             chat_id=chat_id,
             message_id=message_id,
+            bot_id=bot_id,
             reaction=[
                 {"type": "emoji", "emoji": "🔥"},
                 {"type": "emoji", "emoji": "❤️"},
@@ -95,6 +100,7 @@ async def test_reactions(
         await api.set_reaction(
             chat_id=chat_id,
             message_id=message_id,
+            bot_id=bot_id,
             reaction=[{"type": "emoji", "emoji": "👏"}],
             is_big=True,
         )
@@ -109,6 +115,7 @@ async def test_reactions(
         await api.set_reaction(
             chat_id=chat_id,
             message_id=message_id,
+            bot_id=bot_id,
             reaction=None,  # None удаляет все реакции бота
         )
         print("   Все реакции удалены")
@@ -118,7 +125,7 @@ async def test_reactions(
     # 6. Список реакций
     print("\n=== Список реакций из БД ===")
     try:
-        reactions = await api.list_reactions(chat_id=str(chat_id), limit=10)
+        reactions = await api.list_reactions(chat_id=str(chat_id), limit=10, bot_id=bot_id)
         print(f"   Найдено реакций в БД: {len(reactions)}")
         for r in reactions[:5]:
             emoji = r.get("reaction_emoji", "?")
@@ -132,6 +139,7 @@ async def main(
     base_url: str,
     chat_id: int | str,
     message_id: int | None = None,
+    bot_id: int | None = None,
 ) -> None:
     async with TelegramAPI(base_url) as api:
         print(f"Тестирование реакций")
@@ -142,7 +150,7 @@ async def main(
             print("Message ID: будет создано тестовое сообщение")
         print(f"API: {base_url}\n")
 
-        await test_reactions(api, chat_id, message_id)
+        await test_reactions(api, chat_id, message_id, bot_id=bot_id)
 
         print("\nГотово!")
 
@@ -159,6 +167,7 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     parser.add_argument(
         "--message-id",
         type=int,
@@ -169,4 +178,5 @@ if __name__ == "__main__":
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id, args.message_id))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, args.message_id, bot_id=bot_id))

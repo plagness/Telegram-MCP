@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..db import execute
+from ..services.bots import BotRegistry
 from ..telegram_client import call_api
 
 router = APIRouter(prefix="/v1/chats", tags=["actions"])
@@ -30,6 +31,7 @@ ChatActionType = Literal[
 class SendChatActionRequest(BaseModel):
     """Запрос на отправку chat action."""
 
+    bot_id: int | None = Field(None, description="ID бота для мультибот-сценария")
     action: ChatActionType = Field(..., description="Тип действия")
     message_thread_id: int | None = Field(None, description="ID топика (для форумов)")
 
@@ -77,7 +79,8 @@ async def send_chat_action(chat_id: str, request: SendChatActionRequest) -> dict
         params["message_thread_id"] = request.message_thread_id
 
     try:
-        response = await call_api("sendChatAction", params)
+        bot_token = await BotRegistry.get_bot_token(request.bot_id)
+        response = await call_api("sendChatAction", params, bot_token=bot_token)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send chat action: {str(e)}")
 

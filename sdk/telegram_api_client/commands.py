@@ -160,6 +160,7 @@ class PollingManager:
         timeout: int = 30,
         limit: int = 100,
         allowed_updates: list[str] | None = None,
+        bot_id: int | None = None,
     ) -> None:
         """
         Запуск long polling.
@@ -168,12 +169,14 @@ class PollingManager:
             timeout: Таймаут long polling (секунды)
             limit: Максимум обновлений за раз
             allowed_updates: Фильтр типов обновлений
+            bot_id: Явный bot_id для мультибот polling
         """
         self._running = True
         logger.info("Polling started")
 
         # Получаем начальный offset из API
-        offset_data = await self._api._get("/v1/updates/offset")
+        offset_params = {"bot_id": bot_id} if bot_id is not None else None
+        offset_data = await self._api._get("/v1/updates/offset", params=offset_params)
         self._current_offset = offset_data.get("offset", 0)
         logger.info(f"Starting from offset {self._current_offset}")
 
@@ -185,6 +188,8 @@ class PollingManager:
                     "limit": limit,
                     "timeout": timeout,
                 }
+                if bot_id is not None:
+                    params["bot_id"] = bot_id
                 if allowed_updates:
                     params["allowed_updates"] = allowed_updates
 
@@ -208,7 +213,10 @@ class PollingManager:
                     if new_offset > self._current_offset:
                         self._current_offset = new_offset
                         # Подтверждаем обработку
-                        await self._api._post("/v1/updates/ack", {"offset": new_offset})
+                        ack_payload = {"offset": new_offset}
+                        if bot_id is not None:
+                            ack_payload["bot_id"] = bot_id
+                        await self._api._post("/v1/updates/ack", ack_payload)
                         logger.debug(f"Offset updated to {new_offset}")
 
             except asyncio.CancelledError:

@@ -24,6 +24,7 @@ from ..models import (
     SendChecklistIn,
 )
 from ..services import messages as message_service
+from ..services.bots import BotRegistry
 from ..telegram_client import (
     edit_message_checklist,
     get_chat_gifts,
@@ -36,6 +37,15 @@ from ..telegram_client import (
 
 router = APIRouter(prefix="/v1", tags=["checklists", "stars", "gifts"])
 logger = logging.getLogger(__name__)
+
+
+async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
+    bot_token = await BotRegistry.get_bot_token(bot_id)
+    resolved_bot_id = bot_id
+    bot_row = await BotRegistry.get_bot_by_token(bot_token)
+    if bot_row and bot_row.get("bot_id") is not None:
+        resolved_bot_id = int(bot_row["bot_id"])
+    return bot_token, resolved_bot_id
 
 
 # === Checklists ===
@@ -65,20 +75,33 @@ async def send_checklist_api(payload: SendChecklistIn):
     if payload.reply_to_message_id is not None:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
 
+    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+
     try:
-        result = await send_checklist(telegram_payload)
+        result = await send_checklist(telegram_payload, bot_token=bot_token)
 
         # Сохранение в БД
-        await message_service.create_message(
+        row = await message_service.create_message(
             chat_id=payload.chat_id,
-            telegram_message_id=result["message_id"],
-            message_type="checklist",
+            bot_id=resolved_bot_id,
+            direction="outbound",
             text=payload.checklist.title,
-            request_id=payload.request_id,
             parse_mode=None,
+            status="sent",
+            request_id=payload.request_id,
+            payload=telegram_payload,
+            is_live=False,
+            reply_to_message_id=payload.reply_to_message_id,
+            message_thread_id=payload.message_thread_id,
+            message_type="checklist",
+        )
+        await message_service.update_message(
+            row["id"],
+            telegram_message_id=result.get("message_id"),
+            sent=True,
         )
 
-        return {"ok": True, "result": result}
+        return {"ok": True, "result": result, "message": await message_service.get_message(row["id"])}
     except Exception as e:
         logger.error(f"Ошибка send_checklist: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -110,8 +133,12 @@ async def edit_checklist_api(message_id: int, payload: EditChecklistIn):
     if payload.business_connection_id is not None:
         telegram_payload["business_connection_id"] = payload.business_connection_id
 
+    row_bot_id = int(msg_record["bot_id"]) if msg_record.get("bot_id") is not None else None
+    target_bot_id = payload.bot_id if payload.bot_id is not None else row_bot_id
+    bot_token, _ = await _resolve_bot_context(target_bot_id)
+
     try:
-        result = await edit_message_checklist(telegram_payload)
+        result = await edit_message_checklist(telegram_payload, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка edit_message_checklist: {e}")
@@ -122,14 +149,15 @@ async def edit_checklist_api(message_id: int, payload: EditChecklistIn):
 
 
 @router.get("/stars/balance")
-async def get_star_balance():
+async def get_star_balance(bot_id: int | None = None):
     """
     Баланс звёзд бота (Bot API 9.1).
 
     Возвращает количество звёзд на балансе бота.
     """
     try:
-        result = await get_my_star_balance()
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await get_my_star_balance(bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка get_my_star_balance: {e}")
@@ -153,7 +181,8 @@ async def gift_premium_api(payload: GiftPremiumIn):
     }
 
     try:
-        result = await gift_premium_subscription(telegram_payload)
+        bot_token, _ = await _resolve_bot_context(payload.bot_id)
+        result = await gift_premium_subscription(telegram_payload, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка gift_premium_subscription: {e}")
@@ -161,14 +190,15 @@ async def gift_premium_api(payload: GiftPremiumIn):
 
 
 @router.get("/gifts/user/{user_id}")
-async def get_user_gifts_api(user_id: int):
+async def get_user_gifts_api(user_id: int, bot_id: int | None = None):
     """
     Получить список подарков пользователя (Bot API 9.3).
 
     Возвращает подарки, отправленные пользователю.
     """
     try:
-        result = await get_user_gifts({"user_id": user_id})
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await get_user_gifts({"user_id": user_id}, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка get_user_gifts: {e}")
@@ -176,14 +206,15 @@ async def get_user_gifts_api(user_id: int):
 
 
 @router.get("/gifts/chat/{chat_id}")
-async def get_chat_gifts_api(chat_id: int | str):
+async def get_chat_gifts_api(chat_id: int | str, bot_id: int | None = None):
     """
     Получить список подарков в чате (Bot API 9.3).
 
     Возвращает подарки, отправленные в чат.
     """
     try:
-        result = await get_chat_gifts({"chat_id": chat_id})
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await get_chat_gifts({"chat_id": chat_id}, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка get_chat_gifts: {e}")
@@ -207,7 +238,8 @@ async def repost_story_api(payload: RepostStoryIn):
     }
 
     try:
-        result = await repost_story(telegram_payload)
+        bot_token, _ = await _resolve_bot_context(payload.bot_id)
+        result = await repost_story(telegram_payload, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка repost_story: {e}")

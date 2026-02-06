@@ -25,7 +25,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sdk"))
 from telegram_api_client import TelegramAPI, TelegramAPIError
 
 
-async def main(base_url: str, chat_id: int | str, dry_run: bool = False) -> None:
+async def main(
+    base_url: str,
+    chat_id: int | str,
+    dry_run: bool = False,
+    bot_id: int | None = None,
+) -> None:
     async with TelegramAPI(base_url) as api:
         # 1. Проверка здоровья
         print("1. Проверка /health ...")
@@ -35,7 +40,7 @@ async def main(base_url: str, chat_id: int | str, dry_run: bool = False) -> None
         # 2. Информация о боте
         print("\n2. Информация о боте ...")
         try:
-            bot = await api.get_bot_info()
+            bot = await api.get_bot_info(bot_id=bot_id)
             print(f"   Бот: @{bot.get('username', '???')} ({bot.get('first_name', '')})")
         except TelegramAPIError as e:
             print(f"   Ошибка: {e}")
@@ -46,6 +51,7 @@ async def main(base_url: str, chat_id: int | str, dry_run: bool = False) -> None
             msg = await api.send_message(
                 chat_id=chat_id,
                 text="<b>Тест telegram-api</b>\n\nЭто тестовое сообщение, отправленное через SDK.",
+                bot_id=bot_id,
                 parse_mode="HTML",
                 dry_run=dry_run,
             )
@@ -71,6 +77,7 @@ async def main(base_url: str, chat_id: int | str, dry_run: bool = False) -> None
             edited = await api.edit_message(
                 msg_id,
                 text="<b>Тест telegram-api</b>\n\nСообщение отредактировано через SDK.",
+                bot_id=bot_id,
                 parse_mode="HTML",
             )
             print(f"   status={edited.get('status')}")
@@ -79,7 +86,7 @@ async def main(base_url: str, chat_id: int | str, dry_run: bool = False) -> None
 
         # 6. Список сообщений
         print("\n6. Список последних сообщений ...")
-        messages = await api.list_messages(limit=5)
+        messages = await api.list_messages(limit=5, bot_id=bot_id)
         for m in messages:
             print(f"   [{m.get('id')}] {m.get('status'):10s} {(m.get('text') or '')[:40]}")
 
@@ -96,6 +103,7 @@ async def main(base_url: str, chat_id: int | str, dry_run: bool = False) -> None
         try:
             msg2 = await api.send_message(
                 chat_id=chat_id,
+                bot_id=bot_id,
                 text="Сообщение с кнопками",
                 reply_markup={
                     "inline_keyboard": [
@@ -128,10 +136,12 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api (по умолчанию http://localhost:8081)",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     parser.add_argument("--dry-run", action="store_true", help="Не отправлять в Telegram (dry run)")
     args = parser.parse_args()
 
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id, args.dry_run))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, args.dry_run, bot_id=bot_id))

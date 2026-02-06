@@ -9,9 +9,19 @@ from fastapi import APIRouter, HTTPException
 from ..models import SendPollIn
 from ..services import messages as message_service
 from ..services import polls as poll_service
+from ..services.bots import BotRegistry
 from ..telegram_client import TelegramError, send_poll, stop_poll
 
 router = APIRouter(prefix="/v1/polls", tags=["polls"])
+
+
+async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
+    bot_token = await BotRegistry.get_bot_token(bot_id)
+    resolved_bot_id = bot_id
+    bot_row = await BotRegistry.get_bot_by_token(bot_token)
+    if bot_row and bot_row.get("bot_id") is not None:
+        resolved_bot_id = int(bot_row["bot_id"])
+    return bot_token, resolved_bot_id
 
 
 @router.post("/send")
@@ -52,9 +62,12 @@ async def send_poll_api(payload: SendPollIn) -> dict[str, Any]:
     if payload.reply_markup:
         telegram_payload["reply_markup"] = payload.reply_markup
 
+    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+
     # Создание записи в messages
     row = await message_service.create_message(
         chat_id=str(payload.chat_id),
+        bot_id=resolved_bot_id,
         direction="outbound",
         text=payload.question,
         parse_mode=None,
@@ -73,7 +86,7 @@ async def send_poll_api(payload: SendPollIn) -> dict[str, Any]:
     # Отправка опроса в Telegram
     try:
         await message_service.add_event(row["id"], "send_attempt", telegram_payload)
-        result = await send_poll(telegram_payload)
+        result = await send_poll(telegram_payload, bot_token=bot_token)
 
         poll_data = result.get("poll", {})
         poll_id = poll_data.get("id")
@@ -94,6 +107,7 @@ async def send_poll_api(payload: SendPollIn) -> dict[str, Any]:
                 message_id=row["id"],
                 chat_id=str(payload.chat_id),
                 telegram_message_id=telegram_message_id,
+                bot_id=resolved_bot_id,
                 question=payload.question,
                 options=[{"text": opt if isinstance(opt, str) else opt.text} for opt in payload.options],
                 poll_type=payload.type,
@@ -117,7 +131,7 @@ async def send_poll_api(payload: SendPollIn) -> dict[str, Any]:
 
 
 @router.post("/{chat_id}/{message_id}/stop")
-async def stop_poll_api(chat_id: str, message_id: int) -> dict[str, Any]:
+async def stop_poll_api(chat_id: str, message_id: int, bot_id: int | None = None) -> dict[str, Any]:
     """
     Остановка опроса с показом результатов.
 
@@ -129,7 +143,8 @@ async def stop_poll_api(chat_id: str, message_id: int) -> dict[str, Any]:
     }
 
     try:
-        result = await stop_poll(telegram_payload)
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await stop_poll(telegram_payload, bot_token=bot_token)
 
         # Обновление опроса в БД
         poll_data = result
@@ -150,11 +165,12 @@ async def stop_poll_api(chat_id: str, message_id: int) -> dict[str, Any]:
 @router.get("")
 async def list_polls_api(
     chat_id: str | None = None,
+    bot_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> dict[str, Any]:
     """Список опросов."""
-    rows = await poll_service.list_polls(chat_id=chat_id, limit=limit, offset=offset)
+    rows = await poll_service.list_polls(chat_id=chat_id, bot_id=bot_id, limit=limit, offset=offset)
     return {"items": rows, "count": len(rows)}
 
 

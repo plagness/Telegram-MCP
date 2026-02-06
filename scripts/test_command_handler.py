@@ -31,7 +31,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sdk"))
 from telegram_api_client import TelegramAPI, TelegramAPIError
 
 
-async def main(base_url: str, chat_id: int | str, user_id: int | None = None) -> None:
+async def main(
+    base_url: str,
+    chat_id: int | str,
+    user_id: int | None = None,
+    bot_id: int | None = None,
+) -> None:
     """Запуск CommandHandler с тестовыми командами."""
     api = TelegramAPI(base_url)
 
@@ -48,6 +53,7 @@ async def main(base_url: str, chat_id: int | str, user_id: int | None = None) ->
         try:
             await api.send_message(
                 chat_id=reply_chat_id,
+                bot_id=bot_id,
                 text=text,
                 reply_to_message_id=update["message"]["message_id"]
             )
@@ -67,6 +73,7 @@ async def main(base_url: str, chat_id: int | str, user_id: int | None = None) ->
         try:
             await api.send_message(
                 chat_id=reply_chat_id,
+                bot_id=bot_id,
                 text=text,
                 parse_mode="HTML",
                 reply_to_message_id=update["message"]["message_id"]
@@ -126,6 +133,7 @@ async def main(base_url: str, chat_id: int | str, user_id: int | None = None) ->
 
             await api.send_message(
                 chat_id=reply_chat_id,
+                bot_id=bot_id,
                 text=response["text"],
                 parse_mode="HTML",
                 reply_to_message_id=update["message"]["message_id"]
@@ -152,6 +160,7 @@ async def main(base_url: str, chat_id: int | str, user_id: int | None = None) ->
         try:
             await api.send_message(
                 chat_id=reply_chat_id,
+                bot_id=bot_id,
                 text=text,
                 parse_mode="HTML",
                 reply_to_message_id=update["message"]["message_id"]
@@ -178,7 +187,7 @@ async def main(base_url: str, chat_id: int | str, user_id: int | None = None) ->
 
     # Запуск polling
     try:
-        await api.start_polling(timeout=30, limit=10)
+        await api.start_polling(timeout=30, limit=10, bot_id=bot_id)
     except KeyboardInterrupt:
         print("\n⚠️  Остановка по Ctrl+C")
         await api.stop_polling()
@@ -201,10 +210,12 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     parser.add_argument("--user-id", type=int, help="user_id для guard-фильтра")
     args = parser.parse_args()
 
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id, args.user_id))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, args.user_id, bot_id=bot_id))

@@ -1,14 +1,14 @@
 # Telegram-MCP
 
-[![Version](https://img.shields.io/badge/version-2026.02.7-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
+[![Version](https://img.shields.io/badge/version-2026.02.10-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20tools-40-orange.svg)](docs/mcp.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-46-orange.svg)](docs/mcp.md)
 
 Автономный микросервис для стандартизации работы с Telegram Bot API через MCP (Model Context Protocol).
 
-Централизует отправку сообщений, медиа, управление командами, приём вебхуков, **prediction markets (ставки Stars)** и предоставляет **40 MCP-инструментов** для интеграции с LLM (Claude, ChatGPT и др.).
+Централизует отправку сообщений, медиа, управление командами, приём вебхуков, **prediction markets (ставки Stars)** и предоставляет **46 MCP-инструментов** для интеграции с LLM (Claude, ChatGPT и др.).
 
 ## ✨ Возможности
 
@@ -64,7 +64,7 @@
 - **Rate limiting**: token-bucket по chat_id
 - **Retry**: автоматический retry при 429/5xx
 - **Python SDK**: готовый клиент для интеграции
-- **MCP**: 31 инструмент для LLM
+- **MCP**: 46 инструментов для LLM
 
 ### 🚀 Bot API 9.x (2025-2026)
 - **Чек-листы** (Bot API 9.1): интерактивные списки задач с галочками (до 30 элементов)
@@ -88,12 +88,12 @@
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌──────────────┐
-│   Потребители    │────▶│  telegram-api     │────▶│ Telegram Bot  │
+│   Потребители    │────▶│  tgapi            │────▶│ Telegram Bot  │
 │  (SDK / curl)   │     │  (FastAPI :8081)  │     │     API       │
 └─────────────────┘     └──────┬───────────┘     └──────────────┘
                                │
 ┌─────────────────┐     ┌──────▼───────────┐
-│   LLM / Claude  │────▶│  telegram-mcp     │
+│   LLM / Claude  │────▶│  tgmcp            │
 │                 │     │  (Node.js :3335)  │
 └─────────────────┘     └──────────────────┘
                                │
@@ -105,9 +105,9 @@
 
 | Компонент | Технология | Порт | Назначение |
 |-----------|-----------|------|------------|
-| **telegram-api** | Python / FastAPI | 8081 | HTTP API, вебхуки, шаблоны |
-| **telegram-mcp** | Node.js / TypeScript | 3335 | MCP-тулзы + HTTP-мост |
-| **telegram-db** | PostgreSQL 16 | 5436 | Сообщения, шаблоны, обновления, команды |
+| **tgapi** | Python / FastAPI | 8081 | HTTP API, вебхуки, шаблоны |
+| **tgmcp** | Node.js / TypeScript | 3335 | MCP-тулзы + HTTP-мост |
+| **tgdb** | PostgreSQL 16 | 5436 | Сообщения, шаблоны, обновления, команды |
 
 ## Быстрый старт
 
@@ -227,7 +227,7 @@ Telegram-MCP/
 │   │   └── services/       # Бизнес-логика
 │   └── Dockerfile
 ├── mcp/                    # MCP-сервер (Node.js)
-│   ├── src/index.ts        # 25 MCP-инструментов
+│   ├── src/index.ts        # 46 MCP-инструментов
 │   └── Dockerfile
 ├── sdk/                    # Python SDK
 │   └── telegram_api_client/
@@ -260,9 +260,11 @@ Telegram-MCP/
 | `DB_USER` | Пользователь БД | `telegram` |
 | `DB_PASSWORD` | Пароль БД | `telegram` |
 | `DB_NAME` | Имя БД | `telegram` |
-| `DB_PORT` | Внешний порт PostgreSQL | `5436` |
-| `API_PORT` | Внешний порт API | `8081` |
-| `MCP_HTTP_PORT` | Внешний порт MCP | `3335` |
+| `PORT_DB_TG` | Внешний порт PostgreSQL | `5436` |
+| `PORT_HTTP_TGAPI` | Внешний порт API | `8081` |
+| `PORT_MCP_TG` | Внешний порт MCP | `3335` |
+| `API_PORT` | Legacy fallback для порта API | `8081` |
+| `MCP_HTTP_PORT` | Legacy fallback для порта MCP | `3335` |
 | `MCP_HTTP_TOKEN` | Bearer-токен для MCP HTTP | — (опционально) |
 | `TEMPLATE_AUTOSEED` | Автозагрузка шаблонов из `templates/` | `true` |
 

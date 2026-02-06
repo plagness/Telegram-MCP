@@ -8,9 +8,14 @@ from fastapi import APIRouter, HTTPException
 
 from ..models import SetMessageReactionIn
 from ..services import reactions as reaction_service
+from ..services.bots import BotRegistry
 from ..telegram_client import TelegramError, set_message_reaction
 
 router = APIRouter(prefix="/v1/reactions", tags=["reactions"])
+
+
+async def _resolve_bot_token(bot_id: int | None) -> str:
+    return await BotRegistry.get_bot_token(bot_id)
 
 
 @router.post("/set")
@@ -27,7 +32,8 @@ async def set_reaction_api(payload: SetMessageReactionIn) -> dict[str, Any]:
         telegram_payload["reaction"] = [r.model_dump() for r in payload.reaction]
 
     try:
-        result = await set_message_reaction(telegram_payload)
+        bot_token = await _resolve_bot_token(payload.bot_id)
+        result = await set_message_reaction(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 

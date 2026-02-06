@@ -34,12 +34,14 @@ async def main(
     chat_id: int | str,
     user_id: int | None = None,
     do_sync: bool = False,
+    bot_id: int | None = None,
 ) -> None:
     async with TelegramAPI(base_url) as api:
         # 1. Глобальные команды (scope=default)
         print("1. Создание глобального набора команд (scope=default) ...")
         try:
             cs1 = await api.set_commands(
+                bot_id=bot_id,
                 commands=[
                     {"command": "start", "description": "Начать работу с ботом"},
                     {"command": "help", "description": "Справка по командам"},
@@ -57,6 +59,7 @@ async def main(
         print(f"\n2. Набор команд для чата {chat_id} (scope=chat) ...")
         try:
             cs2 = await api.set_commands(
+                bot_id=bot_id,
                 commands=[
                     {"command": "start", "description": "Начать работу с ботом"},
                     {"command": "help", "description": "Справка"},
@@ -77,6 +80,7 @@ async def main(
             print(f"\n3. Per-user набор для user_id={user_id} в чате {chat_id} ...")
             try:
                 cs3 = await api.set_commands(
+                    bot_id=bot_id,
                     commands=[
                         {"command": "start", "description": "Начать работу с ботом"},
                         {"command": "help", "description": "Справка"},
@@ -113,7 +117,7 @@ async def main(
                     continue
                 print(f"\n5. Синхронизация набора id={cs_id} (scope={label}) ...")
                 try:
-                    result = await api.sync_commands(cs_id)
+                    result = await api.sync_commands(cs_id, bot_id=bot_id)
                     print(f"   Результат: {result}")
                 except TelegramAPIError as e:
                     print(f"   Ошибка синхронизации: {e}")
@@ -135,6 +139,7 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     parser.add_argument("--user-id", type=int, help="user_id для per-user команд (scope=chat_member)")
     parser.add_argument("--sync", action="store_true", dest="do_sync", help="Синхронизировать с Telegram (setMyCommands)")
     args = parser.parse_args()
@@ -142,4 +147,5 @@ if __name__ == "__main__":
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id, args.user_id, args.do_sync))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, args.user_id, args.do_sync, bot_id=bot_id))

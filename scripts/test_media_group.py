@@ -28,7 +28,7 @@ TEST_PHOTOS = [
 ]
 
 
-async def test_photo_album(api: TelegramAPI, chat_id: int | str):
+async def test_photo_album(api: TelegramAPI, chat_id: int | str, bot_id: int | None = None):
     """Тест отправки альбома из 3 фото."""
     print("\n🧪 Тест 1: Альбом из 3 фото")
 
@@ -49,12 +49,12 @@ async def test_photo_album(api: TelegramAPI, chat_id: int | str):
         },
     ]
 
-    result = await api.send_media_group(chat_id, media)
+    result = await api.send_media_group(chat_id, media, bot_id=bot_id)
     print(f"✅ Альбом отправлен: {len(result['messages'])} сообщений")
     print(f"   Media Group ID: {result.get('media_group_id')}")
 
 
-async def test_mixed_album(api: TelegramAPI, chat_id: int | str):
+async def test_mixed_album(api: TelegramAPI, chat_id: int | str, bot_id: int | None = None):
     """Тест смешанного альбома (фото + видео)."""
     print("\n🧪 Тест 2: Смешанный альбом (фото + видео)")
 
@@ -71,11 +71,11 @@ async def test_mixed_album(api: TelegramAPI, chat_id: int | str):
         },
     ]
 
-    result = await api.send_media_group(chat_id, media)
+    result = await api.send_media_group(chat_id, media, bot_id=bot_id)
     print(f"✅ Смешанный альбом отправлен: {len(result['messages'])} элементов")
 
 
-async def test_dry_run(api: TelegramAPI, chat_id: int | str):
+async def test_dry_run(api: TelegramAPI, chat_id: int | str, bot_id: int | None = None):
     """Тест dry-run режима (не отправлять реально)."""
     print("\n🧪 Тест 3: Dry-run (проверка без отправки)")
 
@@ -84,26 +84,26 @@ async def test_dry_run(api: TelegramAPI, chat_id: int | str):
         {"type": "photo", "media": TEST_PHOTOS[1]},
     ]
 
-    result = await api.send_media_group(chat_id, media, dry_run=True)
+    result = await api.send_media_group(chat_id, media, bot_id=bot_id, dry_run=True)
     print(f"✅ Dry-run: {result.get('dry_run', False)}")
     print(f"   Payload preview: {len(result.get('payload', {}).get('media', []))} элементов")
 
 
-async def main(base_url: str, chat_id: int | str):
+async def main(base_url: str, chat_id: int | str, bot_id: int | None = None):
     """Запуск всех тестов sendMediaGroup."""
     async with TelegramAPI(base_url) as api:
         print(f"🚀 Тестирование sendMediaGroup в чате {chat_id}\n")
 
         # Тест 1: Альбом из фото
-        await test_photo_album(api, chat_id)
+        await test_photo_album(api, chat_id, bot_id=bot_id)
         await asyncio.sleep(2)
 
         # Тест 2: Смешанный альбом
-        await test_mixed_album(api, chat_id)
+        await test_mixed_album(api, chat_id, bot_id=bot_id)
         await asyncio.sleep(2)
 
         # Тест 3: Dry-run
-        await test_dry_run(api, chat_id)
+        await test_dry_run(api, chat_id, bot_id=bot_id)
 
         print("\n✅ Все тесты завершены!")
 
@@ -120,9 +120,11 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     args = parser.parse_args()
 
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, bot_id=bot_id))

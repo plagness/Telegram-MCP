@@ -1,6 +1,11 @@
 services:
-  telegram-db:
+  tgdb:
     image: postgres:16
+    container_name: tgdb
+    labels:
+      - "ns.module=telegram"
+      - "ns.component=db"
+      - "ns.db_owner=telegram"
     environment:
       POSTGRES_USER: ${DB_USER:-telegram}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-telegram}
@@ -9,23 +14,31 @@ services:
       - ./data/postgres:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "${DB_PORT:-5436}:5432"
+      - "127.0.0.1:${PORT_DB_TG:-${DB_PORT:-5436}}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-telegram}"]
       interval: 5s
       timeout: 3s
       retries: 5
 
-  telegram-api:
+  tgapi:
     build:
       context: .
       dockerfile: api/Dockerfile
+    container_name: tgapi
+    labels:
+      - "ns.module=telegram"
+      - "ns.component=api"
     env_file: .env
     depends_on:
-      telegram-db:
+      tgdb:
         condition: service_healthy
+    environment:
+      DB_HOST: tgdb
+      DB_PORT: 5432
+      DB_DSN: postgresql://${DB_USER:-telegram}:${DB_PASSWORD:-telegram}@tgdb:5432/${DB_NAME:-telegram}
     ports:
-      - "${API_PORT:-8081}:8000"
+      - "127.0.0.1:${PORT_HTTP_TGAPI:-${API_PORT:-8081}}:8000"
     volumes:
       - ./templates:/app/templates:ro
     healthcheck:
@@ -35,16 +48,23 @@ services:
       retries: 3
       start_period: 10s
 
-  telegram-mcp:
+  tgmcp:
     build:
       context: .
       dockerfile: mcp/Dockerfile
+    container_name: tgmcp
+    labels:
+      - "ns.module=telegram"
+      - "ns.component=mcp"
     env_file: .env
     depends_on:
-      telegram-api:
+      tgapi:
         condition: service_healthy
+    environment:
+      TELEGRAM_API_BASE: http://tgapi:8000
+      TELEGRAM_API_URL: http://tgapi:8000
     ports:
-      - "${MCP_HTTP_PORT:-3335}:3335"
+      - "127.0.0.1:${PORT_MCP_TG:-${MCP_HTTP_PORT:-3335}}:3335"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3335/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s

@@ -364,6 +364,10 @@ curl -X POST http://127.0.0.1:8081/v1/media/upload-photo \
 
 Приём обновлений от Telegram (webhook target).
 
+### `POST /telegram/webhook/{bot_id}`
+
+Приём обновлений от Telegram с привязкой к конкретному боту.
+
 ### `GET /v1/updates`
 
 Список полученных обновлений.
@@ -373,6 +377,40 @@ curl -X POST http://127.0.0.1:8081/v1/media/upload-photo \
 | `limit` | int | Количество |
 | `offset` | int | Смещение |
 | `update_type` | str | Фильтр: `message`, `callback_query`, `edited_message` |
+| `bot_id` | int | Фильтр по боту (мультибот) |
+
+### `GET /v1/updates/poll`
+
+Long polling через `getUpdates`.
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `bot_id` | int | Бот для polling (если не указан, используется default context) |
+| `offset` | int | Явный offset. Если не указан, берётся из `update_offset` для bot context |
+| `limit` | int | До 100 обновлений |
+| `timeout` | int | Таймаут long polling (сек) |
+| `allowed_updates` | list[str] | Фильтр типов обновлений |
+
+### `POST /v1/updates/ack`
+
+Подтверждение обработанного offset.
+
+```json
+{
+  "offset": 123457,
+  "bot_id": 123456789
+}
+```
+
+`bot_id` опционален. При отсутствии обновляется default offset context.
+
+### `GET /v1/updates/offset`
+
+Текущий offset для polling context.
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `bot_id` | int | Вернуть offset конкретного бота. Без параметра — default context |
 
 ### `POST /v1/webhook/set`
 

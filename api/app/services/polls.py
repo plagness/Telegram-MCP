@@ -14,6 +14,7 @@ async def create_poll(
     message_id: int | None,
     chat_id: str,
     telegram_message_id: int | None,
+    bot_id: int | None,
     question: str,
     options: list[dict[str, Any]],
     poll_type: str,
@@ -29,10 +30,11 @@ async def create_poll(
     sql = """
         INSERT INTO polls (
             poll_id, message_id, chat_id, telegram_message_id,
+            bot_id,
             question, options, type, is_anonymous, allows_multiple_answers,
             correct_option_id, explanation, explanation_entities,
             open_period, close_date
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING *
     """
     return await execute_returning(
@@ -42,6 +44,7 @@ async def create_poll(
             message_id,
             chat_id,
             telegram_message_id,
+            bot_id,
             question,
             Json(options),
             poll_type,
@@ -93,6 +96,7 @@ async def update_poll(
 
 async def list_polls(
     chat_id: str | None = None,
+    bot_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
@@ -103,6 +107,9 @@ async def list_polls(
     if chat_id:
         where.append("chat_id = %s")
         values.append(chat_id)
+    if bot_id is not None:
+        where.append("bot_id = %s")
+        values.append(bot_id)
 
     where_sql = f"WHERE {' AND '.join(where)}" if where else ""
     sql = f"SELECT * FROM polls {where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s"

@@ -115,6 +115,7 @@ ReplyMarkup = InlineKeyboardMarkup | ReplyKeyboardMarkup | ReplyKeyboardRemove |
 
 class SendMessageIn(BaseModel):
     """Входящий запрос на отправку текстового сообщения."""
+    bot_id: int | None = None
     chat_id: int | str
     text: str | None = None
     template: str | None = None
@@ -131,6 +132,7 @@ class SendMessageIn(BaseModel):
 
 class EditMessageIn(BaseModel):
     """Входящий запрос на редактирование сообщения."""
+    bot_id: int | None = None
     text: str | None = None
     template: str | None = None
     variables: dict[str, Any] | None = None
@@ -143,6 +145,7 @@ class EditMessageIn(BaseModel):
 
 class SendPhotoIn(BaseModel):
     """Отправка фото по URL или file_id (JSON-режим)."""
+    bot_id: int | None = None
     chat_id: int | str
     photo: str  # URL или file_id
     caption: str | None = None
@@ -156,6 +159,7 @@ class SendPhotoIn(BaseModel):
 
 class SendDocumentIn(BaseModel):
     """Отправка документа по URL или file_id (JSON-режим)."""
+    bot_id: int | None = None
     chat_id: int | str
     document: str  # URL или file_id
     caption: str | None = None
@@ -169,6 +173,7 @@ class SendDocumentIn(BaseModel):
 
 class SendVideoIn(BaseModel):
     """Отправка видео по URL или file_id (JSON-режим)."""
+    bot_id: int | None = None
     chat_id: int | str
     video: str  # URL или file_id
     caption: str | None = None
@@ -182,6 +187,7 @@ class SendVideoIn(BaseModel):
 
 class SendAnimationIn(BaseModel):
     """Отправка анимации/GIF по URL или file_id."""
+    bot_id: int | None = None
     chat_id: int | str
     animation: str
     caption: str | None = None
@@ -194,6 +200,7 @@ class SendAnimationIn(BaseModel):
 
 class SendAudioIn(BaseModel):
     """Отправка аудио по URL или file_id."""
+    bot_id: int | None = None
     chat_id: int | str
     audio: str
     caption: str | None = None
@@ -209,6 +216,7 @@ class SendAudioIn(BaseModel):
 
 class SendVoiceIn(BaseModel):
     """Отправка голосового сообщения по URL или file_id."""
+    bot_id: int | None = None
     chat_id: int | str
     voice: str
     caption: str | None = None
@@ -222,6 +230,7 @@ class SendVoiceIn(BaseModel):
 
 class SendStickerIn(BaseModel):
     """Отправка стикера по file_id."""
+    bot_id: int | None = None
     chat_id: int | str
     sticker: str  # file_id (стикеры обычно только по file_id)
     reply_to_message_id: int | None = None
@@ -243,6 +252,7 @@ class InputMedia(BaseModel):
 
 class SendMediaGroupIn(BaseModel):
     """Отправка альбома (группы медиа)."""
+    bot_id: int | None = None
     chat_id: int | str
     media: list[InputMedia] = Field(..., min_length=2, max_length=10)
     reply_to_message_id: int | None = None
@@ -256,6 +266,7 @@ class SendMediaGroupIn(BaseModel):
 
 class AnswerCallbackIn(BaseModel):
     """Ответ на callback_query (нажатие inline-кнопки)."""
+    bot_id: int | None = None
     callback_query_id: str
     text: str | None = None
     show_alert: bool = False
@@ -268,6 +279,7 @@ class AnswerCallbackIn(BaseModel):
 
 class ForwardMessageIn(BaseModel):
     """Пересылка сообщения."""
+    bot_id: int | None = None
     chat_id: int | str
     from_chat_id: int | str
     message_id: int
@@ -275,6 +287,7 @@ class ForwardMessageIn(BaseModel):
 
 class CopyMessageIn(BaseModel):
     """Копирование сообщения."""
+    bot_id: int | None = None
     chat_id: int | str
     from_chat_id: int | str
     message_id: int
@@ -301,10 +314,25 @@ class UnpinMessageIn(BaseModel):
 
 class SetWebhookIn(BaseModel):
     """Настройка вебхука."""
+    bot_id: int | None = None
     url: str
     secret_token: str | None = None
     max_connections: int | None = None
     allowed_updates: list[str] | None = None
+
+
+# === Bots / Chats ===
+
+
+class RegisterBotIn(BaseModel):
+    """Регистрация нового бота по токену."""
+    token: str = Field(..., min_length=10)
+    is_default: bool | None = None
+
+
+class SetChatAliasIn(BaseModel):
+    """Установка короткого алиаса для чата."""
+    alias: str = Field(..., min_length=2, max_length=120)
 
 
 # === Шаблоны ===
@@ -334,6 +362,7 @@ class CommandDefinition(BaseModel):
 
 class CommandSetIn(BaseModel):
     """Создание набора команд по скоупу."""
+    bot_id: int | None = None
     scope_type: str = "default"
     chat_id: int | None = None
     user_id: int | None = None
@@ -344,6 +373,16 @@ class CommandSetIn(BaseModel):
 class CommandSyncIn(BaseModel):
     """Синхронизация набора команд с Telegram."""
     command_set_id: int | None = None
+    bot_id: int | None = None
+
+
+# === Updates ===
+
+
+class UpdatesAckIn(BaseModel):
+    """Подтверждение обработанного offset для polling."""
+    offset: int
+    bot_id: int | None = None
 
 
 # === Опросы ===
@@ -357,6 +396,7 @@ class PollOption(BaseModel):
 
 class SendPollIn(BaseModel):
     """Создание опроса или викторины."""
+    bot_id: int | None = None
     chat_id: int | str
     question: str = Field(..., min_length=1, max_length=300)
     options: list[str | PollOption] = Field(..., min_length=2, max_length=10)
@@ -404,6 +444,7 @@ ReactionType = ReactionTypeEmoji | ReactionTypeCustomEmoji | ReactionTypePaid
 
 class SetMessageReactionIn(BaseModel):
     """Установка реакции на сообщение."""
+    bot_id: int | None = None
     chat_id: int | str
     message_id: int  # telegram_message_id (не внутренний ID)
     reaction: list[ReactionType] | None = None
@@ -427,6 +468,7 @@ class InputChecklist(BaseModel):
 
 class SendChecklistIn(BaseModel):
     """Отправка чек-листа (Bot API 9.1)."""
+    bot_id: int | None = None
     chat_id: int | str
     checklist: InputChecklist
     business_connection_id: str | None = None
@@ -437,6 +479,7 @@ class SendChecklistIn(BaseModel):
 
 class EditChecklistIn(BaseModel):
     """Редактирование чек-листа."""
+    bot_id: int | None = None
     checklist: InputChecklist
     business_connection_id: str | None = None
 
@@ -446,6 +489,7 @@ class EditChecklistIn(BaseModel):
 
 class GiftPremiumIn(BaseModel):
     """Подарить премиум-подписку за звёзды."""
+    bot_id: int | None = None
     user_id: int
     duration_months: int = Field(..., ge=1, le=12)
     star_count: int
@@ -453,6 +497,7 @@ class GiftPremiumIn(BaseModel):
 
 class RepostStoryIn(BaseModel):
     """Репост истории (Bot API 9.3)."""
+    bot_id: int | None = None
     chat_id: int | str
     from_chat_id: int | str
     story_id: int
@@ -469,6 +514,7 @@ class LabeledPrice(BaseModel):
 
 class SendInvoiceIn(BaseModel):
     """Создание счёта на оплату Stars."""
+    bot_id: int | None = None
     chat_id: int | str
     title: str = Field(..., max_length=32)
     description: str = Field(..., max_length=255)
@@ -481,6 +527,7 @@ class SendInvoiceIn(BaseModel):
 
 class RefundStarPaymentIn(BaseModel):
     """Возврат Stars платежа."""
+    bot_id: int | None = None
     user_id: int
     telegram_payment_charge_id: str
 
@@ -497,6 +544,7 @@ class PredictionOption(BaseModel):
 
 class CreatePredictionEventIn(BaseModel):
     """Создание события для ставок."""
+    bot_id: int | None = None
     title: str = Field(..., max_length=200)
     description: str = Field(..., max_length=1000)
     options: list[PredictionOption] = Field(..., min_length=2, max_length=10)

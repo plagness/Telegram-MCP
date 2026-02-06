@@ -4,11 +4,13 @@ import json
 from typing import Any
 
 from ..db import execute, execute_returning, fetch_all, fetch_one
+from .bots import BotRegistry
 from ..telegram_client import set_my_commands
 
 
 async def upsert_command_set(
     *,
+    bot_id: int | None,
     scope_type: str,
     chat_id: int | None,
     user_id: int | None,
@@ -17,14 +19,15 @@ async def upsert_command_set(
 ) -> dict:
     row = await execute_returning(
         """
-        INSERT INTO bot_commands (scope_type, chat_id, user_id, language_code, commands_json)
-        VALUES (%s, %s, %s, %s, %s::jsonb)
+        INSERT INTO bot_commands (bot_id, scope_type, chat_id, user_id, language_code, commands_json)
+        VALUES (%s, %s, %s, %s, %s, %s::jsonb)
         ON CONFLICT (scope_type, chat_id, user_id, language_code) DO UPDATE
-        SET commands_json = EXCLUDED.commands_json,
+        SET bot_id = COALESCE(EXCLUDED.bot_id, bot_commands.bot_id),
+            commands_json = EXCLUDED.commands_json,
             updated_at = NOW()
         RETURNING *
         """,
-        [scope_type, chat_id, user_id, language_code, json.dumps(commands)],
+        [bot_id, scope_type, chat_id, user_id, language_code, json.dumps(commands)],
     )
     return row or {}
 
@@ -51,7 +54,7 @@ def _build_scope(row: dict) -> dict[str, Any] | None:
     return scope
 
 
-async def sync_command_set(command_set_id: int) -> dict:
+async def sync_command_set(command_set_id: int, bot_id: int | None = None) -> dict:
     row = await get_command_set(command_set_id)
     if not row:
         raise KeyError("command set not found")
@@ -63,5 +66,9 @@ async def sync_command_set(command_set_id: int) -> dict:
         payload["scope"] = scope
     if row.get("language_code"):
         payload["language_code"] = row.get("language_code")
-    result = await set_my_commands(payload)
+    target_bot_id = bot_id if bot_id is not None else row.get("bot_id")
+    if target_bot_id is not None:
+        target_bot_id = int(target_bot_id)
+    bot_token = await BotRegistry.get_bot_token(target_bot_id)
+    result = await set_my_commands(payload, bot_token=bot_token)
     return {"ok": True, "result": result}

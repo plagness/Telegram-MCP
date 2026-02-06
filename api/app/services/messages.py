@@ -11,6 +11,7 @@ from ..db import execute, execute_returning, fetch_all, fetch_one
 async def create_message(
     *,
     chat_id: int | str,
+    bot_id: int | None = None,
     direction: str,
     text: str | None,
     parse_mode: str | None,
@@ -27,6 +28,7 @@ async def create_message(
         INSERT INTO messages (
             external_id,
             chat_id,
+            bot_id,
             direction,
             text,
             parse_mode,
@@ -37,12 +39,13 @@ async def create_message(
             message_thread_id,
             message_type
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
         RETURNING *
         """,
         [
             request_id,
             str(chat_id),
+            bot_id,
             direction,
             text,
             parse_mode,
@@ -123,6 +126,7 @@ async def get_message(message_id: int) -> dict | None:
 async def list_messages(
     *,
     chat_id: str | None = None,
+    bot_id: int | None = None,
     status: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -132,6 +136,9 @@ async def list_messages(
     if chat_id:
         where.append("chat_id = %s")
         values.append(str(chat_id))
+    if bot_id is not None:
+        where.append("bot_id = %s")
+        values.append(bot_id)
     if status:
         where.append("status = %s")
         values.append(status)

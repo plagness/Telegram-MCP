@@ -336,11 +336,21 @@ member = await api.get_chat_member(chat_id="-100123456", user_id=777)
 ### Вебхуки и обновления
 
 ```python
-updates = await api.list_updates(limit=50, update_type="message")
+updates = await api.list_updates(limit=50, update_type="message", bot_id=123456789)
 
-await api.set_webhook(url="https://example.com/telegram/webhook")
-info = await api.get_webhook_info()
-await api.delete_webhook()
+await api.set_webhook(url="https://example.com/telegram/webhook", bot_id=123456789)
+info = await api.get_webhook_info(bot_id=123456789)
+await api.delete_webhook(bot_id=123456789)
+```
+
+### CommandHandler polling (мультибот)
+
+```python
+@api.command("start", chat_id=-100123456)
+async def start(update, args):
+    await api.send_message(chat_id=update["message"]["chat"]["id"], text="pong", bot_id=123456789)
+
+await api.start_polling(timeout=30, limit=100, bot_id=123456789)
 ```
 
 ### Мониторинг

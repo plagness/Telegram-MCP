@@ -1,0 +1,678 @@
+{
+  "generated_from": "api/app/routers/*.py",
+  "count": 84,
+  "items": [
+    {
+      "method": "POST",
+      "path": "/v1/chats/{chat_id}/action",
+      "declared_path": "/{chat_id}/action",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/actions.py",
+      "line": 39
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/chats/{chat_id}/actions",
+      "declared_path": "/{chat_id}/actions",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/actions.py",
+      "line": 111
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance/{user_id}",
+      "declared_path": "/{user_id}",
+      "prefix": "/v1/balance",
+      "file": "api/app/routers/balance.py",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance/{user_id}/history",
+      "declared_path": "/{user_id}/history",
+      "prefix": "/v1/balance",
+      "file": "api/app/routers/balance.py",
+      "line": 47
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance/top",
+      "declared_path": "/top",
+      "prefix": "/v1/balance",
+      "file": "api/app/routers/balance.py",
+      "line": 71
+    },
+    {
+      "method": "GET",
+      "path": "/v1/bots/default",
+      "declared_path": "/default",
+      "prefix": "/v1/bots",
+      "file": "api/app/routers/bots.py",
+      "line": 30
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/bots/{bot_id}/default",
+      "declared_path": "/{bot_id}/default",
+      "prefix": "/v1/bots",
+      "file": "api/app/routers/bots.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/v1/bots/{bot_id}",
+      "declared_path": "/{bot_id}",
+      "prefix": "/v1/bots",
+      "file": "api/app/routers/bots.py",
+      "line": 47
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/bots/{bot_id}",
+      "declared_path": "/{bot_id}",
+      "prefix": "/v1/bots",
+      "file": "api/app/routers/bots.py",
+      "line": 55
+    },
+    {
+      "method": "POST",
+      "path": "/v1/callbacks/answer",
+      "declared_path": "/answer",
+      "prefix": "/v1/callbacks",
+      "file": "api/app/routers/callbacks.py",
+      "line": 17
+    },
+    {
+      "method": "GET",
+      "path": "/v1/callbacks/{callback_id}",
+      "declared_path": "/{callback_id}",
+      "prefix": "/v1/callbacks",
+      "file": "api/app/routers/callbacks.py",
+      "line": 81
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/chats/{chat_id}/alias",
+      "declared_path": "/{chat_id}/alias",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 68
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/by-alias/{alias}",
+      "declared_path": "/by-alias/{alias}",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 89
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}/history",
+      "declared_path": "/{chat_id}/history",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 97
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}/members",
+      "declared_path": "/{chat_id}/members",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 123
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}",
+      "declared_path": "/{chat_id}",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 155
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}/members/{user_id}",
+      "declared_path": "/{chat_id}/members/{user_id}",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 189
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}/members/count",
+      "declared_path": "/{chat_id}/members/count",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 215
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chats/{chat_id}/pin/{message_id}",
+      "declared_path": "/{chat_id}/pin/{message_id}",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 226
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/chats/{chat_id}/pin/{message_id}",
+      "declared_path": "/{chat_id}/pin/{message_id}",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 243
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}/stored",
+      "declared_path": "/{chat_id}/stored",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 260
+    },
+    {
+      "method": "GET",
+      "path": "/v1/chats/{chat_id}/stored-users",
+      "declared_path": "/{chat_id}/stored-users",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 269
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chats/{chat_id}/members/{user_id}/ban",
+      "declared_path": "/{chat_id}/members/{user_id}/ban",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 288
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chats/{chat_id}/members/{user_id}/unban",
+      "declared_path": "/{chat_id}/members/{user_id}/unban",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 313
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chats/{chat_id}/members/{user_id}/restrict",
+      "declared_path": "/{chat_id}/members/{user_id}/restrict",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 335
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chats/{chat_id}/members/{user_id}/promote",
+      "declared_path": "/{chat_id}/members/{user_id}/promote",
+      "prefix": "/v1/chats",
+      "file": "api/app/routers/chats.py",
+      "line": 360
+    },
+    {
+      "method": "POST",
+      "path": "/v1/checklists/send",
+      "declared_path": "/checklists/send",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 54
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/messages/{message_id}/checklist",
+      "declared_path": "/messages/{message_id}/checklist",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 110
+    },
+    {
+      "method": "GET",
+      "path": "/v1/stars/balance",
+      "declared_path": "/stars/balance",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 151
+    },
+    {
+      "method": "POST",
+      "path": "/v1/gifts/premium",
+      "declared_path": "/gifts/premium",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 170
+    },
+    {
+      "method": "GET",
+      "path": "/v1/gifts/user/{user_id}",
+      "declared_path": "/gifts/user/{user_id}",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 192
+    },
+    {
+      "method": "GET",
+      "path": "/v1/gifts/chat/{chat_id}",
+      "declared_path": "/gifts/chat/{chat_id}",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 208
+    },
+    {
+      "method": "POST",
+      "path": "/v1/stories/repost",
+      "declared_path": "/stories/repost",
+      "prefix": "/v1",
+      "file": "api/app/routers/checklists.py",
+      "line": 227
+    },
+    {
+      "method": "POST",
+      "path": "/v1/commands/sync",
+      "declared_path": "/sync",
+      "prefix": "/v1/commands",
+      "file": "api/app/routers/commands.py",
+      "line": 34
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "declared_path": "/health",
+      "prefix": "",
+      "file": "api/app/routers/health.py",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/v1/metrics",
+      "declared_path": "/v1/metrics",
+      "prefix": "",
+      "file": "api/app/routers/health.py",
+      "line": 23
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-photo",
+      "declared_path": "/send-photo",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 45
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/upload-photo",
+      "declared_path": "/upload-photo",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 102
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-document",
+      "declared_path": "/send-document",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 167
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-video",
+      "declared_path": "/send-video",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 221
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-media-group",
+      "declared_path": "/send-media-group",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 289
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-animation",
+      "declared_path": "/send-animation",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 380
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-audio",
+      "declared_path": "/send-audio",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 408
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-voice",
+      "declared_path": "/send-voice",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 442
+    },
+    {
+      "method": "POST",
+      "path": "/v1/media/send-sticker",
+      "declared_path": "/send-sticker",
+      "prefix": "/v1/media",
+      "file": "api/app/routers/media.py",
+      "line": 472
+    },
+    {
+      "method": "POST",
+      "path": "/v1/messages/send",
+      "declared_path": "/send",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 42
+    },
+    {
+      "method": "POST",
+      "path": "/v1/messages/{message_id}/edit",
+      "declared_path": "/{message_id}/edit",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 109
+    },
+    {
+      "method": "POST",
+      "path": "/v1/messages/{message_id}/delete",
+      "declared_path": "/{message_id}/delete",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 162
+    },
+    {
+      "method": "GET",
+      "path": "/v1/messages/{message_id}",
+      "declared_path": "/{message_id}",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 190
+    },
+    {
+      "method": "POST",
+      "path": "/v1/messages/forward",
+      "declared_path": "/forward",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 216
+    },
+    {
+      "method": "POST",
+      "path": "/v1/messages/copy",
+      "declared_path": "/copy",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 253
+    },
+    {
+      "method": "POST",
+      "path": "/v1/messages/{message_id}/pin",
+      "declared_path": "/{message_id}/pin",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 277
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/messages/{message_id}/pin",
+      "declared_path": "/{message_id}/pin",
+      "prefix": "/v1/messages",
+      "file": "api/app/routers/messages.py",
+      "line": 309
+    },
+    {
+      "method": "POST",
+      "path": "/v1/polls/send",
+      "declared_path": "/send",
+      "prefix": "/v1/polls",
+      "file": "api/app/routers/polls.py",
+      "line": 27
+    },
+    {
+      "method": "POST",
+      "path": "/v1/polls/{chat_id}/{message_id}/stop",
+      "declared_path": "/{chat_id}/{message_id}/stop",
+      "prefix": "/v1/polls",
+      "file": "api/app/routers/polls.py",
+      "line": 133
+    },
+    {
+      "method": "GET",
+      "path": "/v1/polls/{poll_id}",
+      "declared_path": "/{poll_id}",
+      "prefix": "/v1/polls",
+      "file": "api/app/routers/polls.py",
+      "line": 177
+    },
+    {
+      "method": "GET",
+      "path": "/v1/polls/{poll_id}/answers",
+      "declared_path": "/{poll_id}/answers",
+      "prefix": "/v1/polls",
+      "file": "api/app/routers/polls.py",
+      "line": 186
+    },
+    {
+      "method": "POST",
+      "path": "/v1/predictions/events",
+      "declared_path": "/predictions/events",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/v1/predictions/events",
+      "declared_path": "/predictions/events",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 226
+    },
+    {
+      "method": "GET",
+      "path": "/v1/predictions/events/{event_id}",
+      "declared_path": "/predictions/events/{event_id}",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 269
+    },
+    {
+      "method": "POST",
+      "path": "/v1/predictions/bets",
+      "declared_path": "/predictions/bets",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 302
+    },
+    {
+      "method": "POST",
+      "path": "/v1/predictions/events/{event_id}/resolve",
+      "declared_path": "/predictions/events/{event_id}/resolve",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 391
+    },
+    {
+      "method": "POST",
+      "path": "/v1/predictions/events/{event_id}/auto-resolve",
+      "declared_path": "/predictions/events/{event_id}/auto-resolve",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 576
+    },
+    {
+      "method": "GET",
+      "path": "/v1/predictions/bets",
+      "declared_path": "/predictions/bets",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 781
+    },
+    {
+      "method": "POST",
+      "path": "/v1/stars/invoice",
+      "declared_path": "/stars/invoice",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 823
+    },
+    {
+      "method": "POST",
+      "path": "/v1/stars/refund",
+      "declared_path": "/stars/refund",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 850
+    },
+    {
+      "method": "GET",
+      "path": "/v1/stars/transactions",
+      "declared_path": "/stars/transactions",
+      "prefix": "/v1",
+      "file": "api/app/routers/predictions.py",
+      "line": 875
+    },
+    {
+      "method": "POST",
+      "path": "/v1/reactions/set",
+      "declared_path": "/set",
+      "prefix": "/v1/reactions",
+      "file": "api/app/routers/reactions.py",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/v1/reactions/{chat_id}/{message_id}",
+      "declared_path": "/{chat_id}/{message_id}",
+      "prefix": "/v1/reactions",
+      "file": "api/app/routers/reactions.py",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/v1/templates/{name}",
+      "declared_path": "/{name}",
+      "prefix": "/v1/templates",
+      "file": "api/app/routers/templates.py",
+      "line": 32
+    },
+    {
+      "method": "POST",
+      "path": "/v1/templates/{name}/render",
+      "declared_path": "/{name}/render",
+      "prefix": "/v1/templates",
+      "file": "api/app/routers/templates.py",
+      "line": 40
+    },
+    {
+      "method": "POST",
+      "path": "/v1/templates/seed",
+      "declared_path": "/seed",
+      "prefix": "/v1/templates",
+      "file": "api/app/routers/templates.py",
+      "line": 49
+    },
+    {
+      "method": "GET",
+      "path": "/v1/updates/poll",
+      "declared_path": "/poll",
+      "prefix": "/v1/updates",
+      "file": "api/app/routers/updates.py",
+      "line": 139
+    },
+    {
+      "method": "POST",
+      "path": "/v1/updates/ack",
+      "declared_path": "/ack",
+      "prefix": "/v1/updates",
+      "file": "api/app/routers/updates.py",
+      "line": 216
+    },
+    {
+      "method": "GET",
+      "path": "/v1/updates/offset",
+      "declared_path": "/offset",
+      "prefix": "/v1/updates",
+      "file": "api/app/routers/updates.py",
+      "line": 234
+    },
+    {
+      "method": "POST",
+      "path": "/v1/updates/process",
+      "declared_path": "/process",
+      "prefix": "/v1/updates",
+      "file": "api/app/routers/updates.py",
+      "line": 294
+    },
+    {
+      "method": "GET",
+      "path": "/v1/updates/history",
+      "declared_path": "/history",
+      "prefix": "/v1/updates",
+      "file": "api/app/routers/updates.py",
+      "line": 330
+    },
+    {
+      "method": "POST",
+      "path": "/telegram/webhook",
+      "declared_path": "/telegram/webhook",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 34
+    },
+    {
+      "method": "POST",
+      "path": "/telegram/webhook/{bot_id}",
+      "declared_path": "/telegram/webhook/{bot_id}",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 43
+    },
+    {
+      "method": "GET",
+      "path": "/v1/updates",
+      "declared_path": "/v1/updates",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 52
+    },
+    {
+      "method": "POST",
+      "path": "/v1/webhook/set",
+      "declared_path": "/v1/webhook/set",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 64
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/webhook",
+      "declared_path": "/v1/webhook",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 83
+    },
+    {
+      "method": "GET",
+      "path": "/v1/webhook/info",
+      "declared_path": "/v1/webhook/info",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 94
+    },
+    {
+      "method": "GET",
+      "path": "/v1/bot/me",
+      "declared_path": "/v1/bot/me",
+      "prefix": "",
+      "file": "api/app/routers/webhook.py",
+      "line": 105
+    }
+  ]
+}

@@ -1,32 +1,48 @@
 """
-HTTP-клиент к Telegram Bot API.
+HTTP client for Telegram Bot API.
 
-Единый httpx.AsyncClient с connection pool, retry при 429 и multipart-upload.
+Features:
+- Single shared httpx.AsyncClient
+- Retry policy for 429/5xx
+- Optional per-call bot token override
+- Contextual bot token override (for webhook workers)
+- Non-blocking activity logging into api_activity_log
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
+import time
+from contextlib import asynccontextmanager
 from typing import Any, BinaryIO
 
 import httpx
 
 from .config import get_settings
+from .services.activity import log_activity_background
+from .services.bots import BotRegistry
 
 _settings = get_settings()
 logger = logging.getLogger(__name__)
 
-# --- Singleton HTTP-клиент ---
+# --- Singleton HTTP client ---
 
 _client: httpx.AsyncClient | None = None
 
 _MAX_RETRIES = 3
 _TIMEOUT = 30.0
 
+# Context-local override (used by webhook routes bound to a specific bot).
+_current_bot_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "telegram_bot_token_override",
+    default=None,
+)
+
 
 async def get_client() -> httpx.AsyncClient:
-    """Возвращает переиспользуемый AsyncClient (ленивая инициализация)."""
+    """Return a reused AsyncClient instance (lazy initialization)."""
     global _client
     if _client is None or _client.is_closed:
         _client = httpx.AsyncClient(timeout=_TIMEOUT)
@@ -34,469 +50,627 @@ async def get_client() -> httpx.AsyncClient:
 
 
 async def close_client() -> None:
-    """Закрытие клиента при остановке приложения."""
+    """Close HTTP client on app shutdown."""
     global _client
     if _client is not None and not _client.is_closed:
         await _client.aclose()
         _client = None
 
 
+@asynccontextmanager
+async def using_bot_token(bot_token: str | None):
+    """Temporarily set default bot token for all Telegram calls in this task."""
+    if not bot_token:
+        yield
+        return
+
+    token = _current_bot_token.set(bot_token)
+    try:
+        yield
+    finally:
+        _current_bot_token.reset(token)
+
+
 class TelegramError(RuntimeError):
-    """Ошибка от Telegram Bot API."""
+    """Telegram Bot API error."""
 
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
 
-# --- Внутренние вызовы ---
+def _token_hint(token: str | None) -> str:
+    if not token:
+        return "unknown"
+    suffix = token[-6:] if len(token) >= 6 else token
+    return f"*{suffix}"
 
 
-def _build_url(method: str) -> str:
+async def _resolve_bot_token(bot_token: str | None = None) -> str:
+    if bot_token:
+        return bot_token
+
+    contextual = _current_bot_token.get()
+    if contextual:
+        return contextual
+
+    return await BotRegistry.get_bot_token()
+
+
+def _build_url(method: str, bot_token: str) -> str:
     base = _settings.telegram_api_base.rstrip("/")
-    return f"{base}/bot{_settings.telegram_bot_token}/{method}"
+    return f"{base}/bot{bot_token}/{method}"
 
 
-async def _call(method: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """JSON-запрос к Telegram Bot API с retry при 429."""
-    url = _build_url(method)
-    client = await get_client()
+def _extract_actor(payload: dict[str, Any] | None = None, data: dict[str, Any] | None = None) -> tuple[str | int | None, str | int | None]:
+    source = payload or data or {}
+    return source.get("chat_id"), source.get("user_id")
 
-    for attempt in range(1, _MAX_RETRIES + 1):
-        resp = await client.post(url, json=payload)
 
-        if resp.status_code == 429:
-            # Telegram rate limit — ждём Retry-After
-            data = resp.json()
-            retry_after = data.get("parameters", {}).get("retry_after", 1)
-            logger.warning(
-                "Telegram 429 (retry_after=%s) attempt %d/%d for %s",
-                retry_after, attempt, _MAX_RETRIES, method,
-            )
-            await asyncio.sleep(retry_after)
-            continue
+def _build_activity_metadata(
+    *,
+    method: str,
+    attempts: int,
+    http_status: int | None,
+    multipart: bool,
+    payload: dict[str, Any] | None,
+    data: dict[str, Any] | None,
+) -> dict[str, Any]:
+    source = payload or data or {}
+    return {
+        "method": method,
+        "attempts": attempts,
+        "http_status": http_status,
+        "multipart": multipart,
+        "payload_keys": sorted(source.keys()),
+    }
 
-        if resp.status_code >= 500 and attempt < _MAX_RETRIES:
-            # Telegram 5xx — экспоненциальный backoff
-            delay = 2 ** (attempt - 1)
-            logger.warning(
-                "Telegram %d, retry in %ds (attempt %d/%d) for %s",
-                resp.status_code, delay, attempt, _MAX_RETRIES, method,
-            )
-            await asyncio.sleep(delay)
-            continue
 
-        break
+def _record_activity_async(
+    *,
+    method: str,
+    bot_token: str | None,
+    status: str,
+    duration_ms: int,
+    payload: dict[str, Any] | None,
+    data: dict[str, Any] | None,
+    error: str | None,
+    attempts: int,
+    http_status: int | None,
+    multipart: bool,
+) -> None:
+    async def _worker() -> None:
+        bot_id: int | None = None
+        bot_username: str | None = None
+        if bot_token:
+            try:
+                bot_row = await BotRegistry.get_bot_by_token(bot_token)
+                if bot_row:
+                    raw_bot_id = bot_row.get("bot_id")
+                    if raw_bot_id is not None:
+                        bot_id = int(raw_bot_id)
+                    bot_username = bot_row.get("username")
+            except Exception:
+                pass
 
-    data = resp.json()
-    if not data.get("ok"):
-        raise TelegramError(
-            data.get("description") or f"telegram api error ({resp.status_code})",
-            status_code=resp.status_code,
+        chat_id, user_id = _extract_actor(payload=payload, data=data)
+        metadata = _build_activity_metadata(
+            method=method,
+            attempts=attempts,
+            http_status=http_status,
+            multipart=multipart,
+            payload=payload,
+            data=data,
         )
-    return data.get("result") or {}
+        log_activity_background(
+            bot_id=bot_id,
+            bot_username=bot_username,
+            action=method,
+            chat_id=chat_id,
+            user_id=user_id,
+            status=status,
+            error=error,
+            duration_ms=duration_ms,
+            metadata=metadata,
+        )
+
+    try:
+        asyncio.create_task(_worker())
+    except RuntimeError:
+        # No running event loop (for example during process teardown).
+        pass
 
 
-async def call_api(method: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """
-    Публичный API для вызова Telegram Bot API методов.
-
-    Возвращает полный ответ с "ok" и "result" (в отличие от _call, который возвращает только result).
-    """
-    url = _build_url(method)
+async def _post_with_retry(
+    *,
+    url: str,
+    method: str,
+    json_payload: dict[str, Any] | None = None,
+    data_payload: dict[str, Any] | None = None,
+    files: dict[str, tuple[str, BinaryIO | bytes, str]] | None = None,
+) -> tuple[httpx.Response, int]:
     client = await get_client()
 
     for attempt in range(1, _MAX_RETRIES + 1):
-        resp = await client.post(url, json=payload)
+        if files is not None:
+            resp = await client.post(url, data=data_payload or {}, files=files)
+        else:
+            resp = await client.post(url, json=json_payload or {})
 
-        if resp.status_code == 429:
-            data = resp.json()
-            retry_after = data.get("parameters", {}).get("retry_after", 1)
+        if resp.status_code == 429 and attempt < _MAX_RETRIES:
+            retry_after = 1
+            try:
+                retry_data = resp.json()
+                retry_after = int(retry_data.get("parameters", {}).get("retry_after", 1))
+            except Exception:
+                retry_after = 1
             logger.warning(
                 "Telegram 429 (retry_after=%s) attempt %d/%d for %s",
-                retry_after, attempt, _MAX_RETRIES, method,
+                retry_after,
+                attempt,
+                _MAX_RETRIES,
+                method,
             )
-            await asyncio.sleep(retry_after)
+            await asyncio.sleep(max(1, retry_after))
             continue
 
         if resp.status_code >= 500 and attempt < _MAX_RETRIES:
             delay = 2 ** (attempt - 1)
             logger.warning(
                 "Telegram %d, retry in %ds (attempt %d/%d) for %s",
-                resp.status_code, delay, attempt, _MAX_RETRIES, method,
+                resp.status_code,
+                delay,
+                attempt,
+                _MAX_RETRIES,
+                method,
             )
             await asyncio.sleep(delay)
             continue
 
-        break
+        return resp, attempt
 
-    # Возвращаем полный ответ (включая "ok" и "result")
-    return resp.json()
+    # Defensive fallback; loop always returns.
+    raise RuntimeError("retry loop ended unexpectedly")
+
+
+async def _execute_telegram_request(
+    method: str,
+    *,
+    payload: dict[str, Any] | None = None,
+    data: dict[str, Any] | None = None,
+    files: dict[str, tuple[str, BinaryIO | bytes, str]] | None = None,
+    bot_token: str | None = None,
+    strict: bool,
+    return_full: bool,
+) -> dict[str, Any]:
+    resolved_token: str | None = None
+    attempts = 1
+    http_status: int | None = None
+    error_text: str | None = None
+    status = "error"
+    started = time.perf_counter()
+
+    try:
+        resolved_token = await _resolve_bot_token(bot_token)
+        url = _build_url(method, resolved_token)
+
+        chat_id, _ = _extract_actor(payload=payload, data=data)
+        logger.info(
+            "telegram.call method=%s chat_id=%s bot=%s",
+            method,
+            chat_id,
+            _token_hint(resolved_token),
+        )
+
+        response, attempts = await _post_with_retry(
+            url=url,
+            method=method,
+            json_payload=payload,
+            data_payload=data,
+            files=files,
+        )
+        http_status = response.status_code
+
+        try:
+            response_data = response.json()
+        except Exception as exc:
+            raise TelegramError(f"invalid Telegram JSON response: {exc}", status_code=response.status_code) from exc
+
+        is_ok = bool(response_data.get("ok"))
+        if not is_ok:
+            error_text = response_data.get("description") or f"telegram api error ({response.status_code})"
+            if strict:
+                raise TelegramError(error_text, status_code=response.status_code)
+            status = "error"
+            return response_data
+
+        status = "success"
+        if return_full:
+            return response_data
+        return response_data.get("result") or {}
+    except TelegramError as exc:
+        error_text = error_text or str(exc)
+        status = "error"
+        raise
+    except Exception as exc:
+        error_text = error_text or str(exc)
+        status = "error"
+        raise
+    finally:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _record_activity_async(
+            method=method,
+            bot_token=resolved_token,
+            status=status,
+            duration_ms=duration_ms,
+            payload=payload,
+            data=data,
+            error=error_text,
+            attempts=attempts,
+            http_status=http_status,
+            multipart=files is not None,
+        )
+        logger.info(
+            "telegram.result method=%s status=%s ms=%s bot=%s http=%s",
+            method,
+            status,
+            duration_ms,
+            _token_hint(resolved_token),
+            http_status,
+        )
+
+
+# --- Internal wrappers ---
+
+
+async def _call(method: str, payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """Strict JSON call to Telegram Bot API (raises TelegramError on !ok)."""
+    return await _execute_telegram_request(
+        method,
+        payload=payload,
+        bot_token=bot_token,
+        strict=True,
+        return_full=False,
+    )
+
+
+async def call_api(method: str, payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """Low-level call that returns raw Telegram payload, including `ok`."""
+    return await _execute_telegram_request(
+        method,
+        payload=payload,
+        bot_token=bot_token,
+        strict=False,
+        return_full=True,
+    )
 
 
 async def _call_multipart(
     method: str,
     data: dict[str, Any],
     files: dict[str, tuple[str, BinaryIO | bytes, str]],
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Multipart/form-data запрос к Telegram Bot API.
-
-    files: {"photo": ("chart.png", file_bytes, "image/png")}
-    """
-    url = _build_url(method)
-    client = await get_client()
-
-    for attempt in range(1, _MAX_RETRIES + 1):
-        resp = await client.post(url, data=data, files=files)
-
-        if resp.status_code == 429:
-            retry_data = resp.json()
-            retry_after = retry_data.get("parameters", {}).get("retry_after", 1)
-            logger.warning(
-                "Telegram 429 (retry_after=%s) attempt %d/%d for %s (multipart)",
-                retry_after, attempt, _MAX_RETRIES, method,
-            )
-            await asyncio.sleep(retry_after)
-            continue
-
-        if resp.status_code >= 500 and attempt < _MAX_RETRIES:
-            delay = 2 ** (attempt - 1)
-            logger.warning(
-                "Telegram %d, retry in %ds (attempt %d/%d) for %s (multipart)",
-                resp.status_code, delay, attempt, _MAX_RETRIES, method,
-            )
-            await asyncio.sleep(delay)
-            continue
-
-        break
-
-    resp_data = resp.json()
-    if not resp_data.get("ok"):
-        raise TelegramError(
-            resp_data.get("description") or f"telegram api error ({resp.status_code})",
-            status_code=resp.status_code,
-        )
-    return resp_data.get("result") or {}
+    """Strict multipart/form-data call to Telegram Bot API."""
+    return await _execute_telegram_request(
+        method,
+        data=data,
+        files=files,
+        bot_token=bot_token,
+        strict=True,
+        return_full=False,
+    )
 
 
-# === Сообщения ===
+# === Messages ===
 
 
-async def send_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """sendMessage — отправка текстового сообщения."""
-    return await _call("sendMessage", payload)
+async def send_message(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendMessage."""
+    return await _call("sendMessage", payload, bot_token=bot_token)
 
 
-async def edit_message_text(payload: dict[str, Any]) -> dict[str, Any]:
-    """editMessageText — редактирование текста сообщения."""
-    return await _call("editMessageText", payload)
+async def edit_message_text(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editMessageText."""
+    return await _call("editMessageText", payload, bot_token=bot_token)
 
 
-async def delete_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """deleteMessage — удаление сообщения."""
-    return await _call("deleteMessage", payload)
+async def delete_message(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """deleteMessage."""
+    return await _call("deleteMessage", payload, bot_token=bot_token)
 
 
-async def forward_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """forwardMessage — пересылка сообщения."""
-    return await _call("forwardMessage", payload)
+async def forward_message(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """forwardMessage."""
+    return await _call("forwardMessage", payload, bot_token=bot_token)
 
 
-async def copy_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """copyMessage — копирование сообщения."""
-    return await _call("copyMessage", payload)
+async def copy_message(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """copyMessage."""
+    return await _call("copyMessage", payload, bot_token=bot_token)
 
 
-async def pin_chat_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """pinChatMessage — закрепление сообщения в чате."""
-    return await _call("pinChatMessage", payload)
+async def pin_chat_message(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """pinChatMessage."""
+    return await _call("pinChatMessage", payload, bot_token=bot_token)
 
 
-async def unpin_chat_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """unpinChatMessage — открепление сообщения в чате."""
-    return await _call("unpinChatMessage", payload)
+async def unpin_chat_message(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """unpinChatMessage."""
+    return await _call("unpinChatMessage", payload, bot_token=bot_token)
 
 
-# === Медиа ===
+# === Media ===
 
 
 async def send_photo(
     data: dict[str, Any],
     photo_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """
-    sendPhoto — отправка фото.
-
-    Если photo_file задан — загрузка файла (multipart).
-    Если data содержит 'photo' как строку — URL или file_id (JSON).
-    """
+    """sendPhoto."""
     if photo_file:
-        return await _call_multipart("sendPhoto", data, {"photo": photo_file})
-    return await _call("sendPhoto", data)
+        return await _call_multipart("sendPhoto", data, {"photo": photo_file}, bot_token=bot_token)
+    return await _call("sendPhoto", data, bot_token=bot_token)
 
 
 async def send_document(
     data: dict[str, Any],
     document_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """sendDocument — отправка документа/файла."""
+    """sendDocument."""
     if document_file:
-        return await _call_multipart("sendDocument", data, {"document": document_file})
-    return await _call("sendDocument", data)
+        return await _call_multipart("sendDocument", data, {"document": document_file}, bot_token=bot_token)
+    return await _call("sendDocument", data, bot_token=bot_token)
 
 
 async def send_video(
     data: dict[str, Any],
     video_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """sendVideo — отправка видео."""
+    """sendVideo."""
     if video_file:
-        return await _call_multipart("sendVideo", data, {"video": video_file})
-    return await _call("sendVideo", data)
+        return await _call_multipart("sendVideo", data, {"video": video_file}, bot_token=bot_token)
+    return await _call("sendVideo", data, bot_token=bot_token)
 
 
 async def send_animation(
     data: dict[str, Any],
     animation_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """sendAnimation — отправка GIF."""
+    """sendAnimation."""
     if animation_file:
-        return await _call_multipart("sendAnimation", data, {"animation": animation_file})
-    return await _call("sendAnimation", data)
+        return await _call_multipart("sendAnimation", data, {"animation": animation_file}, bot_token=bot_token)
+    return await _call("sendAnimation", data, bot_token=bot_token)
 
 
 async def send_voice(
     data: dict[str, Any],
     voice_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """sendVoice — отправка голосового сообщения."""
+    """sendVoice."""
     if voice_file:
-        return await _call_multipart("sendVoice", data, {"voice": voice_file})
-    return await _call("sendVoice", data)
+        return await _call_multipart("sendVoice", data, {"voice": voice_file}, bot_token=bot_token)
+    return await _call("sendVoice", data, bot_token=bot_token)
 
 
 async def send_audio(
     data: dict[str, Any],
     audio_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """sendAudio — отправка аудио."""
+    """sendAudio."""
     if audio_file:
-        return await _call_multipart("sendAudio", data, {"audio": audio_file})
-    return await _call("sendAudio", data)
+        return await _call_multipart("sendAudio", data, {"audio": audio_file}, bot_token=bot_token)
+    return await _call("sendAudio", data, bot_token=bot_token)
 
 
 async def send_sticker(
     data: dict[str, Any],
     sticker_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
 ) -> dict[str, Any]:
-    """sendSticker — отправка стикера."""
+    """sendSticker."""
     if sticker_file:
-        return await _call_multipart("sendSticker", data, {"sticker": sticker_file})
-    return await _call("sendSticker", data)
+        return await _call_multipart("sendSticker", data, {"sticker": sticker_file}, bot_token=bot_token)
+    return await _call("sendSticker", data, bot_token=bot_token)
 
 
-async def send_media_group(payload: dict[str, Any]) -> dict[str, Any]:
-    """sendMediaGroup — отправка альбома (медиагруппы)."""
-    return await _call("sendMediaGroup", payload)
+async def send_media_group(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendMediaGroup."""
+    return await _call("sendMediaGroup", payload, bot_token=bot_token)
 
 
 # === Callback Query ===
 
 
-async def answer_callback_query(payload: dict[str, Any]) -> dict[str, Any]:
-    """answerCallbackQuery — ответ на нажатие inline-кнопки."""
-    return await _call("answerCallbackQuery", payload)
+async def answer_callback_query(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """answerCallbackQuery."""
+    return await _call("answerCallbackQuery", payload, bot_token=bot_token)
 
 
-# === Чаты и участники ===
+# === Chats and members ===
 
 
-async def get_chat(payload: dict[str, Any]) -> dict[str, Any]:
-    """getChat — информация о чате."""
-    return await _call("getChat", payload)
+async def get_chat(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getChat."""
+    return await _call("getChat", payload, bot_token=bot_token)
 
 
-async def get_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
-    """getChatMember — информация об участнике чата."""
-    return await _call("getChatMember", payload)
+async def get_chat_member(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getChatMember."""
+    return await _call("getChatMember", payload, bot_token=bot_token)
 
 
-async def get_chat_member_count(payload: dict[str, Any]) -> dict[str, Any]:
-    """getChatMemberCount — число участников чата."""
-    return await _call("getChatMemberCount", payload)
+async def get_chat_member_count(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getChatMemberCount."""
+    return await _call("getChatMemberCount", payload, bot_token=bot_token)
 
 
-# === Команды бота ===
+# === Bot commands ===
 
 
-async def set_my_commands(payload: dict[str, Any]) -> dict[str, Any]:
-    """setMyCommands — установка списка команд по скоупу."""
-    return await _call("setMyCommands", payload)
+async def set_my_commands(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setMyCommands."""
+    return await _call("setMyCommands", payload, bot_token=bot_token)
 
 
-async def delete_my_commands(payload: dict[str, Any]) -> dict[str, Any]:
-    """deleteMyCommands — удаление списка команд."""
-    return await _call("deleteMyCommands", payload)
+async def delete_my_commands(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """deleteMyCommands."""
+    return await _call("deleteMyCommands", payload, bot_token=bot_token)
 
 
-async def get_my_commands(payload: dict[str, Any]) -> dict[str, Any]:
-    """getMyCommands — получение текущих команд."""
-    return await _call("getMyCommands", payload)
+async def get_my_commands(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getMyCommands."""
+    return await _call("getMyCommands", payload, bot_token=bot_token)
 
 
-# === Вебхуки ===
+# === Webhooks ===
 
 
-async def set_webhook(payload: dict[str, Any]) -> dict[str, Any]:
-    """setWebhook — настройка вебхука."""
-    return await _call("setWebhook", payload)
+async def set_webhook(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setWebhook."""
+    return await _call("setWebhook", payload, bot_token=bot_token)
 
 
-async def delete_webhook(payload: dict[str, Any] | None = None) -> dict[str, Any]:
-    """deleteWebhook — удаление вебхука."""
-    return await _call("deleteWebhook", payload or {})
+async def delete_webhook(payload: dict[str, Any] | None = None, bot_token: str | None = None) -> dict[str, Any]:
+    """deleteWebhook."""
+    return await _call("deleteWebhook", payload or {}, bot_token=bot_token)
 
 
-async def get_webhook_info() -> dict[str, Any]:
-    """getWebhookInfo — текущая конфигурация вебхука."""
-    return await _call("getWebhookInfo", {})
+async def get_webhook_info(bot_token: str | None = None) -> dict[str, Any]:
+    """getWebhookInfo."""
+    return await _call("getWebhookInfo", {}, bot_token=bot_token)
 
 
-# === Прочее ===
+# === Misc ===
 
 
-async def get_me() -> dict[str, Any]:
-    """getMe — информация о боте."""
-    return await _call("getMe", {})
+async def get_me(bot_token: str | None = None) -> dict[str, Any]:
+    """getMe."""
+    return await _call("getMe", {}, bot_token=bot_token)
 
 
-async def pin_chat_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """pinChatMessage — закрепить сообщение."""
-    return await _call("pinChatMessage", payload)
+# === Polls ===
 
 
-async def unpin_chat_message(payload: dict[str, Any]) -> dict[str, Any]:
-    """unpinChatMessage — открепить сообщение."""
-    return await _call("unpinChatMessage", payload)
+async def send_poll(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendPoll."""
+    return await _call("sendPoll", payload, bot_token=bot_token)
 
 
-# === Опросы ===
+async def stop_poll(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """stopPoll."""
+    return await _call("stopPoll", payload, bot_token=bot_token)
 
 
-async def send_poll(payload: dict[str, Any]) -> dict[str, Any]:
-    """sendPoll — создание опроса или викторины."""
-    return await _call("sendPoll", payload)
+# === Reactions ===
 
 
-async def stop_poll(payload: dict[str, Any]) -> dict[str, Any]:
-    """stopPoll — остановка опроса с показом результатов."""
-    return await _call("stopPoll", payload)
+async def set_message_reaction(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setMessageReaction."""
+    return await _call("setMessageReaction", payload, bot_token=bot_token)
 
 
-# === Реакции ===
+# === Chat management ===
 
 
-async def set_message_reaction(payload: dict[str, Any]) -> dict[str, Any]:
-    """setMessageReaction — установка реакции на сообщение."""
-    return await _call("setMessageReaction", payload)
+async def ban_chat_member(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """banChatMember."""
+    return await _call("banChatMember", payload, bot_token=bot_token)
 
 
-# === Chat Management ===
+async def unban_chat_member(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """unbanChatMember."""
+    return await _call("unbanChatMember", payload, bot_token=bot_token)
 
 
-async def ban_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
-    """banChatMember — блокировка участника чата."""
-    return await _call("banChatMember", payload)
+async def restrict_chat_member(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """restrictChatMember."""
+    return await _call("restrictChatMember", payload, bot_token=bot_token)
 
 
-async def unban_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
-    """unbanChatMember — разблокировка участника чата."""
-    return await _call("unbanChatMember", payload)
+async def promote_chat_member(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """promoteChatMember."""
+    return await _call("promoteChatMember", payload, bot_token=bot_token)
 
 
-async def restrict_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
-    """restrictChatMember — ограничение прав участника."""
-    return await _call("restrictChatMember", payload)
-
-
-async def promote_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
-    """promoteChatMember — повышение участника до админа."""
-    return await _call("promoteChatMember", payload)
-
-
-async def set_chat_administrator_custom_title(payload: dict[str, Any]) -> dict[str, Any]:
-    """setChatAdministratorCustomTitle — установка кастомного титула админа."""
-    return await _call("setChatAdministratorCustomTitle", payload)
+async def set_chat_administrator_custom_title(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setChatAdministratorCustomTitle."""
+    return await _call("setChatAdministratorCustomTitle", payload, bot_token=bot_token)
 
 
 # === Checklists (Bot API 9.1) ===
 
 
-async def send_checklist(payload: dict[str, Any]) -> dict[str, Any]:
-    """sendChecklist — отправка чек-листа (Bot API 9.1)."""
-    return await _call("sendChecklist", payload)
+async def send_checklist(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendChecklist."""
+    return await _call("sendChecklist", payload, bot_token=bot_token)
 
 
-async def edit_message_checklist(payload: dict[str, Any]) -> dict[str, Any]:
-    """editMessageChecklist — редактирование чек-листа."""
-    return await _call("editMessageChecklist", payload)
+async def edit_message_checklist(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editMessageChecklist."""
+    return await _call("editMessageChecklist", payload, bot_token=bot_token)
 
 
 # === Stars & Gifts (Bot API 9.1+) ===
 
 
-async def get_my_star_balance() -> dict[str, Any]:
-    """getMyStarBalance — баланс звёзд бота (Bot API 9.1)."""
-    return await _call("getMyStarBalance", {})
+async def get_my_star_balance(bot_token: str | None = None) -> dict[str, Any]:
+    """getMyStarBalance."""
+    return await _call("getMyStarBalance", {}, bot_token=bot_token)
 
 
-async def get_user_gifts(payload: dict[str, Any]) -> dict[str, Any]:
-    """getUserGifts — подарки пользователя (Bot API 9.3)."""
-    return await _call("getUserGifts", payload)
+async def get_user_gifts(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getUserGifts."""
+    return await _call("getUserGifts", payload, bot_token=bot_token)
 
 
-async def get_chat_gifts(payload: dict[str, Any]) -> dict[str, Any]:
-    """getChatGifts — подарки в чате (Bot API 9.3)."""
-    return await _call("getChatGifts", payload)
+async def get_chat_gifts(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getChatGifts."""
+    return await _call("getChatGifts", payload, bot_token=bot_token)
 
 
-async def gift_premium_subscription(payload: dict[str, Any]) -> dict[str, Any]:
-    """giftPremiumSubscription — подарить премиум за звёзды (Bot API 9.3)."""
-    return await _call("giftPremiumSubscription", payload)
+async def gift_premium_subscription(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """giftPremiumSubscription."""
+    return await _call("giftPremiumSubscription", payload, bot_token=bot_token)
 
 
 # === Stories (Bot API 9.3) ===
 
 
-async def repost_story(payload: dict[str, Any]) -> dict[str, Any]:
-    """repostStory — репост истории в канал (Bot API 9.3)."""
-    return await _call("repostStory", payload)
+async def repost_story(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """repostStory."""
+    return await _call("repostStory", payload, bot_token=bot_token)
 
 
-# === Stars Payments ===
+# === Stars payments ===
 
 
-async def send_invoice(payload: dict[str, Any]) -> dict[str, Any]:
-    """sendInvoice — создание счёта на оплату (Stars)."""
-    return await _call("sendInvoice", payload)
+async def send_invoice(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendInvoice."""
+    return await _call("sendInvoice", payload, bot_token=bot_token)
 
 
-async def create_invoice_link(payload: dict[str, Any]) -> dict[str, Any]:
-    """createInvoiceLink — создание ссылки на оплату (Stars)."""
-    return await _call("createInvoiceLink", payload)
+async def create_invoice_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """createInvoiceLink."""
+    return await _call("createInvoiceLink", payload, bot_token=bot_token)
 
 
-async def answer_pre_checkout_query(payload: dict[str, Any]) -> dict[str, Any]:
-    """answerPreCheckoutQuery — подтверждение предзаказа."""
-    return await _call("answerPreCheckoutQuery", payload)
+async def answer_pre_checkout_query(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """answerPreCheckoutQuery."""
+    return await _call("answerPreCheckoutQuery", payload, bot_token=bot_token)
 
 
-async def refund_star_payment(payload: dict[str, Any]) -> dict[str, Any]:
-    """refundStarPayment — возврат Stars платежа."""
-    return await _call("refundStarPayment", payload)
+async def refund_star_payment(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """refundStarPayment."""
+    return await _call("refundStarPayment", payload, bot_token=bot_token)
 
 
-async def get_star_transactions(payload: dict[str, Any] | None = None) -> dict[str, Any]:
-    """getStarTransactions — история транзакций Stars."""
-    return await _call("getStarTransactions", payload or {})
+async def get_star_transactions(payload: dict[str, Any] | None = None, bot_token: str | None = None) -> dict[str, Any]:
+    """getStarTransactions."""
+    return await _call("getStarTransactions", payload or {}, bot_token=bot_token)

@@ -29,6 +29,7 @@ async def main(
     chat_id: int | str,
     photo_path: str | None = None,
     photo_url: str | None = None,
+    bot_id: int | None = None,
 ) -> None:
     async with TelegramAPI(base_url) as api:
         # 1. Отправка фото по URL
@@ -38,6 +39,7 @@ async def main(
                 msg = await api.send_photo(
                     chat_id=chat_id,
                     photo=photo_url,
+                    bot_id=bot_id,
                     caption="<b>Тест</b>: фото по URL через SDK",
                     parse_mode="HTML",
                 )
@@ -59,6 +61,7 @@ async def main(
                     msg = await api.send_photo(
                         chat_id=chat_id,
                         photo=f,
+                        bot_id=bot_id,
                         caption="<b>Тест</b>: фото загружено через SDK (multipart)",
                         parse_mode="HTML",
                         filename=os.path.basename(photo_path),
@@ -77,6 +80,7 @@ async def main(
             msg = await api.send_photo(
                 chat_id=chat_id,
                 photo=png_data,
+                bot_id=bot_id,
                 caption="Тестовый PNG (1x1 красный пиксель), сгенерирован скриптом",
                 filename="test_pixel.png",
             )
@@ -91,6 +95,7 @@ async def main(
             msg = await api.send_document(
                 chat_id=chat_id,
                 document=doc_url,
+                bot_id=bot_id,
                 caption="Тестовый PDF-документ",
             )
             print(f"   id={msg.get('id')}, status={msg.get('status')}")
@@ -131,6 +136,7 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     parser.add_argument("--photo", dest="photo_path", help="Путь к фото-файлу для загрузки")
     parser.add_argument("--photo-url", help="URL фото для отправки")
     args = parser.parse_args()
@@ -138,4 +144,5 @@ if __name__ == "__main__":
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id, args.photo_path, args.photo_url))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, args.photo_path, args.photo_url, bot_id=bot_id))

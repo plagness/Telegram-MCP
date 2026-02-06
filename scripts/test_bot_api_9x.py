@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sdk"))
 from telegram_api_client import TelegramAPI
 
 
-async def test_checklist(api: TelegramAPI, chat_id: int | str):
+async def test_checklist(api: TelegramAPI, chat_id: int | str, bot_id: int | None = None):
     """Тест отправки и редактирования чек-листа."""
     print("\n🧪 Тест 1: Чек-листы (Bot API 9.1)")
 
@@ -39,6 +39,7 @@ async def test_checklist(api: TelegramAPI, chat_id: int | str):
     try:
         result = await api.send_checklist(
             chat_id=chat_id,
+            bot_id=bot_id,
             title="🚀 План развёртывания v2026.02.6",
             tasks=tasks,
         )
@@ -60,19 +61,19 @@ async def test_checklist(api: TelegramAPI, chat_id: int | str):
         print(f"❌ Ошибка чек-листа: {e}")
 
 
-async def test_stars_balance(api: TelegramAPI):
+async def test_stars_balance(api: TelegramAPI, bot_id: int | None = None):
     """Тест получения баланса звёзд."""
     print("\n🧪 Тест 2: Баланс звёзд (Bot API 9.1)")
 
     try:
-        balance = await api.get_star_balance()
+        balance = await api.get_star_balance(bot_id=bot_id)
         star_count = balance.get("result", {}).get("star_count", 0)
         print(f"⭐ Баланс звёзд бота: {star_count}")
     except Exception as e:
         print(f"❌ Ошибка получения баланса: {e}")
 
 
-async def test_gifts(api: TelegramAPI, chat_id: int | str):
+async def test_gifts(api: TelegramAPI, chat_id: int | str, bot_id: int | None = None):
     """Тест подарков (примерный, требуется реальный user_id)."""
     print("\n🧪 Тест 3: Подарки (Bot API 9.3)")
 
@@ -83,7 +84,7 @@ async def test_gifts(api: TelegramAPI, chat_id: int | str):
 
     try:
         # Проверка подарков в чате
-        gifts = await api.get_chat_gifts(chat_id)
+        gifts = await api.get_chat_gifts(chat_id, bot_id=bot_id)
         print(f"🎁 Подарки в чате: {len(gifts)} шт.")
 
         # Подарить премиум (закомментировано для безопасности)
@@ -114,21 +115,21 @@ async def test_repost_story(api: TelegramAPI, chat_id: int | str):
     #     print(f"❌ Ошибка репоста: {e}")
 
 
-async def main(base_url: str, chat_id: int | str):
+async def main(base_url: str, chat_id: int | str, bot_id: int | None = None):
     """Запуск всех тестов Bot API 9.x."""
     async with TelegramAPI(base_url) as api:
         print(f"🚀 Тестирование Bot API 9.x функций (v2026.02.6)\n")
 
         # Тест 1: Чек-листы
-        await test_checklist(api, chat_id)
+        await test_checklist(api, chat_id, bot_id=bot_id)
         await asyncio.sleep(2)
 
         # Тест 2: Баланс звёзд
-        await test_stars_balance(api)
+        await test_stars_balance(api, bot_id=bot_id)
         await asyncio.sleep(1)
 
         # Тест 3: Подарки
-        await test_gifts(api, chat_id)
+        await test_gifts(api, chat_id, bot_id=bot_id)
         await asyncio.sleep(1)
 
         # Тест 4: Репост историй
@@ -149,9 +150,11 @@ if __name__ == "__main__":
         default=os.environ.get("TELEGRAM_API_URL", "http://localhost:8081"),
         help="Базовый URL telegram-api",
     )
+    parser.add_argument("--bot-id", type=int, default=None, help="Явный bot_id для мультибот-теста")
     args = parser.parse_args()
 
     if not args.chat_id:
         parser.error("Укажите --chat-id или TEST_CHAT_ID")
 
-    asyncio.run(main(args.base_url, args.chat_id))
+    bot_id = args.bot_id or (int(os.environ["TEST_BOT_ID"]) if os.environ.get("TEST_BOT_ID") else None)
+    asyncio.run(main(args.base_url, args.chat_id, bot_id=bot_id))

@@ -82,6 +82,7 @@ class TelegramAPI:
         chat_id: int | str,
         text: str | None = None,
         *,
+        bot_id: int | None = None,
         parse_mode: str | None = None,
         template: str | None = None,
         variables: dict[str, Any] | None = None,
@@ -100,6 +101,8 @@ class TelegramAPI:
         Из result["message"]["id"] получаем внутренний ID для edit/delete.
         """
         payload: dict[str, Any] = {"chat_id": chat_id}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if text is not None:
             payload["text"] = text
         if template:
@@ -131,6 +134,7 @@ class TelegramAPI:
         message_id: int,
         text: str | None = None,
         *,
+        bot_id: int | None = None,
         template: str | None = None,
         variables: dict[str, Any] | None = None,
         parse_mode: str | None = None,
@@ -138,6 +142,8 @@ class TelegramAPI:
     ) -> dict[str, Any]:
         """Редактировать сообщение по внутреннему ID."""
         payload: dict[str, Any] = {}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if text is not None:
             payload["text"] = text
         if template:
@@ -165,6 +171,7 @@ class TelegramAPI:
     async def list_messages(
         self,
         chat_id: str | None = None,
+        bot_id: int | None = None,
         status: str | None = None,
         limit: int = 50,
         offset: int = 0,
@@ -173,6 +180,8 @@ class TelegramAPI:
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if chat_id:
             params["chat_id"] = chat_id
+        if bot_id is not None:
+            params["bot_id"] = bot_id
         if status:
             params["status"] = status
         data = await self._get("/v1/messages", params)
@@ -213,6 +222,7 @@ class TelegramAPI:
         chat_id: int | str,
         photo: str | bytes | BinaryIO,
         *,
+        bot_id: int | None = None,
         caption: str | None = None,
         parse_mode: str | None = None,
         reply_to_message_id: int | None = None,
@@ -232,6 +242,8 @@ class TelegramAPI:
         if isinstance(photo, str):
             # URL или file_id — через JSON-эндпоинт
             payload: dict[str, Any] = {"chat_id": chat_id, "photo": photo}
+            if bot_id is not None:
+                payload["bot_id"] = bot_id
             if caption:
                 payload["caption"] = caption
             if parse_mode:
@@ -256,6 +268,8 @@ class TelegramAPI:
                 file_data = photo.read()
 
             form: dict[str, Any] = {"chat_id": str(chat_id)}
+            if bot_id is not None:
+                form["bot_id"] = str(bot_id)
             if caption:
                 form["caption"] = caption
             if parse_mode:
@@ -289,6 +303,7 @@ class TelegramAPI:
         chat_id: int | str,
         document: str,
         *,
+        bot_id: int | None = None,
         caption: str | None = None,
         parse_mode: str | None = None,
         request_id: str | None = None,
@@ -296,6 +311,8 @@ class TelegramAPI:
     ) -> dict[str, Any]:
         """Отправить документ по URL или file_id."""
         payload: dict[str, Any] = {"chat_id": chat_id, "document": document}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if caption:
             payload["caption"] = caption
         if parse_mode:
@@ -312,6 +329,7 @@ class TelegramAPI:
         chat_id: int | str,
         media: list[dict[str, Any]],
         *,
+        bot_id: int | None = None,
         reply_to_message_id: int | None = None,
         message_thread_id: int | None = None,
         request_id: str | None = None,
@@ -344,6 +362,8 @@ class TelegramAPI:
             "chat_id": chat_id,
             "media": media,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if reply_to_message_id:
             payload["reply_to_message_id"] = reply_to_message_id
         if message_thread_id:
@@ -363,12 +383,15 @@ class TelegramAPI:
         chat_id: int | str,
         from_chat_id: int | str,
         message_id: int,
+        *,
+        bot_id: int | None = None,
     ) -> dict[str, Any]:
         """Переслать сообщение."""
         data = await self._post("/v1/messages/forward", {
             "chat_id": chat_id,
             "from_chat_id": from_chat_id,
             "message_id": message_id,
+            "bot_id": bot_id,
         })
         return data.get("message", data)
 
@@ -378,6 +401,7 @@ class TelegramAPI:
         from_chat_id: int | str,
         message_id: int,
         *,
+        bot_id: int | None = None,
         caption: str | None = None,
         parse_mode: str | None = None,
     ) -> dict[str, Any]:
@@ -387,6 +411,8 @@ class TelegramAPI:
             "from_chat_id": from_chat_id,
             "message_id": message_id,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if caption:
             payload["caption"] = caption
         if parse_mode:
@@ -456,6 +482,7 @@ class TelegramAPI:
     async def set_commands(
         self,
         commands: list[dict[str, str]],
+        bot_id: int | None = None,
         scope_type: str = "default",
         chat_id: int | None = None,
         user_id: int | None = None,
@@ -466,6 +493,8 @@ class TelegramAPI:
             "scope_type": scope_type,
             "commands": commands,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if chat_id is not None:
             payload["chat_id"] = chat_id
         if user_id is not None:
@@ -475,9 +504,9 @@ class TelegramAPI:
         data = await self._post("/v1/commands", payload)
         return data.get("command_set", data)
 
-    async def sync_commands(self, command_set_id: int) -> dict[str, Any]:
+    async def sync_commands(self, command_set_id: int, bot_id: int | None = None) -> dict[str, Any]:
         """Синхронизировать набор команд с Telegram."""
-        return await self._post("/v1/commands/sync", {"command_set_id": command_set_id})
+        return await self._post("/v1/commands/sync", {"command_set_id": command_set_id, "bot_id": bot_id})
 
     async def list_command_sets(self) -> list[dict[str, Any]]:
         """Список наборов команд."""
@@ -489,11 +518,14 @@ class TelegramAPI:
     async def answer_callback(
         self,
         callback_query_id: str,
+        bot_id: int | None = None,
         text: str | None = None,
         show_alert: bool = False,
     ) -> dict[str, Any]:
         """Ответить на callback_query."""
         payload: dict[str, Any] = {"callback_query_id": callback_query_id}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if text:
             payload["text"] = text
         if show_alert:
@@ -502,38 +534,92 @@ class TelegramAPI:
 
     # === Чаты ===
 
-    async def get_chat(self, chat_id: int | str) -> dict[str, Any]:
+    async def get_chat(self, chat_id: int | str, bot_id: int | None = None) -> dict[str, Any]:
         """Информация о чате от Telegram API."""
-        data = await self._get(f"/v1/chats/{chat_id}")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        data = await self._get(f"/v1/chats/{chat_id}", params=params)
         return data.get("chat", data)
 
-    async def get_chat_member(self, chat_id: int | str, user_id: int) -> dict[str, Any]:
+    async def get_chat_member(self, chat_id: int | str, user_id: int, bot_id: int | None = None) -> dict[str, Any]:
         """Информация об участнике чата."""
-        data = await self._get(f"/v1/chats/{chat_id}/members/{user_id}")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        data = await self._get(f"/v1/chats/{chat_id}/members/{user_id}", params=params)
         return data.get("member", data)
+
+    async def list_chats(
+        self,
+        bot_id: int | None = None,
+        chat_type: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Список чатов из локальной БД."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if bot_id is not None:
+            params["bot_id"] = bot_id
+        if chat_type:
+            params["chat_type"] = chat_type
+        data = await self._get("/v1/chats", params)
+        return data.get("items", [])
+
+    async def set_chat_alias(self, chat_id: int | str, alias: str) -> dict[str, Any]:
+        """Установить алиас чата."""
+        data = await self._request("PUT", f"/v1/chats/{chat_id}/alias", json={"alias": alias})
+        return data.get("chat", data)
+
+    async def get_chat_by_alias(self, alias: str) -> dict[str, Any]:
+        """Получить чат по алиасу."""
+        data = await self._get(f"/v1/chats/by-alias/{alias}")
+        return data.get("chat", data)
+
+    async def get_chat_history(
+        self,
+        chat_id: int | str,
+        bot_id: int | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """История сообщений чата из локальной БД."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if bot_id is not None:
+            params["bot_id"] = bot_id
+        data = await self._get(f"/v1/chats/{chat_id}/history", params)
+        return data.get("items", [])
 
     # === Вебхук / Обновления ===
 
-    async def list_updates(self, limit: int = 100, update_type: str | None = None) -> list[dict[str, Any]]:
+    async def list_updates(
+        self,
+        limit: int = 100,
+        update_type: str | None = None,
+        bot_id: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Список входящих обновлений."""
         params: dict[str, Any] = {"limit": limit}
         if update_type:
             params["update_type"] = update_type
+        if bot_id is not None:
+            params["bot_id"] = bot_id
         data = await self._get("/v1/updates", params)
         return data.get("items", [])
 
-    async def set_webhook(self, url: str, **kwargs: Any) -> dict[str, Any]:
+    async def set_webhook(self, url: str, bot_id: int | None = None, **kwargs: Any) -> dict[str, Any]:
         """Настроить вебхук."""
         payload = {"url": url, **kwargs}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         return await self._post("/v1/webhook/set", payload)
 
-    async def delete_webhook(self) -> dict[str, Any]:
+    async def delete_webhook(self, bot_id: int | None = None) -> dict[str, Any]:
         """Удалить вебхук."""
-        return await self._delete("/v1/webhook")
+        if bot_id is None:
+            return await self._delete("/v1/webhook")
+        return await self._request("DELETE", "/v1/webhook", params={"bot_id": bot_id})
 
-    async def get_webhook_info(self) -> dict[str, Any]:
+    async def get_webhook_info(self, bot_id: int | None = None) -> dict[str, Any]:
         """Текущая конфигурация вебхука."""
-        data = await self._get("/v1/webhook/info")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        data = await self._get("/v1/webhook/info", params=params)
         return data.get("webhook_info", data)
 
     # === Опросы ===
@@ -544,6 +630,7 @@ class TelegramAPI:
         question: str,
         options: list[str],
         *,
+        bot_id: int | None = None,
         is_anonymous: bool = True,
         type: str = "regular",
         allows_multiple_answers: bool = False,
@@ -574,6 +661,8 @@ class TelegramAPI:
             "type": type,
             "allows_multiple_answers": allows_multiple_answers,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if correct_option_id is not None:
             payload["correct_option_id"] = correct_option_id
         if explanation:
@@ -598,13 +687,16 @@ class TelegramAPI:
         data = await self._post("/v1/polls/send", payload)
         return data.get("message", data)
 
-    async def stop_poll(self, chat_id: int | str, message_id: int) -> dict[str, Any]:
+    async def stop_poll(self, chat_id: int | str, message_id: int, bot_id: int | None = None) -> dict[str, Any]:
         """
         Остановить опрос с показом результатов.
 
         message_id: telegram_message_id (не внутренний ID).
         """
-        data = await self._post(f"/v1/polls/{chat_id}/{message_id}/stop")
+        if bot_id is None:
+            data = await self._post(f"/v1/polls/{chat_id}/{message_id}/stop")
+        else:
+            data = await self._post(f"/v1/polls/{chat_id}/{message_id}/stop?bot_id={bot_id}")
         return data.get("poll", data)
 
     async def list_polls(
@@ -631,6 +723,7 @@ class TelegramAPI:
         self,
         chat_id: int | str,
         message_id: int,
+        bot_id: int | None = None,
         reaction: list[dict[str, Any]] | None = None,
         is_big: bool = False,
     ) -> dict[str, Any]:
@@ -648,6 +741,8 @@ class TelegramAPI:
             "message_id": message_id,
             "is_big": is_big,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if reaction is not None:
             payload["reaction"] = reaction
         return await self._post("/v1/reactions/set", payload)
@@ -679,6 +774,7 @@ class TelegramAPI:
         title: str,
         tasks: list[dict[str, Any]],
         *,
+        bot_id: int | None = None,
         business_connection_id: str | None = None,
         message_thread_id: int | None = None,
         reply_to_message_id: int | None = None,
@@ -706,6 +802,8 @@ class TelegramAPI:
                 "tasks": tasks,
             },
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if business_connection_id is not None:
             payload["business_connection_id"] = business_connection_id
         if message_thread_id is not None:
@@ -721,6 +819,7 @@ class TelegramAPI:
         message_id: int,
         title: str,
         tasks: list[dict[str, Any]],
+        bot_id: int | None = None,
         business_connection_id: str | None = None,
     ) -> dict[str, Any]:
         """
@@ -741,26 +840,30 @@ class TelegramAPI:
                 "tasks": tasks,
             },
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         if business_connection_id is not None:
             payload["business_connection_id"] = business_connection_id
         return await self._request("PUT", f"/v1/messages/{message_id}/checklist", json=payload)
 
     # === Stars & Gifts (Bot API 9.1+) ===
 
-    async def get_star_balance(self) -> dict[str, Any]:
+    async def get_star_balance(self, bot_id: int | None = None) -> dict[str, Any]:
         """
         Получить баланс звёзд бота (Bot API 9.1).
 
         Returns:
             {"star_count": N}
         """
-        return await self._get("/v1/stars/balance")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        return await self._get("/v1/stars/balance", params=params)
 
     async def gift_premium(
         self,
         user_id: int,
         duration_months: int,
         star_count: int,
+        bot_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Подарить премиум-подписку пользователю за звёзды (Bot API 9.3).
@@ -778,9 +881,11 @@ class TelegramAPI:
             "duration_months": duration_months,
             "star_count": star_count,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         return await self._post("/v1/gifts/premium", payload)
 
-    async def get_user_gifts(self, user_id: int) -> list[dict[str, Any]]:
+    async def get_user_gifts(self, user_id: int, bot_id: int | None = None) -> list[dict[str, Any]]:
         """
         Получить подарки пользователя (Bot API 9.3).
 
@@ -790,10 +895,11 @@ class TelegramAPI:
         Returns:
             Список подарков
         """
-        data = await self._get(f"/v1/gifts/user/{user_id}")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        data = await self._get(f"/v1/gifts/user/{user_id}", params=params)
         return data.get("result", [])
 
-    async def get_chat_gifts(self, chat_id: int | str) -> list[dict[str, Any]]:
+    async def get_chat_gifts(self, chat_id: int | str, bot_id: int | None = None) -> list[dict[str, Any]]:
         """
         Получить подарки в чате (Bot API 9.3).
 
@@ -803,7 +909,8 @@ class TelegramAPI:
         Returns:
             Список подарков
         """
-        data = await self._get(f"/v1/gifts/chat/{chat_id}")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        data = await self._get(f"/v1/gifts/chat/{chat_id}", params=params)
         return data.get("result", [])
 
     # === Stories (Bot API 9.3) ===
@@ -813,6 +920,7 @@ class TelegramAPI:
         chat_id: int | str,
         from_chat_id: int | str,
         story_id: int,
+        bot_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Репостнуть историю в канал (Bot API 9.3).
@@ -830,6 +938,8 @@ class TelegramAPI:
             "from_chat_id": from_chat_id,
             "story_id": story_id,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         return await self._post("/v1/stories/repost", payload)
 
     # === Prediction Markets (Betting) ===
@@ -841,6 +951,7 @@ class TelegramAPI:
         options: list[dict[str, Any]],
         creator_id: int,
         *,
+        bot_id: int | None = None,
         chat_id: int | str | None = None,
         deadline: str | None = None,
         resolution_date: str | None = None,
@@ -867,6 +978,7 @@ class TelegramAPI:
             {"event_id": N}
         """
         payload = {
+            "bot_id": bot_id,
             "title": title,
             "description": description,
             "options": options,
@@ -980,6 +1092,7 @@ class TelegramAPI:
         description: str,
         amount: int,
         payload: str,
+        bot_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Создать счёт на оплату Stars.
@@ -1002,28 +1115,36 @@ class TelegramAPI:
             "currency": "XTR",
             "prices": [{"label": title, "amount": amount}],
         }
+        if bot_id is not None:
+            invoice_payload["bot_id"] = bot_id
         return await self._post("/v1/stars/invoice", invoice_payload)
 
     async def refund_star_payment(
         self,
         user_id: int,
         telegram_payment_charge_id: str,
+        bot_id: int | None = None,
     ) -> dict[str, Any]:
         """Возврат Stars платежа."""
         payload = {
             "user_id": user_id,
             "telegram_payment_charge_id": telegram_payment_charge_id,
         }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
         return await self._post("/v1/stars/refund", payload)
 
     async def get_star_transactions(
         self,
+        bot_id: int | None = None,
         user_id: int | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """История транзакций Stars."""
         params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if bot_id is not None:
+            params["bot_id"] = bot_id
         if user_id:
             params["user_id"] = user_id
         data = await self._get("/v1/stars/transactions", params)
@@ -1039,9 +1160,33 @@ class TelegramAPI:
         """Метрики сообщений по статусам."""
         return await self._get("/v1/metrics")
 
-    async def get_bot_info(self) -> dict[str, Any]:
+    async def get_bot_info(self, bot_id: int | None = None) -> dict[str, Any]:
         """Информация о боте (getMe)."""
-        data = await self._get("/v1/bot/me")
+        params = {"bot_id": bot_id} if bot_id is not None else None
+        data = await self._get("/v1/bot/me", params=params)
+        return data.get("bot", data)
+
+    async def list_bots(self, include_inactive: bool = False) -> list[dict[str, Any]]:
+        """Список зарегистрированных ботов."""
+        data = await self._get("/v1/bots", {"include_inactive": include_inactive})
+        return data.get("items", [])
+
+    async def register_bot(self, token: str, is_default: bool | None = None) -> dict[str, Any]:
+        """Зарегистрировать бота по токену."""
+        payload: dict[str, Any] = {"token": token}
+        if is_default is not None:
+            payload["is_default"] = is_default
+        data = await self._post("/v1/bots", payload)
+        return data.get("bot", data)
+
+    async def get_default_bot(self) -> dict[str, Any]:
+        """Получить дефолтного бота."""
+        data = await self._get("/v1/bots/default")
+        return data.get("bot", data)
+
+    async def set_default_bot(self, bot_id: int) -> dict[str, Any]:
+        """Установить дефолтного бота."""
+        data = await self._request("PUT", f"/v1/bots/{bot_id}/default", json={})
         return data.get("bot", data)
 
     # === CommandHandler Pattern ===
@@ -1081,6 +1226,7 @@ class TelegramAPI:
         timeout: int = 30,
         limit: int = 100,
         allowed_updates: list[str] | None = None,
+        bot_id: int | None = None,
     ) -> None:
         """
         Запуск long polling для получения обновлений и обработки команд.
@@ -1089,6 +1235,7 @@ class TelegramAPI:
             timeout: Таймаут long polling (секунды)
             limit: Максимум обновлений за раз
             allowed_updates: Фильтр типов обновлений (["message", "callback_query", ...])
+            bot_id: Явный bot_id для мультибот polling
 
         Пример:
             api = TelegramAPI("http://localhost:8081")
@@ -1110,6 +1257,7 @@ class TelegramAPI:
             timeout=timeout,
             limit=limit,
             allowed_updates=allowed_updates,
+            bot_id=bot_id,
         )
 
     def stop_polling(self) -> None:

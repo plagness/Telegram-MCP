@@ -1,0 +1,241 @@
+{
+  "generated_from": "mcp/src/index.ts",
+  "count": 47,
+  "items": [
+    {
+      "tool": "telegram-mcp",
+      "file": "mcp/src/index.ts",
+      "line": 124
+    },
+    {
+      "tool": "messages.send",
+      "file": "mcp/src/index.ts",
+      "line": 168
+    },
+    {
+      "tool": "messages.edit",
+      "file": "mcp/src/index.ts",
+      "line": 186
+    },
+    {
+      "tool": "messages.delete",
+      "file": "mcp/src/index.ts",
+      "line": 203
+    },
+    {
+      "tool": "messages.fetch",
+      "file": "mcp/src/index.ts",
+      "line": 215
+    },
+    {
+      "tool": "templates.list",
+      "file": "mcp/src/index.ts",
+      "line": 236
+    },
+    {
+      "tool": "templates.render",
+      "file": "mcp/src/index.ts",
+      "line": 243
+    },
+    {
+      "tool": "commands.sync",
+      "file": "mcp/src/index.ts",
+      "line": 256
+    },
+    {
+      "tool": "updates.fetch",
+      "file": "mcp/src/index.ts",
+      "line": 269
+    },
+    {
+      "tool": "media.send_photo",
+      "file": "mcp/src/index.ts",
+      "line": 288
+    },
+    {
+      "tool": "media.send_document",
+      "file": "mcp/src/index.ts",
+      "line": 305
+    },
+    {
+      "tool": "callbacks.answer",
+      "file": "mcp/src/index.ts",
+      "line": 323
+    },
+    {
+      "tool": "callbacks.list",
+      "file": "mcp/src/index.ts",
+      "line": 338
+    },
+    {
+      "tool": "chats.get",
+      "file": "mcp/src/index.ts",
+      "line": 361
+    },
+    {
+      "tool": "chats.member",
+      "file": "mcp/src/index.ts",
+      "line": 375
+    },
+    {
+      "tool": "chats.list",
+      "file": "mcp/src/index.ts",
+      "line": 390
+    },
+    {
+      "tool": "chats.alias",
+      "file": "mcp/src/index.ts",
+      "line": 409
+    },
+    {
+      "tool": "chats.history",
+      "file": "mcp/src/index.ts",
+      "line": 422
+    },
+    {
+      "tool": "bots.list",
+      "file": "mcp/src/index.ts",
+      "line": 442
+    },
+    {
+      "tool": "bots.register",
+      "file": "mcp/src/index.ts",
+      "line": 451
+    },
+    {
+      "tool": "bots.default",
+      "file": "mcp/src/index.ts",
+      "line": 464
+    },
+    {
+      "tool": "webhook.setup",
+      "file": "mcp/src/index.ts",
+      "line": 483
+    },
+    {
+      "tool": "webhook.info",
+      "file": "mcp/src/index.ts",
+      "line": 498
+    },
+    {
+      "tool": "webhook.delete",
+      "file": "mcp/src/index.ts",
+      "line": 511
+    },
+    {
+      "tool": "commands.create",
+      "file": "mcp/src/index.ts",
+      "line": 528
+    },
+    {
+      "tool": "commands.list",
+      "file": "mcp/src/index.ts",
+      "line": 548
+    },
+    {
+      "tool": "polls.send",
+      "file": "mcp/src/index.ts",
+      "line": 557
+    },
+    {
+      "tool": "polls.stop",
+      "file": "mcp/src/index.ts",
+      "line": 582
+    },
+    {
+      "tool": "polls.list",
+      "file": "mcp/src/index.ts",
+      "line": 596
+    },
+    {
+      "tool": "reactions.set",
+      "file": "mcp/src/index.ts",
+      "line": 617
+    },
+    {
+      "tool": "checklists.send",
+      "file": "mcp/src/index.ts",
+      "line": 639
+    },
+    {
+      "tool": "checklists.edit",
+      "file": "mcp/src/index.ts",
+      "line": 670
+    },
+    {
+      "tool": "stars.balance",
+      "file": "mcp/src/index.ts",
+      "line": 696
+    },
+    {
+      "tool": "gifts.premium",
+      "file": "mcp/src/index.ts",
+      "line": 705
+    },
+    {
+      "tool": "gifts.user",
+      "file": "mcp/src/index.ts",
+      "line": 720
+    },
+    {
+      "tool": "gifts.chat",
+      "file": "mcp/src/index.ts",
+      "line": 730
+    },
+    {
+      "tool": "stories.repost",
+      "file": "mcp/src/index.ts",
+      "line": 742
+    },
+    {
+      "tool": "predictions.create_event",
+      "file": "mcp/src/index.ts",
+      "line": 759
+    },
+    {
+      "tool": "predictions.place_bet",
+      "file": "mcp/src/index.ts",
+      "line": 785
+    },
+    {
+      "tool": "predictions.resolve",
+      "file": "mcp/src/index.ts",
+      "line": 800
+    },
+    {
+      "tool": "predictions.list",
+      "file": "mcp/src/index.ts",
+      "line": 815
+    },
+    {
+      "tool": "predictions.get",
+      "file": "mcp/src/index.ts",
+      "line": 834
+    },
+    {
+      "tool": "predictions.user_bets",
+      "file": "mcp/src/index.ts",
+      "line": 843
+    },
+    {
+      "tool": "stars.invoice",
+      "file": "mcp/src/index.ts",
+      "line": 864
+    },
+    {
+      "tool": "stars.refund",
+      "file": "mcp/src/index.ts",
+      "line": 885
+    },
+    {
+      "tool": "stars.transactions",
+      "file": "mcp/src/index.ts",
+      "line": 899
+    },
+    {
+      "tool": "bot.info",
+      "file": "mcp/src/index.ts",
+      "line": 920
+    }
+  ]
+}

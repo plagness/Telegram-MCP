@@ -1,80 +1,257 @@
-"""Эндпоинты для работы с чатами и участниками."""
+"""Endpoints for chats, members and chat management operations."""
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from ..db import fetch_all, fetch_one
+from ..db import execute, fetch_all, fetch_one
+from ..models import SetChatAliasIn
+from ..services.bots import BotRegistry
 from ..telegram_client import (
     TelegramError,
+    ban_chat_member,
     get_chat,
     get_chat_member,
     get_chat_member_count,
     pin_chat_message,
-    unpin_chat_message,
-    ban_chat_member,
-    unban_chat_member,
-    restrict_chat_member,
     promote_chat_member,
-    set_chat_administrator_custom_title,
+    restrict_chat_member,
+    unban_chat_member,
+    unpin_chat_message,
 )
 
 router = APIRouter(prefix="/v1/chats", tags=["chats"])
 
 
+async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
+    bot_token = await BotRegistry.get_bot_token(bot_id)
+    resolved_bot_id = bot_id
+    bot_row = await BotRegistry.get_bot_by_token(bot_token)
+    if bot_row and bot_row.get("bot_id") is not None:
+        resolved_bot_id = int(bot_row["bot_id"])
+    return bot_token, resolved_bot_id
+
+
+@router.get("")
+async def list_chats_api(
+    bot_id: int | None = None,
+    chat_type: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    where: list[str] = []
+    values: list[Any] = []
+    if bot_id is not None:
+        where.append("bot_id = %s")
+        values.append(bot_id)
+    if chat_type:
+        where.append("type = %s")
+        values.append(chat_type)
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    rows = await fetch_all(
+        f"""
+        SELECT *
+        FROM chats
+        {where_sql}
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT %s OFFSET %s
+        """,
+        [*values, limit, offset],
+    )
+    return {"items": rows, "count": len(rows)}
+
+
+@router.put("/{chat_id}/alias")
+async def set_chat_alias_api(chat_id: str, payload: SetChatAliasIn) -> dict[str, Any]:
+    row = await execute(
+        """
+        UPDATE chats
+        SET alias = %s,
+            updated_at = NOW()
+        WHERE chat_id = %s
+        """,
+        [payload.alias.strip(), chat_id],
+    )
+    if row is None:
+        # execute() doesn't return rowcount; verify existence explicitly.
+        exists = await fetch_one("SELECT chat_id FROM chats WHERE chat_id = %s", [chat_id])
+        if not exists:
+            raise HTTPException(status_code=404, detail="chat not found")
+
+    chat = await fetch_one("SELECT * FROM chats WHERE chat_id = %s", [chat_id])
+    return {"chat": chat}
+
+
+@router.get("/by-alias/{alias}")
+async def get_chat_by_alias_api(alias: str) -> dict[str, Any]:
+    row = await fetch_one("SELECT * FROM chats WHERE alias = %s", [alias])
+    if not row:
+        raise HTTPException(status_code=404, detail="chat alias not found")
+    return {"chat": row}
+
+
+@router.get("/{chat_id}/history")
+async def get_chat_history_api(
+    chat_id: str,
+    bot_id: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    where = ["chat_id = %s"]
+    values: list[Any] = [chat_id]
+    if bot_id is not None:
+        where.append("bot_id = %s")
+        values.append(bot_id)
+
+    rows = await fetch_all(
+        f"""
+        SELECT *
+        FROM messages
+        WHERE {' AND '.join(where)}
+        ORDER BY created_at DESC
+        LIMIT %s OFFSET %s
+        """,
+        [*values, limit, offset],
+    )
+    return {"items": rows, "count": len(rows)}
+
+
+@router.get("/{chat_id}/members")
+async def list_chat_members_api(
+    chat_id: str,
+    bot_id: int | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> dict[str, Any]:
+    where = ["cm.chat_id = %s"]
+    values: list[Any] = [chat_id]
+    if bot_id is not None:
+        where.append("cm.bot_id = %s")
+        values.append(bot_id)
+
+    rows = await fetch_all(
+        f"""
+        SELECT
+            cm.*,
+            u.username,
+            u.first_name,
+            u.last_name,
+            u.is_premium
+        FROM chat_members cm
+        LEFT JOIN users u ON u.user_id = cm.user_id
+        WHERE {' AND '.join(where)}
+        ORDER BY cm.updated_at DESC
+        LIMIT %s OFFSET %s
+        """,
+        [*values, limit, offset],
+    )
+    return {"items": rows, "count": len(rows)}
+
+
 @router.get("/{chat_id}")
-async def get_chat_api(chat_id: str) -> dict[str, Any]:
-    """Получить информацию о чате от Telegram API."""
+async def get_chat_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
+    """Get chat details from Telegram API."""
     try:
-        result = await get_chat({"chat_id": chat_id})
+        bot_token, resolved_bot_id = await _resolve_bot_context(bot_id)
+        result = await get_chat({"chat_id": chat_id}, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+    await execute(
+        """
+        INSERT INTO chats (chat_id, type, title, username, description, bot_id)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (chat_id) DO UPDATE
+        SET type = EXCLUDED.type,
+            title = EXCLUDED.title,
+            username = EXCLUDED.username,
+            description = EXCLUDED.description,
+            bot_id = COALESCE(EXCLUDED.bot_id, chats.bot_id),
+            updated_at = NOW()
+        """,
+        [
+            str(result.get("id") or chat_id),
+            result.get("type"),
+            result.get("title"),
+            result.get("username"),
+            result.get("description"),
+            resolved_bot_id,
+        ],
+    )
+
     return {"chat": result}
 
 
 @router.get("/{chat_id}/members/{user_id}")
-async def get_chat_member_api(chat_id: str, user_id: int) -> dict[str, Any]:
-    """Получить информацию об участнике чата."""
+async def get_chat_member_api(chat_id: str, user_id: int, bot_id: int | None = None) -> dict[str, Any]:
+    """Get member details from Telegram API."""
     try:
-        result = await get_chat_member({"chat_id": chat_id, "user_id": user_id})
+        bot_token, resolved_bot_id = await _resolve_bot_context(bot_id)
+        result = await get_chat_member({"chat_id": chat_id, "user_id": user_id}, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+    await execute(
+        """
+        INSERT INTO chat_members (chat_id, user_id, bot_id, status, last_seen_at, metadata)
+        VALUES (%s, %s, %s, %s, NOW(), %s::jsonb)
+        ON CONFLICT (chat_id, user_id) DO UPDATE
+        SET bot_id = COALESCE(EXCLUDED.bot_id, chat_members.bot_id),
+            status = EXCLUDED.status,
+            last_seen_at = NOW(),
+            metadata = EXCLUDED.metadata,
+            updated_at = NOW()
+        """,
+        [chat_id, str(user_id), resolved_bot_id, result.get("status"), json.dumps(result)],
+    )
+
     return {"member": result}
 
 
 @router.get("/{chat_id}/members/count")
-async def get_chat_member_count_api(chat_id: str) -> dict[str, Any]:
-    """Количество участников чата."""
+async def get_chat_member_count_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
+    """Get number of chat members from Telegram API."""
     try:
-        result = await get_chat_member_count({"chat_id": chat_id})
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await get_chat_member_count({"chat_id": chat_id}, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     return {"count": result}
 
 
 @router.post("/{chat_id}/pin/{message_id}")
-async def pin_message_api(chat_id: str, message_id: int) -> dict[str, Any]:
-    """Закрепить сообщение в чате."""
+async def pin_message_api(chat_id: str, message_id: int, bot_id: int | None = None) -> dict[str, Any]:
+    """Pin a message in chat."""
     try:
-        result = await pin_chat_message({
-            "chat_id": chat_id,
-            "message_id": message_id,
-        })
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await pin_chat_message(
+            {
+                "chat_id": chat_id,
+                "message_id": message_id,
+            },
+            bot_token=bot_token,
+        )
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     return {"ok": True, "result": result}
 
 
 @router.delete("/{chat_id}/pin/{message_id}")
-async def unpin_message_api(chat_id: str, message_id: int) -> dict[str, Any]:
-    """Открепить сообщение в чате."""
+async def unpin_message_api(chat_id: str, message_id: int, bot_id: int | None = None) -> dict[str, Any]:
+    """Unpin a message in chat."""
     try:
-        result = await unpin_chat_message({
-            "chat_id": chat_id,
-            "message_id": message_id,
-        })
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await unpin_chat_message(
+            {
+                "chat_id": chat_id,
+                "message_id": message_id,
+            },
+            bot_token=bot_token,
+        )
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     return {"ok": True, "result": result}
@@ -82,7 +259,7 @@ async def unpin_message_api(chat_id: str, message_id: int) -> dict[str, Any]:
 
 @router.get("/{chat_id}/stored")
 async def get_stored_chat_api(chat_id: str) -> dict[str, Any]:
-    """Получить данные о чате из локальной БД (из вебхуков)."""
+    """Get chat data from local DB (captured from webhooks)."""
     row = await fetch_one("SELECT * FROM chats WHERE chat_id = %s", [chat_id])
     if not row:
         raise HTTPException(status_code=404, detail="chat not found in local db")
@@ -91,21 +268,21 @@ async def get_stored_chat_api(chat_id: str) -> dict[str, Any]:
 
 @router.get("/{chat_id}/stored-users")
 async def list_chat_users_api(chat_id: str, limit: int = 100, offset: int = 0) -> dict[str, Any]:
-    """Список пользователей из БД, которые писали в данном чате."""
+    """List users from DB that were seen in this chat."""
     rows = await fetch_all(
         """
-        SELECT DISTINCT u.* FROM users u
-        JOIN messages m ON m.chat_id = %s
+        SELECT DISTINCT u.*
+        FROM users u
         JOIN webhook_updates wu ON wu.chat_id = %s AND wu.user_id = u.user_id
         ORDER BY u.updated_at DESC
         LIMIT %s OFFSET %s
         """,
-        [chat_id, chat_id, limit, offset],
+        [chat_id, limit, offset],
     )
     return {"items": rows, "count": len(rows)}
 
 
-# === Chat Management ===
+# === Chat management ===
 
 
 @router.post("/{chat_id}/members/{user_id}/ban")
@@ -114,16 +291,8 @@ async def ban_member_api(
     user_id: int,
     until_date: int | None = None,
     revoke_messages: bool = False,
+    bot_id: int | None = None,
 ) -> dict[str, Any]:
-    """
-    Забанить участника чата.
-
-    Args:
-        chat_id: ID чата
-        user_id: ID пользователя
-        until_date: Unix timestamp до когда бан (None = навсегда)
-        revoke_messages: Удалить все сообщения пользователя
-    """
     payload: dict[str, Any] = {
         "chat_id": chat_id,
         "user_id": user_id,
@@ -133,7 +302,8 @@ async def ban_member_api(
         payload["until_date"] = until_date
 
     try:
-        result = await ban_chat_member(payload)
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await ban_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -145,15 +315,8 @@ async def unban_member_api(
     chat_id: str,
     user_id: int,
     only_if_banned: bool = True,
+    bot_id: int | None = None,
 ) -> dict[str, Any]:
-    """
-    Разбанить участника чата.
-
-    Args:
-        chat_id: ID чата
-        user_id: ID пользователя
-        only_if_banned: Разбанить только если забанен
-    """
     payload: dict[str, Any] = {
         "chat_id": chat_id,
         "user_id": user_id,
@@ -161,7 +324,8 @@ async def unban_member_api(
     }
 
     try:
-        result = await unban_chat_member(payload)
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await unban_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -174,16 +338,8 @@ async def restrict_member_api(
     user_id: int,
     permissions: dict[str, bool],
     until_date: int | None = None,
+    bot_id: int | None = None,
 ) -> dict[str, Any]:
-    """
-    Ограничить права участника.
-
-    Args:
-        chat_id: ID чата
-        user_id: ID пользователя
-        permissions: Права (can_send_messages, can_send_media_messages, etc.)
-        until_date: Unix timestamp до когда ограничение
-    """
     payload: dict[str, Any] = {
         "chat_id": chat_id,
         "user_id": user_id,
@@ -193,7 +349,8 @@ async def restrict_member_api(
         payload["until_date"] = until_date
 
     try:
-        result = await restrict_chat_member(payload)
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await restrict_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -215,16 +372,8 @@ async def promote_member_api(
     can_change_info: bool = False,
     can_invite_users: bool = False,
     can_pin_messages: bool = False,
+    bot_id: int | None = None,
 ) -> dict[str, Any]:
-    """
-    Повысить участника до админа с заданными правами.
-
-    Args:
-        chat_id: ID чата
-        user_id: ID пользователя
-        is_anonymous: Анонимный админ
-        can_*: Различные права админа
-    """
     payload: dict[str, Any] = {
         "chat_id": chat_id,
         "user_id": user_id,
@@ -242,7 +391,8 @@ async def promote_member_api(
     }
 
     try:
-        result = await promote_chat_member(payload)
+        bot_token, _ = await _resolve_bot_context(bot_id)
+        result = await promote_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 

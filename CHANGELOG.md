@@ -6,6 +6,108 @@
 
 ---
 
+## [2026.02.10] - 2026-02-06
+
+### Добавлено
+
+#### 🧱 Стандартизация инфраструктуры
+- `compose.yml` приведён к единой схеме имен:
+  - сервисы/контейнеры: `tgdb`, `tgapi`, `tgmcp`.
+- Добавлены системные labels для compose-сервисов:
+  - `ns.module`, `ns.component`, `ns.db_owner`.
+- Порты вынесены в канонические переменные:
+  - `PORT_DB_TG`, `PORT_HTTP_TGAPI`, `PORT_MCP_TG`.
+- Сохранена обратная совместимость через legacy fallback (`DB_PORT`, `API_PORT`, `MCP_HTTP_PORT`).
+
+#### 📦 Образы
+- В `api/Dockerfile` и `mcp/Dockerfile` добавлены OCI labels и `ns.module/ns.component`.
+
+#### 📚 Документация
+- `.env.example` и `README.md` синхронизированы с новыми именами контейнеров и портовым контрактом.
+
+## [2026.02.9] - 2026-02-06
+
+### Добавлено
+
+#### 🔁 Updates/Polling в разрезе bot_id
+- Миграция `db/init/08_updates_offset_per_bot.sql`.
+- `update_offset` расширен полем `bot_id` и индексами уникальности для:
+  - default context (`bot_id IS NULL`),
+  - контекста конкретного бота (`bot_id=<id>`).
+- Backfill/нормализация `update_offset` при миграции: удаление дубликатов по bot context.
+
+#### 📡 API контракт для polling
+- `GET /v1/updates/offset` поддерживает optional `bot_id`.
+- `POST /v1/updates/ack` принимает `{offset, bot_id?}`.
+- `GET /v1/updates/poll` при отсутствии `offset` берёт offset из bot context.
+- В `api/app/models.py` добавлена модель `UpdatesAckIn`.
+
+#### 🧩 SDK polling (мультибот)
+- `TelegramAPI.start_polling(..., bot_id=None)`.
+- `PollingManager.start(..., bot_id=None)` прокидывает `bot_id` в:
+  - `/v1/updates/offset`,
+  - `/v1/updates/poll`,
+  - `/v1/updates/ack`.
+
+#### ✅ Контрактная верификация
+- Добавлены manifest-файлы покрытия:
+  - `docs/testing/api_endpoints_manifest.json`
+  - `docs/testing/mcp_tools_manifest.json`
+  - `docs/testing/sdk_methods_manifest.json`
+- Добавлены contract tests:
+  - `tests/api/test_contract_endpoints.py`
+  - `tests/api/test_updates_per_bot_offset.py`
+  - `tests/sdk/test_client_contract.py`
+  - `tests/sdk/test_polling_bot_id.py`
+  - `tests/mcp/test_tool_to_endpoint_mapping.py`
+- Добавлен единый запуск: `scripts/test_all.sh`.
+
+#### 🧪 Smoke scripts
+- Тестовые скрипты в `scripts/` расширены поддержкой `--bot-id` для мультибот-сценариев там, где это применимо.
+- `scripts/test_updates.py` обновлён под `bot_id`-aware polling/ack.
+
+## [2026.02.8] - 2026-02-06
+
+### Добавлено
+
+#### 🤖 Мультибот-архитектура
+- Новый реестр ботов: таблица `bots` + API `GET/POST /v1/bots`, `GET /v1/bots/default`, `PUT /v1/bots/{bot_id}/default`, `DELETE /v1/bots/{bot_id}`
+- Авто-регистрация ботов из `TELEGRAM_BOT_TOKEN` и `TELEGRAM_BOT_TOKENS` при старте приложения
+- Поддержка выбора бота через `bot_id` в ключевых send/webhook/chats/commands/stars/reactions/checklists endpoint'ах
+- Контекстный выбор бота для webhook-обработки (`POST /telegram/webhook/{bot_id}`) без ломки обратной совместимости
+
+#### 🗄️ База данных и хранение контекста
+- Миграция `db/init/07_multi_bot_and_enrichment.sql`
+- Новые таблицы:
+  - `chat_members` — локальный кэш участников чатов
+  - `api_activity_log` — аудит исходящих Telegram API вызовов
+- Обогащение таблиц:
+  - `chats`: `alias`, `is_default`, `description`, `member_count`, `bot_id`, `invite_link`, `is_forum`, `photo_file_id`
+  - `users`: `alias`, `is_premium`, `last_seen_at`
+  - `messages`, `webhook_updates`, `bot_commands`, `callback_queries`, `polls`, `checklists`, `prediction_events`, `webhook_config`: `bot_id`
+- Индексы для быстрых выборок по `bot_id`, alias и activity log
+
+#### 📡 Трассировка и логирование
+- `telegram_client.py` переведён на bot-aware вызовы (`bot_token`/default/context override)
+- Удалены отладочные `print`-выводы из send flow
+- Добавлено структурное логирование Telegram вызовов (метод, бот, чат, статус, длительность)
+- Неблокирующая запись активности в `api_activity_log` через background-task
+
+#### 🧩 API, MCP и SDK
+- Новые chat endpoint'ы:
+  - `GET /v1/chats` (локальный список)
+  - `PUT /v1/chats/{chat_id}/alias`
+  - `GET /v1/chats/by-alias/{alias}`
+  - `GET /v1/chats/{chat_id}/history`
+  - `GET /v1/chats/{chat_id}/members` (из БД)
+- MCP расширен инструментами:
+  - `bots.list`, `bots.register`, `bots.default`
+  - `chats.list`, `chats.alias`, `chats.history`
+- MCP/SDK send-инструменты и методы дополнены `bot_id` для маршрутизации на конкретного бота
+- SDK дополнен методами:
+  - `list_bots()`, `register_bot()`, `get_default_bot()`, `set_default_bot()`
+  - `list_chats()`, `set_chat_alias()`, `get_chat_by_alias()`, `get_chat_history()`
+
 ## [2026.02.7] - 2026-02-06
 
 ### Добавлено
