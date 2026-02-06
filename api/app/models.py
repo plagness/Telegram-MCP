@@ -180,6 +180,56 @@ class SendVideoIn(BaseModel):
     dry_run: bool = False
 
 
+class SendAnimationIn(BaseModel):
+    """Отправка анимации/GIF по URL или file_id."""
+    chat_id: int | str
+    animation: str
+    caption: str | None = None
+    parse_mode: ParseMode | None = None
+    reply_to_message_id: int | None = None
+    message_thread_id: int | None = None
+    request_id: str | None = None
+    dry_run: bool = False
+
+
+class SendAudioIn(BaseModel):
+    """Отправка аудио по URL или file_id."""
+    chat_id: int | str
+    audio: str
+    caption: str | None = None
+    parse_mode: ParseMode | None = None
+    duration: int | None = None
+    performer: str | None = None
+    title: str | None = None
+    reply_to_message_id: int | None = None
+    message_thread_id: int | None = None
+    request_id: str | None = None
+    dry_run: bool = False
+
+
+class SendVoiceIn(BaseModel):
+    """Отправка голосового сообщения по URL или file_id."""
+    chat_id: int | str
+    voice: str
+    caption: str | None = None
+    parse_mode: ParseMode | None = None
+    duration: int | None = None
+    reply_to_message_id: int | None = None
+    message_thread_id: int | None = None
+    request_id: str | None = None
+    dry_run: bool = False
+
+
+class SendStickerIn(BaseModel):
+    """Отправка стикера по file_id."""
+    chat_id: int | str
+    sticker: str  # file_id (стикеры обычно только по file_id)
+    reply_to_message_id: int | None = None
+    message_thread_id: int | None = None
+    request_id: str | None = None
+    dry_run: bool = False
+
+
 # === Media Groups (альбомы) ===
 
 

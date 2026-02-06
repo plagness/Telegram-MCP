@@ -6,6 +6,29 @@
 
 ---
 
+## [2026.02.5] - 2026-02-06
+
+### Добавлено
+
+#### Расширенные медиа (Animation, Audio, Voice, Sticker)
+- Endpoints: `POST /v1/media/send-animation`, `/send-audio`, `/send-voice`, `/send-sticker`
+- Модели: `SendAnimationIn`, `SendAudioIn`, `SendVoiceIn`, `SendStickerIn`
+- Функция `send_audio()` в `telegram_client.py` (другие уже были)
+- Поддержка URL и file_id для всех типов медиа
+- Метаданные для аудио: performer, title, duration
+
+#### Chat Management (управление участниками)
+- **Бан/разбан**: `POST /v1/chats/{chat_id}/members/{user_id}/ban` и `/unban`
+  - Параметры: until_date, revoke_messages, only_if_banned
+- **Ограничение прав**: `POST /v1/chats/{chat_id}/members/{user_id}/restrict`
+  - Настройка permissions: can_send_messages, can_send_media_messages и др.
+- **Повышение до админа**: `POST /v1/chats/{chat_id}/members/{user_id}/promote`
+  - Настройка прав: can_delete_messages, can_restrict_members, can_pin_messages и др.
+- Функции в `telegram_client.py`: `ban_chat_member`, `unban_chat_member`, `restrict_chat_member`, `promote_chat_member`
+- Роутер `chats.py` расширен Chat Management endpoints
+
+---
+
 ## [2026.02.4] - 2026-02-06
 
 ### Добавлено

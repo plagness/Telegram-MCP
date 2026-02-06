@@ -276,6 +276,16 @@ async def send_voice(
     return await _call("sendVoice", data)
 
 
+async def send_audio(
+    data: dict[str, Any],
+    audio_file: tuple[str, BinaryIO | bytes, str] | None = None,
+) -> dict[str, Any]:
+    """sendAudio — отправка аудио."""
+    if audio_file:
+        return await _call_multipart("sendAudio", data, {"audio": audio_file})
+    return await _call("sendAudio", data)
+
+
 async def send_sticker(
     data: dict[str, Any],
     sticker_file: tuple[str, BinaryIO | bytes, str] | None = None,
@@ -390,3 +400,31 @@ async def stop_poll(payload: dict[str, Any]) -> dict[str, Any]:
 async def set_message_reaction(payload: dict[str, Any]) -> dict[str, Any]:
     """setMessageReaction — установка реакции на сообщение."""
     return await _call("setMessageReaction", payload)
+
+
+# === Chat Management ===
+
+
+async def ban_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
+    """banChatMember — блокировка участника чата."""
+    return await _call("banChatMember", payload)
+
+
+async def unban_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
+    """unbanChatMember — разблокировка участника чата."""
+    return await _call("unbanChatMember", payload)
+
+
+async def restrict_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
+    """restrictChatMember — ограничение прав участника."""
+    return await _call("restrictChatMember", payload)
+
+
+async def promote_chat_member(payload: dict[str, Any]) -> dict[str, Any]:
+    """promoteChatMember — повышение участника до админа."""
+    return await _call("promoteChatMember", payload)
+
+
+async def set_chat_administrator_custom_title(payload: dict[str, Any]) -> dict[str, Any]:
+    """setChatAdministratorCustomTitle — установка кастомного титула админа."""
+    return await _call("setChatAdministratorCustomTitle", payload)

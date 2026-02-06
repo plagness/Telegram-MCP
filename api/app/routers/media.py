@@ -6,9 +6,28 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from ..models import SendPhotoIn, SendDocumentIn, SendVideoIn, SendMediaGroupIn
+from ..models import (
+    SendPhotoIn,
+    SendDocumentIn,
+    SendVideoIn,
+    SendAnimationIn,
+    SendAudioIn,
+    SendVoiceIn,
+    SendStickerIn,
+    SendMediaGroupIn,
+)
 from ..services import messages as message_service
-from ..telegram_client import TelegramError, send_photo, send_document, send_video, send_media_group
+from ..telegram_client import (
+    TelegramError,
+    send_photo,
+    send_document,
+    send_video,
+    send_animation,
+    send_audio,
+    send_voice,
+    send_sticker,
+    send_media_group,
+)
 
 router = APIRouter(prefix="/v1/media", tags=["media"])
 
@@ -329,3 +348,115 @@ async def send_media_group_api(payload: SendMediaGroupIn) -> dict[str, Any]:
         "messages": saved_messages,
         "media_group_id": media_group_id,
     }
+
+
+@router.post("/send-animation")
+async def send_animation_api(payload: SendAnimationIn) -> dict[str, Any]:
+    """Отправка анимации/GIF по URL или file_id."""
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "animation": payload.animation,
+    }
+    if payload.caption:
+        telegram_payload["caption"] = payload.caption
+    if payload.parse_mode:
+        telegram_payload["parse_mode"] = payload.parse_mode
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    try:
+        result = await send_animation(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+@router.post("/send-audio")
+async def send_audio_api(payload: SendAudioIn) -> dict[str, Any]:
+    """Отправка аудио по URL или file_id."""
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "audio": payload.audio,
+    }
+    if payload.caption:
+        telegram_payload["caption"] = payload.caption
+    if payload.parse_mode:
+        telegram_payload["parse_mode"] = payload.parse_mode
+    if payload.duration:
+        telegram_payload["duration"] = payload.duration
+    if payload.performer:
+        telegram_payload["performer"] = payload.performer
+    if payload.title:
+        telegram_payload["title"] = payload.title
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    try:
+        result = await send_audio(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+@router.post("/send-voice")
+async def send_voice_api(payload: SendVoiceIn) -> dict[str, Any]:
+    """Отправка голосового сообщения по URL или file_id."""
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "voice": payload.voice,
+    }
+    if payload.caption:
+        telegram_payload["caption"] = payload.caption
+    if payload.parse_mode:
+        telegram_payload["parse_mode"] = payload.parse_mode
+    if payload.duration:
+        telegram_payload["duration"] = payload.duration
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    try:
+        result = await send_voice(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+@router.post("/send-sticker")
+async def send_sticker_api(payload: SendStickerIn) -> dict[str, Any]:
+    """Отправка стикера по file_id."""
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "sticker": payload.sticker,
+    }
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    try:
+        result = await send_sticker(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
