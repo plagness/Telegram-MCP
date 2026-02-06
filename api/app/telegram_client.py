@@ -97,6 +97,43 @@ async def _call(method: str, payload: dict[str, Any]) -> dict[str, Any]:
     return data.get("result") or {}
 
 
+async def call_api(method: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Публичный API для вызова Telegram Bot API методов.
+
+    Возвращает полный ответ с "ok" и "result" (в отличие от _call, который возвращает только result).
+    """
+    url = _build_url(method)
+    client = await get_client()
+
+    for attempt in range(1, _MAX_RETRIES + 1):
+        resp = await client.post(url, json=payload)
+
+        if resp.status_code == 429:
+            data = resp.json()
+            retry_after = data.get("parameters", {}).get("retry_after", 1)
+            logger.warning(
+                "Telegram 429 (retry_after=%s) attempt %d/%d for %s",
+                retry_after, attempt, _MAX_RETRIES, method,
+            )
+            await asyncio.sleep(retry_after)
+            continue
+
+        if resp.status_code >= 500 and attempt < _MAX_RETRIES:
+            delay = 2 ** (attempt - 1)
+            logger.warning(
+                "Telegram %d, retry in %ds (attempt %d/%d) for %s",
+                resp.status_code, delay, attempt, _MAX_RETRIES, method,
+            )
+            await asyncio.sleep(delay)
+            continue
+
+        break
+
+    # Возвращаем полный ответ (включая "ok" и "result")
+    return resp.json()
+
+
 async def _call_multipart(
     method: str,
     data: dict[str, Any],

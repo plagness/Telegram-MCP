@@ -1,0 +1,97 @@
+{# Макросы для использования в шаблонах #}
+
+{# Прогресс-бар #}
+{% macro progress_bar(current, total, width=10, style='blocks', show_percent=True) %}
+{%- set percent = ((current / total) * 100)|int if total > 0 else 0 -%}
+{%- set filled = ((current / total) * width)|round|int if total > 0 else 0 -%}
+{%- set empty = width - filled -%}
+{%- if style == 'classic' -%}
+[{{ '#' * filled }}{{ '.' * empty }}]
+{%- elif style == 'blocks' -%}
+{{ '▓' * filled }}{{ '░' * empty }}
+{%- elif style == 'circles' -%}
+{{ '●' * filled }}{{ '○' * empty }}
+{%- elif style == 'squares' -%}
+{{ '■' * filled }}{{ '□' * empty }}
+{%- else -%}
+{{ '█' * filled }}{{ '░' * empty }}
+{%- endif -%}
+{%- if show_percent %} {{ percent }}%{% endif -%}
+{% endmacro %}
+
+{# Эмодзи здоровья #}
+{% macro emoji_health(value, max_value=100) %}
+{%- set percent = (value / max_value * 100) if max_value > 0 else 0 -%}
+{%- if percent >= 80 -%}💚
+{%- elif percent >= 60 -%}💛
+{%- elif percent >= 40 -%}🧡
+{%- elif percent >= 20 -%}❤️
+{%- else -%}💔
+{%- endif -%}
+{% endmacro %}
+
+{# Эмодзи статуса #}
+{% macro emoji_status(value, max_value=100, inverted=False) %}
+{%- set percent = (value / max_value * 100) if max_value > 0 else 0 -%}
+{%- if inverted -%}
+  {%- if percent >= 80 -%}🔴
+  {%- elif percent >= 60 -%}🟠
+  {%- elif percent >= 40 -%}🟡
+  {%- elif percent >= 20 -%}🟢
+  {%- else -%}⚫
+  {%- endif -%}
+{%- else -%}
+  {%- if percent >= 80 -%}🟢
+  {%- elif percent >= 60 -%}🟡
+  {%- elif percent >= 40 -%}🟠
+  {%- elif percent >= 20 -%}🔴
+  {%- else -%}⚫
+  {%- endif -%}
+{%- endif -%}
+{% endmacro %}
+
+{# Эмодзи зоны #}
+{% macro emoji_zone(zone) %}
+{%- if zone == 'market' -%}📈
+{%- elif zone == 'mesh' -%}📡
+{%- elif zone == 'network' -%}🌐
+{%- elif zone == 'risk' -%}⚠️
+{%- elif zone == 'cpu' -%}🔥
+{%- elif zone == 'ram' -%}💾
+{%- elif zone == 'gpu' -%}🎮
+{%- elif zone == 'disk' -%}💿
+{%- else -%}❓
+{%- endif -%}
+{% endmacro %}
+
+{# Эмодзи подключения #}
+{% macro emoji_connection(status) %}
+{%- if status == 'online' -%}🟢
+{%- elif status == 'offline' -%}🔴
+{%- elif status == 'degraded' -%}🟡
+{%- elif status == 'maintenance' -%}🟠
+{%- else -%}⚪
+{%- endif -%}
+{% endmacro %}
+
+{# Форматирование длительности #}
+{% macro format_duration(seconds) %}
+{%- set minutes = (seconds // 60)|int -%}
+{%- set hours = (minutes // 60)|int -%}
+{%- set days = (hours // 24)|int -%}
+{%- set seconds = (seconds % 60)|int -%}
+{%- set minutes = (minutes % 60)|int -%}
+{%- set hours = (hours % 24)|int -%}
+{%- if days > 0 -%}{{ days }}d{{ "%02d"|format(hours) }}h
+{%- elif hours > 0 -%}{{ hours }}h{{ "%02d"|format(minutes) }}m
+{%- elif minutes > 0 -%}{{ minutes }}m{{ "%02d"|format(seconds) }}s
+{%- else -%}{{ seconds }}s
+{%- endif -%}
+{% endmacro %}
+
+{# Форматирование времени #}
+{% macro format_timestamp(dt, format='%H:%M:%S') %}
+{%- if dt -%}{{ dt.strftime(format) }}
+{%- else -%}-
+{%- endif -%}
+{% endmacro %}

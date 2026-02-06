@@ -1,0 +1,39 @@
+{# Шаблон: Состояние одного устройства #}
+{% from 'macros.j2' import progress_bar, emoji_health, emoji_status, emoji_zone %}
+<b>{{ emoji_connection(status) }} {{ name }}</b>
+
+{% if cpu is defined %}
+{{ emoji_zone('cpu') }} <b>CPU:</b> {{ progress_bar(cpu, 100, style='blocks') }}
+{%- if cpu_cores %} | {{ cpu_cores }} cores{% endif %}
+{%- if cpu_freq %} @ {{ "%.1f"|format(cpu_freq) }}GHz{% endif %}
+{%- if cpu_temp %} | {{ emoji_status(cpu_temp, 100, inverted=true) }} {{ "%.0f"|format(cpu_temp) }}°C{% endif %}
+{% endif %}
+
+{% if ram_used is defined and ram_total is defined %}
+{{ emoji_zone('ram') }} <b>RAM:</b> {{ progress_bar(ram_used, ram_total, style='blocks') }} | {{ "%.1f"|format(ram_used) }}/{{ "%.1f"|format(ram_total) }} GB
+{% endif %}
+
+{% if gpu_usage is defined %}
+{{ emoji_zone('gpu') }} <b>GPU:</b> {{ progress_bar(gpu_usage, 100, style='blocks') }}
+{%- if gpu_memory_used and gpu_memory_total %} | VRAM {{ "%.1f"|format(gpu_memory_used) }}/{{ "%.1f"|format(gpu_memory_total) }} GB{% endif %}
+{%- if gpu_temp %} | {{ emoji_status(gpu_temp, 100, inverted=true) }} {{ "%.0f"|format(gpu_temp) }}°C{% endif %}
+{% endif %}
+
+{% if disk_used is defined and disk_total is defined %}
+{{ emoji_zone('disk') }} <b>Disk:</b> {{ progress_bar(disk_used, disk_total, style='blocks') }} | {{ "%.0f"|format(disk_used) }}/{{ "%.0f"|format(disk_total) }} GB
+{% endif %}
+
+{% if network_rx is defined or network_tx is defined %}
+{{ emoji_zone('network') }} <b>Network:</b>
+{%- if network_rx %} ↓ {{ "%.1f"|format(network_rx) }} MB/s{% endif %}
+{%- if network_tx %} ↑ {{ "%.1f"|format(network_tx) }} MB/s{% endif %}
+{%- if latency %} | ⏱️ {{ "%.0f"|format(latency) }} ms{% endif %}
+{% endif %}
+
+{% if uptime is defined %}
+⏱️ <b>Uptime:</b> {{ format_duration(uptime) }}
+{% endif %}
+
+{% if last_seen is defined %}
+<i>Last seen: {{ format_timestamp(last_seen) }}</i>
+{% endif %}
