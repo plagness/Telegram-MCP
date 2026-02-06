@@ -1,0 +1,684 @@
+"""
+Основной класс TelegramAPI — HTTP-клиент к telegram-api микросервису.
+
+Заменяет прямые вызовы python-telegram-bot / urllib / httpx к Telegram Bot API.
+Все операции проходят через telegram-api, обеспечивая:
+  - аудит-трейл всех сообщений
+  - хранение в БД
+  - шаблоны и форматирование
+  - rate limiting и retry
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any, BinaryIO
+
+import httpx
+
+from .exceptions import TelegramAPIError
+
+
+class TelegramAPI:
+    """
+    HTTP-клиент к telegram-api.
+
+    Пример:
+        api = TelegramAPI("http://localhost:8081")
+        msg = await api.send_message(chat_id=-100123, text="Привет!", parse_mode="HTML")
+        await api.edit_message(msg["id"], text="Обновлено!")
+        await api.delete_message(msg["id"])
+    """
+
+    def __init__(self, base_url: str = "http://localhost:8081", timeout: float = 30.0):
+        self.base_url = base_url.rstrip("/")
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=timeout)
+
+    async def close(self) -> None:
+        """Закрыть HTTP-клиент."""
+        if not self._client.is_closed:
+            await self._client.aclose()
+
+    async def __aenter__(self) -> TelegramAPI:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.close()
+
+    # --- Внутренние методы ---
+
+    async def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+        """Базовый HTTP-запрос с обработкой ошибок."""
+        resp = await self._client.request(method, path, **kwargs)
+        if resp.status_code >= 400:
+            try:
+                data = resp.json()
+                detail = data.get("detail", str(data))
+            except Exception:
+                detail = resp.text
+            raise TelegramAPIError(
+                f"HTTP {resp.status_code}: {detail}",
+                status_code=resp.status_code,
+                detail=detail,
+            )
+        return resp.json()
+
+    async def _post(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self._request("POST", path, json=payload or {})
+
+    async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self._request("GET", path, params=params)
+
+    async def _delete(self, path: str) -> dict[str, Any]:
+        return await self._request("DELETE", path)
+
+    # === Сообщения ===
+
+    async def send_message(
+        self,
+        chat_id: int | str,
+        text: str | None = None,
+        *,
+        parse_mode: str | None = None,
+        template: str | None = None,
+        variables: dict[str, Any] | None = None,
+        reply_to_message_id: int | None = None,
+        message_thread_id: int | None = None,
+        reply_markup: dict[str, Any] | None = None,
+        disable_web_page_preview: bool | None = None,
+        live: bool = False,
+        dry_run: bool = False,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Отправить текстовое сообщение.
+
+        Возвращает dict с ключом "message" (данные из БД) и "result" (ответ Telegram).
+        Из result["message"]["id"] получаем внутренний ID для edit/delete.
+        """
+        payload: dict[str, Any] = {"chat_id": chat_id}
+        if text is not None:
+            payload["text"] = text
+        if template:
+            payload["template"] = template
+        if variables:
+            payload["variables"] = variables
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if reply_to_message_id:
+            payload["reply_to_message_id"] = reply_to_message_id
+        if message_thread_id:
+            payload["message_thread_id"] = message_thread_id
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+        if disable_web_page_preview is not None:
+            payload["disable_web_page_preview"] = disable_web_page_preview
+        if live:
+            payload["live"] = True
+        if dry_run:
+            payload["dry_run"] = True
+        if request_id:
+            payload["request_id"] = request_id
+
+        data = await self._post("/v1/messages/send", payload)
+        return data.get("message", data)
+
+    async def edit_message(
+        self,
+        message_id: int,
+        text: str | None = None,
+        *,
+        template: str | None = None,
+        variables: dict[str, Any] | None = None,
+        parse_mode: str | None = None,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать сообщение по внутреннему ID."""
+        payload: dict[str, Any] = {}
+        if text is not None:
+            payload["text"] = text
+        if template:
+            payload["template"] = template
+        if variables:
+            payload["variables"] = variables
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+
+        data = await self._post(f"/v1/messages/{message_id}/edit", payload)
+        return data.get("message", data)
+
+    async def delete_message(self, message_id: int) -> dict[str, Any]:
+        """Удалить сообщение по внутреннему ID."""
+        data = await self._post(f"/v1/messages/{message_id}/delete")
+        return data.get("message", data)
+
+    async def get_message(self, message_id: int) -> dict[str, Any]:
+        """Получить сообщение по внутреннему ID."""
+        data = await self._get(f"/v1/messages/{message_id}")
+        return data.get("message", data)
+
+    async def list_messages(
+        self,
+        chat_id: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Список сообщений с фильтрацией."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if chat_id:
+            params["chat_id"] = chat_id
+        if status:
+            params["status"] = status
+        data = await self._get("/v1/messages", params)
+        return data.get("items", [])
+
+    # === Медиа ===
+
+    async def send_photo(
+        self,
+        chat_id: int | str,
+        photo: str | bytes | BinaryIO,
+        *,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        reply_to_message_id: int | None = None,
+        message_thread_id: int | None = None,
+        reply_markup: dict[str, Any] | None = None,
+        request_id: str | None = None,
+        dry_run: bool = False,
+        filename: str = "photo.jpg",
+    ) -> dict[str, Any]:
+        """
+        Отправить фото.
+
+        photo: URL (str), file_id (str), bytes или BinaryIO объект.
+        Если photo — строка, отправляется через JSON (URL или file_id).
+        Если photo — bytes/BinaryIO, загружается через multipart.
+        """
+        if isinstance(photo, str):
+            # URL или file_id — через JSON-эндпоинт
+            payload: dict[str, Any] = {"chat_id": chat_id, "photo": photo}
+            if caption:
+                payload["caption"] = caption
+            if parse_mode:
+                payload["parse_mode"] = parse_mode
+            if reply_to_message_id:
+                payload["reply_to_message_id"] = reply_to_message_id
+            if message_thread_id:
+                payload["message_thread_id"] = message_thread_id
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
+            if request_id:
+                payload["request_id"] = request_id
+            if dry_run:
+                payload["dry_run"] = True
+            data = await self._post("/v1/media/send-photo", payload)
+            return data.get("message", data)
+        else:
+            # Файл — через multipart upload
+            if isinstance(photo, bytes):
+                file_data = photo
+            else:
+                file_data = photo.read()
+
+            form: dict[str, Any] = {"chat_id": str(chat_id)}
+            if caption:
+                form["caption"] = caption
+            if parse_mode:
+                form["parse_mode"] = parse_mode
+            if reply_to_message_id:
+                form["reply_to_message_id"] = str(reply_to_message_id)
+            if message_thread_id:
+                form["message_thread_id"] = str(message_thread_id)
+            if request_id:
+                form["request_id"] = request_id
+            if dry_run:
+                form["dry_run"] = "true"
+
+            files = {"file": (filename, file_data, "image/jpeg")}
+            resp = await self._client.post("/v1/media/upload-photo", data=form, files=files)
+            if resp.status_code >= 400:
+                try:
+                    detail = resp.json().get("detail", resp.text)
+                except Exception:
+                    detail = resp.text
+                raise TelegramAPIError(
+                    f"HTTP {resp.status_code}: {detail}",
+                    status_code=resp.status_code,
+                    detail=detail,
+                )
+            result = resp.json()
+            return result.get("message", result)
+
+    async def send_document(
+        self,
+        chat_id: int | str,
+        document: str,
+        *,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        request_id: str | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Отправить документ по URL или file_id."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "document": document}
+        if caption:
+            payload["caption"] = caption
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if request_id:
+            payload["request_id"] = request_id
+        if dry_run:
+            payload["dry_run"] = True
+        data = await self._post("/v1/media/send-document", payload)
+        return data.get("message", data)
+
+    # === Forward / Copy ===
+
+    async def forward_message(
+        self,
+        chat_id: int | str,
+        from_chat_id: int | str,
+        message_id: int,
+    ) -> dict[str, Any]:
+        """Переслать сообщение."""
+        data = await self._post("/v1/messages/forward", {
+            "chat_id": chat_id,
+            "from_chat_id": from_chat_id,
+            "message_id": message_id,
+        })
+        return data.get("message", data)
+
+    async def copy_message(
+        self,
+        chat_id: int | str,
+        from_chat_id: int | str,
+        message_id: int,
+        *,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+    ) -> dict[str, Any]:
+        """Копировать сообщение (без пометки 'Переслано')."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "from_chat_id": from_chat_id,
+            "message_id": message_id,
+        }
+        if caption:
+            payload["caption"] = caption
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        data = await self._post("/v1/messages/copy", payload)
+        return data
+
+    # === Прогресс-нотификатор ===
+
+    def progress(self, chat_id: int | str, parse_mode: str | None = "HTML") -> ProgressContext:
+        """
+        Контекстный менеджер для прогресс-сообщений (send → edit → delete).
+
+        Использование:
+            async with api.progress(chat_id) as p:
+                await p.update(1, 5, "Загрузка данных...")
+                await p.update(2, 5, "Обработка...")
+            # Сообщение автоматически удаляется при выходе
+        """
+        return ProgressContext(self, chat_id, parse_mode=parse_mode)
+
+    # === Шаблоны ===
+
+    async def list_templates(self) -> list[dict[str, Any]]:
+        """Список шаблонов."""
+        data = await self._get("/v1/templates")
+        return data.get("items", [])
+
+    async def get_template(self, name: str) -> dict[str, Any]:
+        """Получить шаблон по имени."""
+        data = await self._get(f"/v1/templates/{name}")
+        return data.get("template", data)
+
+    async def render_template(self, name: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Отрендерить шаблон (без отправки)."""
+        return await self._post(f"/v1/templates/{name}/render", {"variables": variables or {}})
+
+    async def create_template(
+        self,
+        name: str,
+        body: str,
+        parse_mode: str | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать или обновить шаблон."""
+        payload: dict[str, Any] = {"name": name, "body": body}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if description:
+            payload["description"] = description
+        data = await self._post("/v1/templates", payload)
+        return data.get("template", data)
+
+    # === Команды ===
+
+    async def set_commands(
+        self,
+        commands: list[dict[str, str]],
+        scope_type: str = "default",
+        chat_id: int | None = None,
+        user_id: int | None = None,
+        language_code: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать набор команд."""
+        payload: dict[str, Any] = {
+            "scope_type": scope_type,
+            "commands": commands,
+        }
+        if chat_id is not None:
+            payload["chat_id"] = chat_id
+        if user_id is not None:
+            payload["user_id"] = user_id
+        if language_code:
+            payload["language_code"] = language_code
+        data = await self._post("/v1/commands", payload)
+        return data.get("command_set", data)
+
+    async def sync_commands(self, command_set_id: int) -> dict[str, Any]:
+        """Синхронизировать набор команд с Telegram."""
+        return await self._post("/v1/commands/sync", {"command_set_id": command_set_id})
+
+    async def list_command_sets(self) -> list[dict[str, Any]]:
+        """Список наборов команд."""
+        data = await self._get("/v1/commands")
+        return data.get("items", [])
+
+    # === Callback Queries ===
+
+    async def answer_callback(
+        self,
+        callback_query_id: str,
+        text: str | None = None,
+        show_alert: bool = False,
+    ) -> dict[str, Any]:
+        """Ответить на callback_query."""
+        payload: dict[str, Any] = {"callback_query_id": callback_query_id}
+        if text:
+            payload["text"] = text
+        if show_alert:
+            payload["show_alert"] = True
+        return await self._post("/v1/callbacks/answer", payload)
+
+    # === Чаты ===
+
+    async def get_chat(self, chat_id: int | str) -> dict[str, Any]:
+        """Информация о чате от Telegram API."""
+        data = await self._get(f"/v1/chats/{chat_id}")
+        return data.get("chat", data)
+
+    async def get_chat_member(self, chat_id: int | str, user_id: int) -> dict[str, Any]:
+        """Информация об участнике чата."""
+        data = await self._get(f"/v1/chats/{chat_id}/members/{user_id}")
+        return data.get("member", data)
+
+    # === Вебхук / Обновления ===
+
+    async def list_updates(self, limit: int = 100, update_type: str | None = None) -> list[dict[str, Any]]:
+        """Список входящих обновлений."""
+        params: dict[str, Any] = {"limit": limit}
+        if update_type:
+            params["update_type"] = update_type
+        data = await self._get("/v1/updates", params)
+        return data.get("items", [])
+
+    async def set_webhook(self, url: str, **kwargs: Any) -> dict[str, Any]:
+        """Настроить вебхук."""
+        payload = {"url": url, **kwargs}
+        return await self._post("/v1/webhook/set", payload)
+
+    async def delete_webhook(self) -> dict[str, Any]:
+        """Удалить вебхук."""
+        return await self._delete("/v1/webhook")
+
+    async def get_webhook_info(self) -> dict[str, Any]:
+        """Текущая конфигурация вебхука."""
+        data = await self._get("/v1/webhook/info")
+        return data.get("webhook_info", data)
+
+    # === Опросы ===
+
+    async def send_poll(
+        self,
+        chat_id: int | str,
+        question: str,
+        options: list[str],
+        *,
+        is_anonymous: bool = True,
+        type: str = "regular",
+        allows_multiple_answers: bool = False,
+        correct_option_id: int | None = None,
+        explanation: str | None = None,
+        explanation_parse_mode: str | None = None,
+        open_period: int | None = None,
+        close_date: int | None = None,
+        message_thread_id: int | None = None,
+        reply_to_message_id: int | None = None,
+        reply_markup: dict[str, Any] | None = None,
+        dry_run: bool = False,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Создание опроса или викторины.
+
+        type: "regular" или "quiz"
+        correct_option_id: индекс правильного ответа (для quiz)
+        explanation: пояснение для quiz (до 200 символов)
+        open_period: время жизни опроса в секундах (5-600)
+        """
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "question": question,
+            "options": options,
+            "is_anonymous": is_anonymous,
+            "type": type,
+            "allows_multiple_answers": allows_multiple_answers,
+        }
+        if correct_option_id is not None:
+            payload["correct_option_id"] = correct_option_id
+        if explanation:
+            payload["explanation"] = explanation
+        if explanation_parse_mode:
+            payload["explanation_parse_mode"] = explanation_parse_mode
+        if open_period is not None:
+            payload["open_period"] = open_period
+        if close_date:
+            payload["close_date"] = close_date
+        if message_thread_id:
+            payload["message_thread_id"] = message_thread_id
+        if reply_to_message_id:
+            payload["reply_to_message_id"] = reply_to_message_id
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+        if dry_run:
+            payload["dry_run"] = True
+        if request_id:
+            payload["request_id"] = request_id
+
+        data = await self._post("/v1/polls/send", payload)
+        return data.get("message", data)
+
+    async def stop_poll(self, chat_id: int | str, message_id: int) -> dict[str, Any]:
+        """
+        Остановить опрос с показом результатов.
+
+        message_id: telegram_message_id (не внутренний ID).
+        """
+        data = await self._post(f"/v1/polls/{chat_id}/{message_id}/stop")
+        return data.get("poll", data)
+
+    async def list_polls(
+        self,
+        chat_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Список опросов."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if chat_id:
+            params["chat_id"] = chat_id
+        data = await self._get("/v1/polls", params)
+        return data.get("items", [])
+
+    async def get_poll(self, poll_id: str) -> dict[str, Any]:
+        """Получить опрос по poll_id."""
+        data = await self._get(f"/v1/polls/{poll_id}")
+        return data.get("poll", data)
+
+    # === Реакции ===
+
+    async def set_reaction(
+        self,
+        chat_id: int | str,
+        message_id: int,
+        reaction: list[dict[str, Any]] | None = None,
+        is_big: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Установить реакцию на сообщение.
+
+        message_id: telegram_message_id (не внутренний ID).
+        reaction: список реакций, например:
+            [{"type": "emoji", "emoji": "👍"}]
+            [{"type": "custom_emoji", "custom_emoji_id": "12345"}]
+            None — удалить все реакции бота
+        """
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "is_big": is_big,
+        }
+        if reaction is not None:
+            payload["reaction"] = reaction
+        return await self._post("/v1/reactions/set", payload)
+
+    async def list_reactions(
+        self,
+        message_id: int | None = None,
+        chat_id: str | None = None,
+        user_id: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Список реакций с фильтрацией."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if message_id is not None:
+            params["message_id"] = message_id
+        if chat_id:
+            params["chat_id"] = chat_id
+        if user_id:
+            params["user_id"] = user_id
+        data = await self._get("/v1/reactions", params)
+        return data.get("items", [])
+
+    # === Мониторинг ===
+
+    async def health(self) -> dict[str, Any]:
+        """Проверка здоровья сервиса."""
+        return await self._get("/health")
+
+    async def metrics(self) -> dict[str, Any]:
+        """Метрики сообщений по статусам."""
+        return await self._get("/v1/metrics")
+
+    async def get_bot_info(self) -> dict[str, Any]:
+        """Информация о боте (getMe)."""
+        data = await self._get("/v1/bot/me")
+        return data.get("bot", data)
+
+
+class ProgressContext:
+    """
+    Контекстный менеджер для прогресс-сообщений.
+
+    Паттерн send → edit → delete:
+    - Первый вызов update() отправляет сообщение
+    - Последующие вызовы редактируют его
+    - При выходе из контекста — удаляет сообщение
+
+    Аналог ProgressNotifier из монолита, но через telegram-api.
+    """
+
+    def __init__(
+        self,
+        api: TelegramAPI,
+        chat_id: int | str,
+        parse_mode: str | None = "HTML",
+        min_interval: float = 0.8,
+    ):
+        self._api = api
+        self._chat_id = chat_id
+        self._parse_mode = parse_mode
+        self._min_interval = min_interval
+        self._message_id: int | None = None
+        self._last_edit_ts: float = 0.0
+
+    async def __aenter__(self) -> ProgressContext:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.done()
+
+    async def update(self, stage: int, total: int, text: str) -> None:
+        """
+        Обновить прогресс-сообщение.
+
+        stage: текущий этап (1-based)
+        total: всего этапов
+        text: описание текущего этапа
+        """
+        progress_bar = self._bar(stage, total)
+        full_text = f"[{stage}/{total}] {text}\n{progress_bar}"
+
+        loop = asyncio.get_event_loop()
+        now = loop.time()
+
+        if self._message_id is None:
+            # Первый вызов — отправляем новое сообщение
+            msg = await self._api.send_message(
+                self._chat_id,
+                full_text,
+                parse_mode=self._parse_mode,
+                live=True,
+            )
+            self._message_id = msg.get("id")
+            self._last_edit_ts = now
+        else:
+            # Throttle — не чаще min_interval
+            if now - self._last_edit_ts < self._min_interval:
+                return
+            try:
+                await self._api.edit_message(self._message_id, text=full_text, parse_mode=self._parse_mode)
+                self._last_edit_ts = now
+            except Exception:
+                pass
+
+    async def done(self, final_text: str | None = None) -> None:
+        """Завершить прогресс: показать финальный текст или удалить сообщение."""
+        if self._message_id is None:
+            return
+        if final_text:
+            try:
+                await self._api.edit_message(self._message_id, text=final_text, parse_mode=self._parse_mode)
+            except Exception:
+                pass
+        else:
+            try:
+                await self._api.delete_message(self._message_id)
+            except Exception:
+                pass
+        self._message_id = None
+
+    @staticmethod
+    def _bar(current: int, total: int, width: int = 10) -> str:
+        filled = int(width * current / total) if total > 0 else 0
+        return "\u2593" * filled + "\u2591" * (width - filled)

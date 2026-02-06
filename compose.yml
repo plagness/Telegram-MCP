@@ -1,0 +1,53 @@
+services:
+  telegram-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DB_USER:-telegram}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-telegram}
+      POSTGRES_DB: ${DB_NAME:-telegram}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${DB_PORT:-5436}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-telegram}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  telegram-api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    env_file: .env
+    depends_on:
+      telegram-db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8081}:8000"
+    volumes:
+      - ./templates:/app/templates:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  telegram-mcp:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    env_file: .env
+    depends_on:
+      telegram-api:
+        condition: service_healthy
+    ports:
+      - "${MCP_HTTP_PORT:-3335}:3335"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3335/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

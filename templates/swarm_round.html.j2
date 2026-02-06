@@ -1,0 +1,10 @@
+🎮 {{ title }}: раунд {{ round }}/{{ rounds_total }}
+{{ progress_dots }}
+
+Модели:
+{% for model in models %}  {{ model.flag }}{{ model.state }} {{ model.name }} {{ model.hp_emoji }}{{ model.hp }} {{ model.zone_emoji }} {{ model.score }}
+{% endfor %}
+
+Действия:
+{% for action in actions %}  {{ action.icon }} {{ action.actor }} → {{ action.action }} {{ action.target }} {{ action.effect }}
+{% endfor %}

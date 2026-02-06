@@ -1,0 +1,8 @@
+| {{ title }}  {{ time }}
+⚙ Q [{{ queue_bar }}] q{{ q }} r{{ r }} d{{ d }} f{{ f }}
+🤖 {{ fleet_name }}
+{% for node in fleet %}{{ node.status_emoji }} {{ node.name }}    📦{{ node.jobs }}  🔥{{ node.errors }}  ⏱{{ node.latency_ms }}ms{% if node.last %} last={{ node.last }}{% endif %}
+{% endfor %}-------------------------------------------------
+▶ Running
+{% for job in running %}🏁 {{ job.name }} @ {{ job.host }} {{ job.age }}
+{% endfor %}
