@@ -6,9 +6,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from ..models import SendPhotoIn, SendDocumentIn, SendVideoIn
+from ..models import SendPhotoIn, SendDocumentIn, SendVideoIn, SendMediaGroupIn
 from ..services import messages as message_service
-from ..telegram_client import TelegramError, send_photo, send_document, send_video
+from ..telegram_client import TelegramError, send_photo, send_document, send_video, send_media_group
 
 router = APIRouter(prefix="/v1/media", tags=["media"])
 
@@ -245,3 +245,87 @@ def _extract_file_id(result: dict[str, Any], media_type: str) -> str | None:
         if isinstance(media, dict):
             return media.get("file_id")
     return None
+
+
+@router.post("/send-media-group")
+async def send_media_group_api(payload: SendMediaGroupIn) -> dict[str, Any]:
+    """
+    Отправка медиа-группы (альбома из 2-10 фото/видео).
+
+    **Параметры**:
+    - chat_id: ID чата
+    - media: Список из 2-10 элементов (InputMedia)
+    - reply_to_message_id: ID сообщения для ответа (опционально)
+    - message_thread_id: ID топика/форума (опционально)
+
+    **Примечание**: Только первый элемент может иметь caption.
+
+    **Возвращает**:
+    ```json
+    {
+      "ok": true,
+      "messages": [...],
+      "media_group_id": "123456789"
+    }
+    ```
+    """
+    # Формируем payload для Telegram
+    media_array = [item.model_dump(exclude_none=True) for item in payload.media]
+
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "media": media_array,
+    }
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+
+    # Dry run
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    # Отправляем через Telegram API
+    try:
+        result = await send_media_group(telegram_payload)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    # Сохраняем в БД (создаём записи для каждого сообщения в группе)
+    messages = result if isinstance(result, list) else [result]
+    media_group_id = messages[0].get("media_group_id") if messages else None
+
+    saved_messages = []
+    for msg in messages:
+        telegram_message_id = msg.get("message_id")
+        text_content = msg.get("caption", "")
+
+        # Определяем тип медиа
+        message_type = "photo"
+        if "video" in msg:
+            message_type = "video"
+        elif "document" in msg:
+            message_type = "document"
+
+        row = await message_service.create_message(
+            chat_id=payload.chat_id,
+            direction="outbound",
+            text=text_content,
+            parse_mode=None,  # parse_mode обязательный параметр
+            status="sent",
+            request_id=payload.request_id,
+            payload=telegram_payload,
+            is_live=False,
+            reply_to_message_id=payload.reply_to_message_id,
+            message_thread_id=payload.message_thread_id,
+            message_type=message_type,
+        )
+
+        # TODO: Обновить telegram_message_id через update_message
+        saved_messages.append(row)
+
+    return {
+        "ok": True,
+        "messages": saved_messages,
+        "media_group_id": media_group_id,
+    }

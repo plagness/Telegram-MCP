@@ -307,6 +307,55 @@ class TelegramAPI:
         data = await self._post("/v1/media/send-document", payload)
         return data.get("message", data)
 
+    async def send_media_group(
+        self,
+        chat_id: int | str,
+        media: list[dict[str, Any]],
+        *,
+        reply_to_message_id: int | None = None,
+        message_thread_id: int | None = None,
+        request_id: str | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Отправить медиа-группу (альбом из 2-10 фото/видео).
+
+        Args:
+            chat_id: ID чата
+            media: Список InputMedia элементов (2-10 штук)
+                   Каждый элемент: {"type": "photo", "media": "file_id_or_url", "caption": "..."}
+            reply_to_message_id: ID сообщения для ответа
+            message_thread_id: ID топика (для форумов)
+            request_id: ID запроса для трекинга
+            dry_run: Сухой прогон (не отправлять реально)
+
+        Returns:
+            {"ok": True, "messages": [...], "media_group_id": "..."}
+
+        Example:
+            media = [
+                {"type": "photo", "media": "https://example.com/1.jpg", "caption": "Фото 1"},
+                {"type": "photo", "media": "https://example.com/2.jpg"},
+                {"type": "video", "media": "file_id_here"},
+            ]
+            result = await api.send_media_group(chat_id, media)
+        """
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "media": media,
+        }
+        if reply_to_message_id:
+            payload["reply_to_message_id"] = reply_to_message_id
+        if message_thread_id:
+            payload["message_thread_id"] = message_thread_id
+        if request_id:
+            payload["request_id"] = request_id
+        if dry_run:
+            payload["dry_run"] = True
+
+        data = await self._post("/v1/media/send-media-group", payload)
+        return data
+
     # === Forward / Copy ===
 
     async def forward_message(

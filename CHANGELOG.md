@@ -6,6 +6,22 @@
 
 ---
 
+## [2026.02.4] - 2026-02-06
+
+### Добавлено
+
+#### sendMediaGroup (альбомы фото/видео)
+- Метод `api.send_media_group()` в SDK для отправки альбомов (2-10 элементов)
+- API endpoint: `POST /v1/media/send-media-group`
+- Модели: `InputMedia`, `SendMediaGroupIn` в `api/app/models.py`
+- Функция `send_media_group()` в `telegram_client.py`
+- Поддержка фото, видео, документов в одном альбоме
+- Caption только для первого элемента (ограничение Telegram)
+- Dry-run режим для тестирования без отправки
+- Тестовый скрипт: `scripts/test_media_group.py`
+
+---
+
 ## [2026.02.3] - 2026-02-06
 
 ### Добавлено

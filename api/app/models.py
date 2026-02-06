@@ -180,6 +180,27 @@ class SendVideoIn(BaseModel):
     dry_run: bool = False
 
 
+# === Media Groups (альбомы) ===
+
+
+class InputMedia(BaseModel):
+    """Базовый класс для InputMedia элементов."""
+    type: Literal["photo", "video", "document", "audio"]
+    media: str  # file_id или URL
+    caption: str | None = None
+    parse_mode: ParseMode | None = None
+
+
+class SendMediaGroupIn(BaseModel):
+    """Отправка альбома (группы медиа)."""
+    chat_id: int | str
+    media: list[InputMedia] = Field(..., min_length=2, max_length=10)
+    reply_to_message_id: int | None = None
+    message_thread_id: int | None = None
+    request_id: str | None = None
+    dry_run: bool = False
+
+
 # === Callback Query ===
 
 
