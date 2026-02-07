@@ -62,21 +62,45 @@ function findTool(name: string) {
 }
 
 async function apiRequest(path: string, options: RequestInit = {}) {
-  const url = `${config.apiBase}${path}`;
-  const resp = await fetch(url, {
-    ...options,
-    headers: {
-      "content-type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  const text = await resp.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!resp.ok) {
-    const error = data?.detail || data?.error || `HTTP ${resp.status}`;
-    throw new Error(error);
+  const headers = {
+    "content-type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  const call = async (baseUrl: string) => {
+    const url = `${baseUrl}${path}`;
+    const resp = await fetch(url, { ...options, headers });
+    const text = await resp.text();
+    let data: any = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+    }
+    if (!resp.ok) {
+      const error = data?.detail || data?.error || `HTTP ${resp.status}`;
+      throw new Error(error);
+    }
+    return data;
+  };
+
+  try {
+    return await call(config.apiBase);
+  } catch (err: any) {
+    const useLegacyFallback =
+      !config.apiBaseExplicit && config.apiBase === config.defaultApiBase;
+    if (!useLegacyFallback) {
+      throw err;
+    }
+    logger.warn("api.base.fallback_legacy", {
+      from: config.defaultApiBase,
+      to: config.legacyApiBase,
+      reason: err?.message || String(err),
+    });
+    return call(config.legacyApiBase);
   }
-  return data;
 }
 
 app.get("/health", (_req: Request, res: Response) => {

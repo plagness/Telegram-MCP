@@ -1,6 +1,6 @@
 # Telegram-MCP
 
-[![Version](https://img.shields.io/badge/version-2026.02.10-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
+[![Version](https://img.shields.io/badge/version-2026.02.11-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
@@ -263,10 +263,15 @@ Telegram-MCP/
 | `PORT_DB_TG` | Внешний порт PostgreSQL | `5436` |
 | `PORT_HTTP_TGAPI` | Внешний порт API | `8081` |
 | `PORT_MCP_TG` | Внешний порт MCP | `3335` |
+| `TELEGRAM_API_URL` | Явный URL API для MCP bridge | `http://tgapi:8000` |
+| `TELEGRAM_API_BASE` | Legacy alias для URL API | `http://tgapi:8000` |
 | `API_PORT` | Legacy fallback для порта API | `8081` |
 | `MCP_HTTP_PORT` | Legacy fallback для порта MCP | `3335` |
 | `MCP_HTTP_TOKEN` | Bearer-токен для MCP HTTP | — (опционально) |
 | `TEMPLATE_AUTOSEED` | Автозагрузка шаблонов из `templates/` | `true` |
+
+Если `TELEGRAM_API_URL`/`TELEGRAM_API_BASE` не заданы, MCP сначала использует `http://tgapi:8000`.
+Для обратной совместимости на 1 релиз при ошибке сети выполняется retry на legacy `http://telegram-api:8000`.
 
 ## Лицензия
 

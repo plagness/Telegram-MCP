@@ -6,6 +6,31 @@
 
 ---
 
+## [2026.02.11] - 2026-02-07
+
+### Изменено
+
+#### 🔀 MCP API base: tgapi + legacy compat fallback
+- `mcp/src/config.ts`:
+  - основной default API base переключен на `http://tgapi:8000`;
+  - добавлена поддержка `TELEGRAM_API_BASE` как alias к `TELEGRAM_API_URL`;
+  - добавлены служебные флаги `apiBaseExplicit`, `defaultApiBase`, `legacyApiBase`.
+- `mcp/src/index.ts`:
+  - добавлен сетевой compat fallback: если API base не задан явно и запрос к `tgapi` не прошёл,
+    MCP делает retry на legacy `http://telegram-api:8000`;
+  - добавлено warning-логирование `api.base.fallback_legacy`.
+
+#### 📚 Документация
+- `README.md` и `docs/mcp.md` синхронизированы:
+  - `TELEGRAM_API_URL` / `TELEGRAM_API_BASE` описаны как каноничные переменные;
+  - обновлены примеры путей/контейнеров (`tgmcp`, `tgapi`);
+  - зафиксировано compat-window поведение fallback на legacy host.
+- Добавлены governance-файлы публичного репозитория:
+  - `SECURITY.md`, `CODE_OF_CONDUCT.md`;
+  - `.github/ISSUE_TEMPLATE/*`, `.github/pull_request_template.md`, `.github/CODEOWNERS`.
+- Добавлен pragmatic CI: `.github/workflows/ci.yml` (compose config, markdown links, Python compile, MCP TS build).
+
+
 ## [2026.02.10] - 2026-02-06
 
 ### Добавлено

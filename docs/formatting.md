@@ -29,7 +29,7 @@ await api.send_message(
 | `<code>код</code>` | `Моноширинный` |
 | `<pre>блок кода</pre>` | Блок кода |
 | `<pre><code class="language-python">...</code></pre>` | Код с подсветкой |
-| `<a href="URL">текст</a>` | Ссылка |
+| `<a href="https://example.com">текст</a>` | Ссылка |
 | `<tg-emoji emoji-id="ID">emoji</tg-emoji>` | Кастомный эмодзи |
 | `<blockquote>цитата</blockquote>` | Цитата |
 
@@ -65,7 +65,7 @@ await api.send_message(
 | `\|\|спойлер\|\|` | Спойлер |
 | `` `код` `` | `Моноширинный` |
 | ```` ```python\nкод\n``` ```` | Блок кода |
-| `[текст](URL)` | Ссылка |
+| `[текст](https://example.com)` | Ссылка |
 | `>цитата` | Цитата (в начале строки) |
 
 ### Экранирование в MarkdownV2

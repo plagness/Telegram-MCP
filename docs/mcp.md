@@ -194,9 +194,9 @@ curl -X POST http://127.0.0.1:3335/tools/reactions.set \
   "mcpServers": {
     "telegram": {
       "command": "node",
-      "args": ["/path/to/telegram-api/mcp/dist/index.js"],
+      "args": ["/path/to/Telegram-MCP/mcp/dist/index.js"],
       "env": {
-        "API_BASE": "http://localhost:8081",
+        "TELEGRAM_API_URL": "http://localhost:8081",
         "MCP_HTTP_PORT": "3335"
       }
     }
@@ -211,7 +211,7 @@ curl -X POST http://127.0.0.1:3335/tools/reactions.set \
   "mcpServers": {
     "telegram": {
       "command": "docker",
-      "args": ["exec", "-i", "telegram-mcp", "node", "dist/index.js"]
+      "args": ["exec", "-i", "tgmcp", "node", "dist/index.js"]
     }
   }
 }
@@ -223,13 +223,16 @@ curl -X POST http://127.0.0.1:3335/tools/reactions.set \
 LLM (Claude)
     │ MCP stdio
     ▼
-telegram-mcp (Node.js :3335)
+telegram-mcp / tgmcp (Node.js :3335)
     │ HTTP
     ▼
-telegram-api (FastAPI :8081)
+tgapi (FastAPI :8081)
     │ httpx
     ▼
 Telegram Bot API
 ```
 
 MCP-сервер — тонкий прокси. Он не содержит бизнес-логики: валидирует параметры (zod) и перенаправляет запросы к HTTP API.
+
+По умолчанию MCP использует `http://tgapi:8000`. Если URL не задан явно и основной хост недоступен,
+на 1 релиз включён legacy retry на `http://telegram-api:8000`.
