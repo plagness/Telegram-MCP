@@ -3,6 +3,7 @@
 
 Endpoints:
   - GET /v1/balance/{user_id} — получить баланс
+  - POST /v1/balance/{user_id}/deposit — начислить средства
   - GET /v1/balance/{user_id}/history — история транзакций
   - GET /v1/balance/top — топ пользователей по балансу
 """
@@ -10,13 +11,22 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from ..services import balance as balance_service
 
 router = APIRouter(prefix="/v1/balance", tags=["balance"])
 logger = logging.getLogger(__name__)
+
+
+class DepositIn(BaseModel):
+    """Начисление средств на баланс."""
+    amount: int = Field(..., ge=1, description="Сумма начисления")
+    description: str = Field(default="Начисление", description="Описание транзакции")
+    source: str = Field(default="manual", description="Источник: manual, arena, reward, initial")
 
 
 @router.get("/{user_id}")
@@ -41,6 +51,39 @@ async def get_user_balance(user_id: int):
 
     except Exception as e:
         logger.error(f"Ошибка получения баланса: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{user_id}/deposit")
+async def deposit_to_balance(user_id: int, payload: DepositIn):
+    """
+    Начислить средства на баланс пользователя.
+
+    Используется для:
+    - Начального баланса ACoin (source='initial')
+    - Наград за арену (source='arena')
+    - Ручных начислений (source='manual')
+    """
+    try:
+        new_balance = await balance_service.add_to_balance(
+            user_id=user_id,
+            amount=payload.amount,
+            transaction_type="deposit",
+            reference_type=payload.source,
+            description=payload.description,
+        )
+
+        return {
+            "ok": True,
+            "user_id": user_id,
+            "deposited": payload.amount,
+            "balance": new_balance,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка начисления: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

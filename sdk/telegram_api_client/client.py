@@ -1189,6 +1189,152 @@ class TelegramAPI:
         data = await self._request("PUT", f"/v1/bots/{bot_id}/default", json={})
         return data.get("bot", data)
 
+    # === Web-UI (Telegram Mini App) ===
+
+    async def create_web_page(
+        self,
+        slug: str,
+        title: str,
+        page_type: str = "page",
+        config: dict[str, Any] | None = None,
+        template: str | None = None,
+        creator_id: int | None = None,
+        bot_id: int | None = None,
+        event_id: int | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать веб-страницу.
+
+        Args:
+            slug: Уникальный идентификатор (URL-путь)
+            title: Заголовок страницы
+            page_type: Тип страницы (page, survey, prediction)
+            config: Конфигурация (поля формы, кнопки и т.д.)
+            template: Имя HTML-шаблона
+            event_id: ID события для prediction-страниц
+
+        Returns:
+            Данные созданной страницы
+        """
+        payload: dict[str, Any] = {
+            "slug": slug,
+            "title": title,
+            "page_type": page_type,
+        }
+        if config:
+            payload["config"] = config
+        if template:
+            payload["template"] = template
+        if creator_id is not None:
+            payload["creator_id"] = creator_id
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if event_id is not None:
+            payload["event_id"] = event_id
+        if expires_at:
+            payload["expires_at"] = expires_at
+        data = await self._post("/v1/web/pages", payload)
+        return data.get("page", data)
+
+    async def list_web_pages(
+        self,
+        page_type: str | None = None,
+        bot_id: int | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Список веб-страниц."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if page_type:
+            params["page_type"] = page_type
+        if bot_id is not None:
+            params["bot_id"] = bot_id
+        data = await self._get("/v1/web/pages", params)
+        return data.get("pages", [])
+
+    async def create_web_link(
+        self,
+        slug: str,
+        user_id: int | None = None,
+        chat_id: int | None = None,
+        metadata: dict[str, Any] | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать индивидуальную ссылку на страницу.
+
+        Returns:
+            Данные ссылки с полным URL
+        """
+        payload: dict[str, Any] = {}
+        if user_id is not None:
+            payload["user_id"] = user_id
+        if chat_id is not None:
+            payload["chat_id"] = chat_id
+        if metadata:
+            payload["metadata"] = metadata
+        if expires_at:
+            payload["expires_at"] = expires_at
+        data = await self._post(f"/v1/web/pages/{slug}/links", payload)
+        return data.get("link", data)
+
+    async def get_web_submissions(
+        self,
+        slug: str,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Получить ответы на форму страницы."""
+        data = await self._get(
+            f"/v1/web/pages/{slug}/submissions",
+            {"limit": limit, "offset": offset},
+        )
+        return data.get("submissions", [])
+
+    async def create_prediction_page(
+        self,
+        event_id: int,
+        title: str | None = None,
+        bot_id: int | None = None,
+        creator_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Создать prediction-страницу для события (shortcut)."""
+        return await self.create_web_page(
+            slug=f"predict-{event_id}",
+            title=title or f"Предсказание #{event_id}",
+            page_type="prediction",
+            event_id=event_id,
+            bot_id=bot_id,
+            creator_id=creator_id,
+        )
+
+    async def create_survey_page(
+        self,
+        slug: str,
+        title: str,
+        fields: list[dict[str, Any]],
+        description: str | None = None,
+        bot_id: int | None = None,
+        creator_id: int | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать опросник (shortcut).
+
+        Args:
+            fields: Список полей формы, каждое с name, label, type и т.д.
+        """
+        config: dict[str, Any] = {"fields": fields}
+        if description:
+            config["description"] = description
+        return await self.create_web_page(
+            slug=slug,
+            title=title,
+            page_type="survey",
+            config=config,
+            bot_id=bot_id,
+            creator_id=creator_id,
+            expires_at=expires_at,
+        )
+
     # === CommandHandler Pattern ===
 
     def command(

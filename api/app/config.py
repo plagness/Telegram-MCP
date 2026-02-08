@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     llm_mcp_url: str = "http://llm-mcp-core:8080"
     llm_mcp_enabled: bool = True
 
+    # Web-UI (Telegram Mini App)
+    webui_enabled: bool = False
+    webui_public_url: str = ""
+
     def __init__(self, **kwargs):
         # Подхватываем fallback-переменные из корневого .env интегрированного проекта.
         root_env = Path(__file__).parent.parent.parent.parent.parent / ".env"

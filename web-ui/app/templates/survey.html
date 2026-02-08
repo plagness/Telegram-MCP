@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block content %}
+<div class="survey-page">
+    <h1>📋 {{ page.title }}</h1>
+
+    {% if config.description %}
+    <p class="description">{{ config.description }}</p>
+    {% endif %}
+
+    <form id="survey-form" onsubmit="return submitSurvey(event)">
+        {% for field in config.get('fields', []) %}
+        <div class="form-field">
+            <label>{{ field.label }}{% if field.get('required') %} *{% endif %}</label>
+
+            {% if field.type == 'text' %}
+            <input type="text" name="{{ field.name }}" {% if field.get('required') %}required{% endif %}
+                   {% if field.get('placeholder') %}placeholder="{{ field.placeholder }}"{% endif %}>
+
+            {% elif field.type == 'textarea' %}
+            <textarea name="{{ field.name }}" rows="3" {% if field.get('required') %}required{% endif %}
+                      {% if field.get('placeholder') %}placeholder="{{ field.placeholder }}"{% endif %}></textarea>
+
+            {% elif field.type == 'number' %}
+            <input type="number" name="{{ field.name }}" {% if field.get('required') %}required{% endif %}
+                   {% if field.get('min') is not none %}min="{{ field.min }}"{% endif %}
+                   {% if field.get('max') is not none %}max="{{ field.max }}"{% endif %}>
+
+            {% elif field.type == 'select' %}
+            <select name="{{ field.name }}" {% if field.get('required') %}required{% endif %}>
+                <option value="">Выберите...</option>
+                {% for opt in field.get('options', []) %}
+                <option value="{{ opt.value if opt is mapping else opt }}">{{ opt.label if opt is mapping else opt }}</option>
+                {% endfor %}
+            </select>
+
+            {% elif field.type == 'radio' %}
+            <div class="radio-group">
+                {% for opt in field.get('options', []) %}
+                <label class="radio-label">
+                    <input type="radio" name="{{ field.name }}" value="{{ opt.value if opt is mapping else opt }}"
+                           {% if field.get('required') %}required{% endif %}>
+                    {{ opt.label if opt is mapping else opt }}
+                </label>
+                {% endfor %}
+            </div>
+
+            {% elif field.type == 'checkbox' %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="{{ field.name }}" value="true">
+                {{ field.get('check_label', field.label) }}
+            </label>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="submit-btn" id="submit-btn">Отправить</button>
+    </form>
+
+    <div class="result-screen" id="result-screen" style="display: none;">
+        <div class="result-icon" id="result-icon"></div>
+        <div class="result-text" id="result-text"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const PAGE_SLUG = '{{ page.slug }}';
+
+    async function submitSurvey(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Отправка...';
+
+        const form = document.getElementById('survey-form');
+        const formData = new FormData(form);
+        const data = {};
+        for (const [key, value] of formData.entries()) {
+            data[key] = value;
+        }
+
+        try {
+            const resp = await fetch(`/p/${PAGE_SLUG}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    init_data: window.Telegram?.WebApp?.initData || '',
+                    data: data,
+                }),
+            });
+            const result = await resp.json();
+            if (result.ok || resp.ok) {
+                form.style.display = 'none';
+                document.getElementById('result-icon').textContent = '✅';
+                document.getElementById('result-text').textContent = 'Спасибо! Ответ сохранён.';
+                document.getElementById('result-screen').style.display = 'block';
+                setTimeout(() => {
+                    if (window.Telegram?.WebApp) Telegram.WebApp.close();
+                }, 2000);
+            } else {
+                alert(result.detail || 'Ошибка отправки');
+                btn.disabled = false;
+                btn.textContent = 'Отправить';
+            }
+        } catch (e) {
+            alert('Ошибка сети');
+            btn.disabled = false;
+            btn.textContent = 'Отправить';
+        }
+        return false;
+    }
+</script>
+{% endblock %}

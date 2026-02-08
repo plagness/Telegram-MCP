@@ -9,19 +9,10 @@ from fastapi import APIRouter, HTTPException
 from ..models import SendPollIn
 from ..services import messages as message_service
 from ..services import polls as poll_service
-from ..services.bots import BotRegistry
 from ..telegram_client import TelegramError, send_poll, stop_poll
+from ..utils import resolve_bot_context
 
 router = APIRouter(prefix="/v1/polls", tags=["polls"])
-
-
-async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
-    bot_token = await BotRegistry.get_bot_token(bot_id)
-    resolved_bot_id = bot_id
-    bot_row = await BotRegistry.get_bot_by_token(bot_token)
-    if bot_row and bot_row.get("bot_id") is not None:
-        resolved_bot_id = int(bot_row["bot_id"])
-    return bot_token, resolved_bot_id
 
 
 @router.post("/send")
@@ -62,7 +53,7 @@ async def send_poll_api(payload: SendPollIn) -> dict[str, Any]:
     if payload.reply_markup:
         telegram_payload["reply_markup"] = payload.reply_markup
 
-    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
     # Создание записи в messages
     row = await message_service.create_message(
@@ -143,7 +134,7 @@ async def stop_poll_api(chat_id: str, message_id: int, bot_id: int | None = None
     }
 
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await stop_poll(telegram_payload, bot_token=bot_token)
 
         # Обновление опроса в БД

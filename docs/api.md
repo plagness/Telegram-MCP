@@ -628,6 +628,88 @@ Long polling через `getUpdates`.
 
 ---
 
+## Web-UI (proxy к tgweb)
+
+### `POST /v1/web/pages`
+
+Создание веб-страницы.
+
+```json
+{
+  "title": "Мой опрос",
+  "page_type": "survey",
+  "slug": "my-survey",
+  "config": {
+    "fields": [
+      {"name": "rating", "type": "select", "label": "Оценка", "options": ["1", "2", "3", "4", "5"]}
+    ]
+  },
+  "bot_id": 123456789,
+  "event_id": null
+}
+```
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `title` | str | Заголовок страницы (обязательно) |
+| `page_type` | str | `page`, `survey`, `prediction` (по умолчанию `page`) |
+| `slug` | str | URL-slug (генерируется автоматически если не указан) |
+| `config` | object | Конфигурация страницы (поля формы, контент и т.д.) |
+| `template` | str | Имя шаблона для рендеринга |
+| `bot_id` | int | ID бота |
+| `event_id` | int | ID события предсказаний (для type=prediction) |
+
+### `GET /v1/web/pages`
+
+Список страниц.
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `page_type` | str | Фильтр по типу |
+| `is_active` | bool | Фильтр: активные/неактивные |
+| `limit` | int | Количество (по умолчанию 50) |
+| `offset` | int | Смещение |
+
+### `GET /v1/web/pages/{slug}`
+
+Конфигурация страницы по slug.
+
+### `DELETE /v1/web/pages/{slug}`
+
+Удаление страницы.
+
+### `POST /v1/web/pages/{slug}/links`
+
+Создание индивидуальной ссылки.
+
+```json
+{
+  "user_id": 777,
+  "chat_id": -100123456,
+  "metadata": {"source": "private_message"},
+  "expires_at": "2026-03-01T00:00:00Z"
+}
+```
+
+**Ответ:**
+```json
+{
+  "token": "a1b2c3d4e5f6...",
+  "url": "https://tg.plag.space:8090/l/a1b2c3d4e5f6..."
+}
+```
+
+### `GET /v1/web/pages/{slug}/submissions`
+
+Ответы на форму страницы.
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `limit` | int | Количество |
+| `offset` | int | Смещение |
+
+---
+
 ## Коды ошибок
 
 | Код | Описание |

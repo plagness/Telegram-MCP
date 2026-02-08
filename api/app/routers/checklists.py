@@ -24,7 +24,6 @@ from ..models import (
     SendChecklistIn,
 )
 from ..services import messages as message_service
-from ..services.bots import BotRegistry
 from ..telegram_client import (
     edit_message_checklist,
     get_chat_gifts,
@@ -34,18 +33,10 @@ from ..telegram_client import (
     repost_story,
     send_checklist,
 )
+from ..utils import resolve_bot_context
 
 router = APIRouter(prefix="/v1", tags=["checklists", "stars", "gifts"])
 logger = logging.getLogger(__name__)
-
-
-async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
-    bot_token = await BotRegistry.get_bot_token(bot_id)
-    resolved_bot_id = bot_id
-    bot_row = await BotRegistry.get_bot_by_token(bot_token)
-    if bot_row and bot_row.get("bot_id") is not None:
-        resolved_bot_id = int(bot_row["bot_id"])
-    return bot_token, resolved_bot_id
 
 
 # === Checklists ===
@@ -75,7 +66,7 @@ async def send_checklist_api(payload: SendChecklistIn):
     if payload.reply_to_message_id is not None:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
 
-    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
     try:
         result = await send_checklist(telegram_payload, bot_token=bot_token)
@@ -135,7 +126,7 @@ async def edit_checklist_api(message_id: int, payload: EditChecklistIn):
 
     row_bot_id = int(msg_record["bot_id"]) if msg_record.get("bot_id") is not None else None
     target_bot_id = payload.bot_id if payload.bot_id is not None else row_bot_id
-    bot_token, _ = await _resolve_bot_context(target_bot_id)
+    bot_token, _ = await resolve_bot_context(target_bot_id)
 
     try:
         result = await edit_message_checklist(telegram_payload, bot_token=bot_token)
@@ -156,7 +147,7 @@ async def get_star_balance(bot_id: int | None = None):
     Возвращает количество звёзд на балансе бота.
     """
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await get_my_star_balance(bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
@@ -181,7 +172,7 @@ async def gift_premium_api(payload: GiftPremiumIn):
     }
 
     try:
-        bot_token, _ = await _resolve_bot_context(payload.bot_id)
+        bot_token, _ = await resolve_bot_context(payload.bot_id)
         result = await gift_premium_subscription(telegram_payload, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
@@ -197,7 +188,7 @@ async def get_user_gifts_api(user_id: int, bot_id: int | None = None):
     Возвращает подарки, отправленные пользователю.
     """
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await get_user_gifts({"user_id": user_id}, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
@@ -213,7 +204,7 @@ async def get_chat_gifts_api(chat_id: int | str, bot_id: int | None = None):
     Возвращает подарки, отправленные в чат.
     """
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await get_chat_gifts({"chat_id": chat_id}, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
@@ -238,7 +229,7 @@ async def repost_story_api(payload: RepostStoryIn):
     }
 
     try:
-        bot_token, _ = await _resolve_bot_context(payload.bot_id)
+        bot_token, _ = await resolve_bot_context(payload.bot_id)
         result = await repost_story(telegram_payload, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:

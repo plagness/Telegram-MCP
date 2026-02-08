@@ -17,7 +17,6 @@ from ..models import (
     SendMediaGroupIn,
 )
 from ..services import messages as message_service
-from ..services.bots import BotRegistry
 from ..telegram_client import (
     TelegramError,
     send_photo,
@@ -29,17 +28,9 @@ from ..telegram_client import (
     send_sticker,
     send_media_group,
 )
+from ..utils import resolve_bot_context
 
 router = APIRouter(prefix="/v1/media", tags=["media"])
-
-
-async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
-    bot_token = await BotRegistry.get_bot_token(bot_id)
-    resolved_bot_id = bot_id
-    bot_row = await BotRegistry.get_bot_by_token(bot_token)
-    if bot_row and bot_row.get("bot_id") is not None:
-        resolved_bot_id = int(bot_row["bot_id"])
-    return bot_token, resolved_bot_id
 
 
 @router.post("/send-photo")
@@ -60,7 +51,7 @@ async def send_photo_json(payload: SendPhotoIn) -> dict[str, Any]:
     if payload.reply_markup:
         telegram_payload["reply_markup"] = payload.reply_markup
 
-    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
     row = await message_service.create_message(
         chat_id=payload.chat_id,
@@ -112,7 +103,7 @@ async def upload_photo(
     file: UploadFile = File(...),
 ) -> dict[str, Any]:
     """Загрузка фото файлом (multipart/form-data)."""
-    bot_token, resolved_bot_id = await _resolve_bot_context(bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(bot_id)
     form_data: dict[str, Any] = {"chat_id": chat_id}
     if caption:
         form_data["caption"] = caption
@@ -167,7 +158,7 @@ async def upload_photo(
 @router.post("/send-document")
 async def send_document_json(payload: SendDocumentIn) -> dict[str, Any]:
     """Отправка документа по URL или file_id."""
-    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
         "document": payload.document,
@@ -221,7 +212,7 @@ async def send_document_json(payload: SendDocumentIn) -> dict[str, Any]:
 @router.post("/send-video")
 async def send_video_json(payload: SendVideoIn) -> dict[str, Any]:
     """Отправка видео по URL или file_id."""
-    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
         "video": payload.video,
@@ -320,7 +311,7 @@ async def send_media_group_api(payload: SendMediaGroupIn) -> dict[str, Any]:
     if payload.message_thread_id:
         telegram_payload["message_thread_id"] = payload.message_thread_id
 
-    bot_token, resolved_bot_id = await _resolve_bot_context(payload.bot_id)
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
     # Dry run
     if payload.dry_run:
@@ -380,7 +371,7 @@ async def send_media_group_api(payload: SendMediaGroupIn) -> dict[str, Any]:
 @router.post("/send-animation")
 async def send_animation_api(payload: SendAnimationIn) -> dict[str, Any]:
     """Отправка анимации/GIF по URL или file_id."""
-    bot_token, _ = await _resolve_bot_context(payload.bot_id)
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
         "animation": payload.animation,
@@ -408,7 +399,7 @@ async def send_animation_api(payload: SendAnimationIn) -> dict[str, Any]:
 @router.post("/send-audio")
 async def send_audio_api(payload: SendAudioIn) -> dict[str, Any]:
     """Отправка аудио по URL или file_id."""
-    bot_token, _ = await _resolve_bot_context(payload.bot_id)
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
         "audio": payload.audio,
@@ -442,7 +433,7 @@ async def send_audio_api(payload: SendAudioIn) -> dict[str, Any]:
 @router.post("/send-voice")
 async def send_voice_api(payload: SendVoiceIn) -> dict[str, Any]:
     """Отправка голосового сообщения по URL или file_id."""
-    bot_token, _ = await _resolve_bot_context(payload.bot_id)
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
         "voice": payload.voice,
@@ -472,7 +463,7 @@ async def send_voice_api(payload: SendVoiceIn) -> dict[str, Any]:
 @router.post("/send-sticker")
 async def send_sticker_api(payload: SendStickerIn) -> dict[str, Any]:
     """Отправка стикера по file_id."""
-    bot_token, _ = await _resolve_bot_context(payload.bot_id)
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
         "sticker": payload.sticker,

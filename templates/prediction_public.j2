@@ -1,0 +1,19 @@
+{# Публичный анонс предсказания в чат (с web_app или callback кнопками) #}
+<b>🎯 Новое событие для предсказаний</b>
+
+<b>{{ title }}</b>
+
+{{ description }}
+
+<b>📊 Варианты:</b>
+{% for option in options %}
+{% set sym = currency_symbol|default("⭐") %}
+  • {{ option.text }}{% if option.value %} <code>({{ option.value|e }})</code>{% endif %}
+    {{ option.total_bets|default(0) }} ставок, {{ option.total_amount|default(0) }} {{ sym }}
+{% endfor %}
+
+<b>💰 Общий банк:</b> {{ total_pool|default(0) }} {{ currency_symbol|default("⭐") }}
+<b>🎲 Ставка:</b> {{ min_bet }}-{{ max_bet }} {{ currency_symbol|default("⭐") }}
+<b>💱 Валюта:</b> {{ currency|default("XTR") }}
+<b>⏰ Дедлайн:</b> {{ deadline|default("Не указан") }}
+<b>📈 Статус:</b> {{ status|default("active") }}

@@ -37,6 +37,8 @@ services:
       DB_HOST: tgdb
       DB_PORT: 5432
       DB_DSN: postgresql://${DB_USER:-telegram}:${DB_PASSWORD:-telegram}@tgdb:5432/${DB_NAME:-telegram}
+      WEBUI_ENABLED: ${WEBUI_ENABLED:-false}
+      WEBUI_PUBLIC_URL: ${WEBUI_PUBLIC_URL:-}
     ports:
       - "127.0.0.1:${PORT_HTTP_TGAPI:-${API_PORT:-8081}}:8000"
     volumes:
@@ -71,3 +73,31 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  tgweb:
+    build:
+      context: .
+      dockerfile: web-ui/Dockerfile
+    container_name: tgweb
+    labels:
+      - "ns.module=telegram"
+      - "ns.component=web-ui"
+    env_file: .env
+    depends_on:
+      tgapi:
+        condition: service_healthy
+      tgdb:
+        condition: service_healthy
+    environment:
+      DB_DSN: postgresql://${DB_USER:-telegram}:${DB_PASSWORD:-telegram}@tgdb:5432/${DB_NAME:-telegram}
+      TGAPI_URL: http://tgapi:8000
+      PUBLIC_URL: ${WEBUI_PUBLIC_URL:-https://tg.plag.space:8090}
+      BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    ports:
+      - "${PORT_WEBUI:-8090}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

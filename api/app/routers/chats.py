@@ -9,7 +9,6 @@ from fastapi import APIRouter, HTTPException
 
 from ..db import execute, fetch_all, fetch_one
 from ..models import SetChatAliasIn
-from ..services.bots import BotRegistry
 from ..telegram_client import (
     TelegramError,
     ban_chat_member,
@@ -22,17 +21,9 @@ from ..telegram_client import (
     unban_chat_member,
     unpin_chat_message,
 )
+from ..utils import resolve_bot_context
 
 router = APIRouter(prefix="/v1/chats", tags=["chats"])
-
-
-async def _resolve_bot_context(bot_id: int | None) -> tuple[str, int | None]:
-    bot_token = await BotRegistry.get_bot_token(bot_id)
-    resolved_bot_id = bot_id
-    bot_row = await BotRegistry.get_bot_by_token(bot_token)
-    if bot_row and bot_row.get("bot_id") is not None:
-        resolved_bot_id = int(bot_row["bot_id"])
-    return bot_token, resolved_bot_id
 
 
 @router.get("")
@@ -156,7 +147,7 @@ async def list_chat_members_api(
 async def get_chat_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
     """Get chat details from Telegram API."""
     try:
-        bot_token, resolved_bot_id = await _resolve_bot_context(bot_id)
+        bot_token, resolved_bot_id = await resolve_bot_context(bot_id)
         result = await get_chat({"chat_id": chat_id}, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -190,7 +181,7 @@ async def get_chat_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any
 async def get_chat_member_api(chat_id: str, user_id: int, bot_id: int | None = None) -> dict[str, Any]:
     """Get member details from Telegram API."""
     try:
-        bot_token, resolved_bot_id = await _resolve_bot_context(bot_id)
+        bot_token, resolved_bot_id = await resolve_bot_context(bot_id)
         result = await get_chat_member({"chat_id": chat_id, "user_id": user_id}, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -216,7 +207,7 @@ async def get_chat_member_api(chat_id: str, user_id: int, bot_id: int | None = N
 async def get_chat_member_count_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
     """Get number of chat members from Telegram API."""
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await get_chat_member_count({"chat_id": chat_id}, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -227,7 +218,7 @@ async def get_chat_member_count_api(chat_id: str, bot_id: int | None = None) -> 
 async def pin_message_api(chat_id: str, message_id: int, bot_id: int | None = None) -> dict[str, Any]:
     """Pin a message in chat."""
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await pin_chat_message(
             {
                 "chat_id": chat_id,
@@ -244,7 +235,7 @@ async def pin_message_api(chat_id: str, message_id: int, bot_id: int | None = No
 async def unpin_message_api(chat_id: str, message_id: int, bot_id: int | None = None) -> dict[str, Any]:
     """Unpin a message in chat."""
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await unpin_chat_message(
             {
                 "chat_id": chat_id,
@@ -302,7 +293,7 @@ async def ban_member_api(
         payload["until_date"] = until_date
 
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await ban_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -324,7 +315,7 @@ async def unban_member_api(
     }
 
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await unban_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -349,7 +340,7 @@ async def restrict_member_api(
         payload["until_date"] = until_date
 
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await restrict_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -391,7 +382,7 @@ async def promote_member_api(
     }
 
     try:
-        bot_token, _ = await _resolve_bot_context(bot_id)
+        bot_token, _ = await resolve_bot_context(bot_id)
         result = await promote_chat_member(payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))

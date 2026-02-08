@@ -550,8 +550,9 @@ class CreatePredictionEventIn(BaseModel):
     options: list[PredictionOption] = Field(..., min_length=2, max_length=10)
     deadline: str | None = Field(None, description="ISO datetime дедлайна события")
     resolution_date: str | None = Field(None, description="ISO datetime разрешения (если без фиксированной даты, нейронка решит)")
-    min_bet: int = Field(default=1, ge=1, description="Минимальная ставка в Stars")
-    max_bet: int = Field(default=1000, ge=1, description="Максимальная ставка в Stars")
+    currency: str = Field(default="XTR", description="Валюта ставок: XTR (Stars), AC (виртуальная), TON")
+    min_bet: int = Field(default=1, ge=1, description="Минимальная ставка")
+    max_bet: int = Field(default=1000, ge=1, description="Максимальная ставка")
     is_anonymous: bool = Field(default=True, description="Обезличенные ставки")
     chat_id: int | str | None = Field(None, description="Чат для публикации (если None, личное событие)")
     creator_id: int = Field(..., description="ID создателя события")
@@ -561,13 +562,14 @@ class PlaceBetIn(BaseModel):
     """Размещение ставки."""
     event_id: int
     option_id: str
-    amount: int = Field(..., ge=1, description="Сумма ставки в Stars")
+    amount: int = Field(..., ge=1, description="Сумма ставки")
     user_id: int
+    source: str = Field(default="auto", description="Источник оплаты: auto (по валюте события), balance, payment")
 
 
 class ResolveEventIn(BaseModel):
     """Разрешение события (определение победителя)."""
     event_id: int
-    winning_option_ids: list[str] = Field(..., min_length=1, description="ID победивших вариантов (может быть несколько)")
+    winning_option_ids: list[str] = Field(default_factory=list, description="ID победивших вариантов (может быть несколько, пустой = возврат всем)")
     resolution_source: str = Field(..., description="Источник решения (llm-mcp/ollama/openrouter/manual)")
     resolution_data: dict[str, Any] | None = Field(None, description="Данные от LLM/новости")

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block head %}
+<script src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="prediction-page">
+    <h1>🎯 {{ page.title }}</h1>
+
+    {% if event %}
+    <p class="description">{{ event.description or '' }}</p>
+
+    <div class="stats-bar">
+        <span class="pool">💰 Банк: <strong id="total-pool">{{ event.total_pool or 0 }}</strong></span>
+        <span class="bets">🎲 {{ event.min_bet }}-{{ event.max_bet }}</span>
+    </div>
+
+    <div class="options" id="options-list">
+        {% for opt in event.options or [] %}
+        <button class="option-btn" data-option-id="{{ opt.id }}"
+                onclick="selectOption('{{ opt.id }}')">
+            <span class="option-text">{{ opt.text }}</span>
+            {% if opt.value %}<code class="option-value">{{ opt.value }}</code>{% endif %}
+            <div class="option-stats">
+                <span>{{ opt.total_bets or 0 }} ставок</span>
+                <span>{{ opt.total_amount or 0 }} ⭐</span>
+                {% if (event.total_pool or 0) > 0 and (opt.total_amount or 0) > 0 %}
+                <span class="multiplier">×{{ "%.2f"|format((event.total_pool or 1) / (opt.total_amount or 1)) }}</span>
+                {% endif %}
+            </div>
+        </button>
+        {% endfor %}
+    </div>
+
+    <div class="bet-form" id="bet-form" style="display: none;">
+        <div class="selected-option" id="selected-label"></div>
+
+        <div class="amount-input">
+            <label>Сумма:</label>
+            <input type="range" id="amount-slider" min="{{ event.min_bet }}" max="{{ event.max_bet }}"
+                   value="{{ event.min_bet }}" oninput="updateAmount(this.value)">
+            <input type="number" id="amount-value" min="{{ event.min_bet }}" max="{{ event.max_bet }}"
+                   value="{{ event.min_bet }}" oninput="updateSlider(this.value)">
+        </div>
+
+        <div id="ton-connect-btn" style="display: none;"></div>
+        <input type="hidden" id="wallet-address" value="">
+
+        <button class="submit-btn" id="submit-btn" onclick="submitPrediction()">
+            Подтвердить предсказание
+        </button>
+    </div>
+
+    <div class="result-screen" id="result-screen" style="display: none;">
+        <div class="result-icon" id="result-icon"></div>
+        <div class="result-text" id="result-text"></div>
+    </div>
+    {% else %}
+    <p class="error">Событие не найдено или недоступно.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const EVENT_ID = {{ event.id if event else 'null' }};
+    const PAGE_SLUG = '{{ page.slug }}';
+    const PUBLIC_URL = '{{ public_url }}';
+    let selectedOptionId = null;
+
+    function selectOption(optionId) {
+        selectedOptionId = optionId;
+        document.querySelectorAll('.option-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.optionId === optionId);
+        });
+        const label = document.querySelector(`.option-btn[data-option-id="${optionId}"] .option-text`);
+        document.getElementById('selected-label').textContent = label ? label.textContent : '';
+        document.getElementById('bet-form').style.display = 'block';
+    }
+
+    function updateAmount(val) {
+        document.getElementById('amount-value').value = val;
+    }
+    function updateSlider(val) {
+        document.getElementById('amount-slider').value = val;
+    }
+
+    async function submitPrediction() {
+        if (!selectedOptionId) return;
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Отправка...';
+
+        const amount = parseInt(document.getElementById('amount-value').value);
+        const walletAddress = document.getElementById('wallet-address').value;
+
+        try {
+            const resp = await fetch(`/p/${PAGE_SLUG}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    init_data: window.Telegram?.WebApp?.initData || '',
+                    data: {
+                        option_id: selectedOptionId,
+                        amount: amount,
+                        source: 'auto',
+                        wallet_address: walletAddress || undefined,
+                    },
+                }),
+            });
+            const data = await resp.json();
+
+            if (data.ok || resp.ok) {
+                showResult('✅', 'Предсказание принято!');
+                setTimeout(() => {
+                    if (window.Telegram?.WebApp) {
+                        Telegram.WebApp.close();
+                    }
+                }, 2000);
+            } else {
+                showResult('❌', data.detail || 'Ошибка');
+                btn.disabled = false;
+                btn.textContent = 'Подтвердить предсказание';
+            }
+        } catch (e) {
+            showResult('❌', 'Ошибка сети');
+            btn.disabled = false;
+            btn.textContent = 'Подтвердить предсказание';
+        }
+    }
+
+    function showResult(icon, text) {
+        document.getElementById('bet-form').style.display = 'none';
+        document.getElementById('result-icon').textContent = icon;
+        document.getElementById('result-text').textContent = text;
+        document.getElementById('result-screen').style.display = 'block';
+    }
+</script>
+{% endblock %}

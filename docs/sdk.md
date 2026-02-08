@@ -361,6 +361,72 @@ metrics = await api.metrics()     # {"sent": 42, "error": 1, ...}
 bot = await api.get_bot_info()    # {"username": "my_bot", ...}
 ```
 
+### Web-UI
+
+#### `create_web_page(title, page_type, slug, config, ...) -> dict`
+
+Создание веб-страницы.
+
+```python
+page = await api.create_web_page(
+    title="Обратная связь",
+    page_type="survey",
+    config={"fields": [
+        {"name": "rating", "type": "select", "label": "Оценка", "options": ["1", "2", "3", "4", "5"]},
+        {"name": "text", "type": "textarea", "label": "Комментарий"}
+    ]}
+)
+```
+
+#### `list_web_pages(page_type, is_active, limit, offset) -> list[dict]`
+
+Список страниц.
+
+```python
+pages = await api.list_web_pages(page_type="survey", is_active=True)
+```
+
+#### `create_web_link(slug, user_id, chat_id, metadata, expires_at) -> dict`
+
+Создание индивидуальной ссылки.
+
+```python
+link = await api.create_web_link("my-survey", user_id=777)
+print(link["url"])  # https://tg.plag.space:8090/l/a1b2c3d4...
+```
+
+#### `get_web_submissions(slug, limit, offset) -> list[dict]`
+
+Ответы на форму.
+
+```python
+submissions = await api.get_web_submissions("my-survey")
+for s in submissions:
+    print(s["data"])
+```
+
+#### `create_prediction_page(event_id, slug, bot_id) -> dict`
+
+Создание страницы предсказания (shortcut).
+
+```python
+page = await api.create_prediction_page(event_id=42)
+```
+
+#### `create_survey_page(title, fields, slug, bot_id) -> dict`
+
+Создание опросника (shortcut).
+
+```python
+survey = await api.create_survey_page(
+    title="Фидбэк",
+    fields=[
+        {"name": "q1", "type": "text", "label": "Как вас зовут?"},
+        {"name": "q2", "type": "textarea", "label": "Отзыв"}
+    ]
+)
+```
+
 ## Обработка ошибок
 
 ```python
