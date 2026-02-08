@@ -35,7 +35,10 @@ def test_api_manifest_matches_routes_count() -> None:
     assert len(manifest_items) == len(routes)
 
 
-def test_api_manifest_has_unique_method_path_pairs() -> None:
+def test_api_manifest_has_unique_method_path_file_tuples() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    pairs = [(item["method"], item["path"]) for item in manifest.get("items", [])]
-    assert len(pairs) == len(set(pairs))
+    tuples = [
+        (item["method"], item.get("declared_path", item.get("path")), item["file"])
+        for item in manifest.get("items", [])
+    ]
+    assert len(tuples) == len(set(tuples))

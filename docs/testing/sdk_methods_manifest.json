@@ -1,12 +1,7 @@
 {
   "generated_from": "sdk/telegram_api_client/client.py",
-  "count": 74,
+  "count": 77,
   "items": [
-    {
-      "method": "close",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 40
-    },
     {
       "method": "__aenter__",
       "file": "sdk/telegram_api_client/client.py",
@@ -18,34 +13,59 @@
       "line": 48
     },
     {
-      "method": "_request",
+      "method": "answer_callback",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 53
+      "line": 518
     },
     {
-      "method": "_post",
+      "method": "close",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 69
+      "line": 40
     },
     {
-      "method": "_get",
+      "method": "command",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 72
+      "line": 1340
     },
     {
-      "method": "_delete",
+      "method": "copy_message",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 75
+      "line": 398
     },
     {
-      "method": "send_message",
+      "method": "create_prediction_event",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 80
+      "line": 947
     },
     {
-      "method": "edit_message",
+      "method": "create_prediction_page",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 132
+      "line": 1293
+    },
+    {
+      "method": "create_star_invoice",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1088
+    },
+    {
+      "method": "create_survey_page",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1310
+    },
+    {
+      "method": "create_template",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 464
+    },
+    {
+      "method": "create_web_link",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1255
+    },
+    {
+      "method": "create_web_page",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1194
     },
     {
       "method": "delete_message",
@@ -53,9 +73,134 @@
       "line": 161
     },
     {
+      "method": "delete_webhook",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 613
+    },
+    {
+      "method": "edit_checklist",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 817
+    },
+    {
+      "method": "edit_message",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 132
+    },
+    {
+      "method": "forward_message",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 381
+    },
+    {
+      "method": "get_bot_info",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1163
+    },
+    {
+      "method": "get_chat",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 537
+    },
+    {
+      "method": "get_chat_by_alias",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 570
+    },
+    {
+      "method": "get_chat_gifts",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 902
+    },
+    {
+      "method": "get_chat_history",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 575
+    },
+    {
+      "method": "get_chat_member",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 543
+    },
+    {
+      "method": "get_default_bot",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1182
+    },
+    {
       "method": "get_message",
       "file": "sdk/telegram_api_client/client.py",
       "line": 166
+    },
+    {
+      "method": "get_poll",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 715
+    },
+    {
+      "method": "get_prediction_event",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1065
+    },
+    {
+      "method": "get_star_balance",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 851
+    },
+    {
+      "method": "get_star_transactions",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1137
+    },
+    {
+      "method": "get_template",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 455
+    },
+    {
+      "method": "get_user_gifts",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 888
+    },
+    {
+      "method": "get_web_submissions",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1280
+    },
+    {
+      "method": "get_webhook_info",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 619
+    },
+    {
+      "method": "gift_premium",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 861
+    },
+    {
+      "method": "health",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1155
+    },
+    {
+      "method": "list_bots",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1169
+    },
+    {
+      "method": "list_chats",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 549
+    },
+    {
+      "method": "list_command_sets",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 511
+    },
+    {
+      "method": "list_commands",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1414
     },
     {
       "method": "list_messages",
@@ -63,19 +208,89 @@
       "line": 171
     },
     {
+      "method": "list_polls",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 702
+    },
+    {
+      "method": "list_prediction_events",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1049
+    },
+    {
+      "method": "list_reactions",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 750
+    },
+    {
+      "method": "list_templates",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 450
+    },
+    {
+      "method": "list_updates",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 591
+    },
+    {
+      "method": "list_user_bets",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1070
+    },
+    {
+      "method": "list_web_pages",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1239
+    },
+    {
+      "method": "metrics",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1159
+    },
+    {
       "method": "pin_message",
       "file": "sdk/telegram_api_client/client.py",
       "line": 190
     },
     {
-      "method": "unpin_message",
+      "method": "place_bet",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 205
+      "line": 995
     },
     {
-      "method": "send_photo",
+      "method": "progress",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 220
+      "line": 425
+    },
+    {
+      "method": "refund_star_payment",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1122
+    },
+    {
+      "method": "register_bot",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1174
+    },
+    {
+      "method": "render_template",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 460
+    },
+    {
+      "method": "repost_story",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 918
+    },
+    {
+      "method": "resolve_prediction_event",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1022
+    },
+    {
+      "method": "send_checklist",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 771
     },
     {
       "method": "send_document",
@@ -88,104 +303,14 @@
       "line": 327
     },
     {
-      "method": "forward_message",
+      "method": "send_message",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 381
+      "line": 80
     },
     {
-      "method": "copy_message",
+      "method": "send_photo",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 398
-    },
-    {
-      "method": "list_templates",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 450
-    },
-    {
-      "method": "get_template",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 455
-    },
-    {
-      "method": "render_template",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 460
-    },
-    {
-      "method": "create_template",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 464
-    },
-    {
-      "method": "set_commands",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 482
-    },
-    {
-      "method": "sync_commands",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 507
-    },
-    {
-      "method": "list_command_sets",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 511
-    },
-    {
-      "method": "answer_callback",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 518
-    },
-    {
-      "method": "get_chat",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 537
-    },
-    {
-      "method": "get_chat_member",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 543
-    },
-    {
-      "method": "list_chats",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 549
-    },
-    {
-      "method": "set_chat_alias",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 565
-    },
-    {
-      "method": "get_chat_by_alias",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 570
-    },
-    {
-      "method": "get_chat_history",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 575
-    },
-    {
-      "method": "list_updates",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 591
-    },
-    {
-      "method": "set_webhook",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 606
-    },
-    {
-      "method": "delete_webhook",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 613
-    },
-    {
-      "method": "get_webhook_info",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 619
+      "line": 220
     },
     {
       "method": "send_poll",
@@ -193,139 +318,14 @@
       "line": 627
     },
     {
-      "method": "stop_poll",
+      "method": "set_chat_alias",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 690
+      "line": 565
     },
     {
-      "method": "list_polls",
+      "method": "set_commands",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 702
-    },
-    {
-      "method": "get_poll",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 715
-    },
-    {
-      "method": "set_reaction",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 722
-    },
-    {
-      "method": "list_reactions",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 750
-    },
-    {
-      "method": "send_checklist",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 771
-    },
-    {
-      "method": "edit_checklist",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 817
-    },
-    {
-      "method": "get_star_balance",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 851
-    },
-    {
-      "method": "gift_premium",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 861
-    },
-    {
-      "method": "get_user_gifts",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 888
-    },
-    {
-      "method": "get_chat_gifts",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 902
-    },
-    {
-      "method": "repost_story",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 918
-    },
-    {
-      "method": "create_prediction_event",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 947
-    },
-    {
-      "method": "place_bet",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 995
-    },
-    {
-      "method": "resolve_prediction_event",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1022
-    },
-    {
-      "method": "list_prediction_events",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1049
-    },
-    {
-      "method": "get_prediction_event",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1065
-    },
-    {
-      "method": "list_user_bets",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1070
-    },
-    {
-      "method": "create_star_invoice",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1088
-    },
-    {
-      "method": "refund_star_payment",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1122
-    },
-    {
-      "method": "get_star_transactions",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1137
-    },
-    {
-      "method": "health",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1155
-    },
-    {
-      "method": "metrics",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1159
-    },
-    {
-      "method": "get_bot_info",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1163
-    },
-    {
-      "method": "list_bots",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1169
-    },
-    {
-      "method": "register_bot",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1174
-    },
-    {
-      "method": "get_default_bot",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1182
+      "line": 482
     },
     {
       "method": "set_default_bot",
@@ -333,44 +333,59 @@
       "line": 1187
     },
     {
-      "method": "start_handler",
+      "method": "set_reaction",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1210
+      "line": 722
     },
     {
-      "method": "admin_handler",
+      "method": "set_webhook",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1215
+      "line": 606
     },
     {
       "method": "start_polling",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1224
+      "line": 1370
     },
     {
-      "method": "start",
+      "method": "stop_poll",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1244
+      "line": 690
+    },
+    {
+      "method": "stop_polling",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1409
+    },
+    {
+      "method": "sync_commands",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 507
+    },
+    {
+      "method": "unpin_message",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 205
     },
     {
       "method": "__aenter__",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1306
+      "line": 1452
     },
     {
       "method": "__aexit__",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1309
-    },
-    {
-      "method": "update",
-      "file": "sdk/telegram_api_client/client.py",
-      "line": 1312
+      "line": 1455
     },
     {
       "method": "done",
       "file": "sdk/telegram_api_client/client.py",
-      "line": 1354
+      "line": 1500
+    },
+    {
+      "method": "update",
+      "file": "sdk/telegram_api_client/client.py",
+      "line": 1458
     }
   ]
 }

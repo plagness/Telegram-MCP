@@ -6,6 +6,18 @@
 
 ---
 
+## [2026.02.13] - 2026-02-08
+
+### Исправлено
+- Регенерация контрактных манифестов после рефакторинга:
+  - `api_endpoints_manifest.json` — 92 эндпоинта (было 84)
+  - `mcp_tools_manifest.json` — 57 инструментов (было 21, сканировал только index.ts)
+  - `sdk_methods_manifest.json` — 77 методов (было 74)
+- MCP-тест (`test_tool_to_endpoint_mapping.py`) — сканирование `tools/*.ts` вместо `index.ts`
+- API-тест (`test_contract_endpoints.py`) — уникальность по `(method, path, file)` вместо `(method, path)`
+
+---
+
 ## [2026.02.12] - 2026-02-08
 
 ### Добавлено
