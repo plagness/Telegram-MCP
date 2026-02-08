@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block content %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.description %}
+    <div class="bee-subtitle">{{ config.description }}</div>
+    {% endif %}
+</div>
+
+{% set entries = config.get('entries', []) %}
+
+{% if entries|length >= 3 %}
+<!-- Подиум: топ-3 -->
+<div class="bee-card">
+    <div class="bee-podium">
+        {% for entry in entries[:3] %}
+        <div class="bee-podium-item">
+            {% if loop.index == 1 %}
+            <div class="bee-medal bee-medal--gold">1</div>
+            {% elif loop.index == 2 %}
+            <div class="bee-medal bee-medal--silver">2</div>
+            {% elif loop.index == 3 %}
+            <div class="bee-medal bee-medal--bronze">3</div>
+            {% endif %}
+            <div class="bee-podium-name">{{ entry.name }}</div>
+            <div class="bee-podium-value">{{ entry.value }}</div>
+            {% if entry.badge %}
+            <span class="bee-badge bee-badge--outline">{{ entry.badge }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Остальные участники -->
+{% if entries|length > 3 %}
+<div class="bee-card">
+    <div class="bee-rank-list">
+        {% for entry in entries[3:] %}
+        <div class="bee-rank-item{% if config.highlight_user_id and entry.user_id == config.highlight_user_id %} highlighted{% endif %}">
+            <div class="bee-rank-pos">{{ entry.rank or loop.index + 3 }}</div>
+            <div class="bee-rank-name">
+                {% if entry.avatar_emoji %}<span style="margin-right:6px">{{ entry.avatar_emoji }}</span>{% endif %}
+                {{ entry.name }}
+            </div>
+            <div class="bee-rank-value">{{ entry.value }}</div>
+            {% if entry.badge %}
+            <span class="bee-badge bee-badge--outline">{{ entry.badge }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% elif entries|length > 0 and entries|length < 3 %}
+<!-- Меньше 3 участников — обычный список -->
+<div class="bee-card">
+    <div class="bee-rank-list">
+        {% for entry in entries %}
+        <div class="bee-rank-item">
+            <div class="bee-medal{% if loop.index == 1 %} bee-medal--gold{% elif loop.index == 2 %} bee-medal--silver{% else %} bee-medal--rank{% endif %}" style="width:36px;height:36px;font-size:16px">
+                {{ entry.rank or loop.index }}
+            </div>
+            <div class="bee-rank-name">{{ entry.name }}</div>
+            <div class="bee-rank-value">{{ entry.value }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="bee-result">
+    <div class="bee-result-icon">&#128373;</div>
+    <div class="bee-result-title">Пока пусто</div>
+    <div class="bee-result-text">Данных для рейтинга ещё нет.</div>
+</div>
+{% endif %}
+
+{% if config.footer_text %}
+<div class="text-center text-hint mt-16" style="font-size:13px">{{ config.footer_text }}</div>
+{% endif %}
+{% endblock %}

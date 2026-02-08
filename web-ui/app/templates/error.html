@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}{{ error_code or 'Ошибка' }}{% endblock %}
+
+{% block content %}
+<div class="bee-error-page">
+    <lottie-player
+        src="https://assets-v2.lottiefiles.com/a/1e38ee28-1182-11ee-9fd9-434adb6f6cdd/TwEpMcUfPP.lottie"
+        background="transparent"
+        speed="1"
+        style="width: 160px; height: 160px; margin: 0 auto 16px;"
+        loop autoplay>
+    </lottie-player>
+    <div class="bee-error-code">{{ error_code or '?' }}</div>
+    <div class="bee-error-text">{{ error_message or 'Что-то пошло не так' }}</div>
+    <button class="bee-btn--outline bee-btn" style="max-width:200px;margin:0 auto" onclick="goBack()">
+        Назад
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function goBack() {
+        if (window.history.length > 1) {
+            window.history.back();
+        } else if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.close();
+        }
+    }
+</script>
+{% endblock %}

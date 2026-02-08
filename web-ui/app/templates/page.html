@@ -3,25 +3,27 @@
 {% block title %}{{ page.title }}{% endblock %}
 
 {% block content %}
-<div class="generic-page">
-    <h1>{{ page.title }}</h1>
-
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
     {% if config.description %}
-    <p class="description">{{ config.description }}</p>
-    {% endif %}
-
-    {% if config.content_html %}
-    <div class="content">{{ config.content_html | safe }}</div>
-    {% endif %}
-
-    {% if config.buttons %}
-    <div class="buttons">
-        {% for btn in config.buttons %}
-        <a href="{{ btn.url }}" class="btn-link" {% if btn.get('external') %}target="_blank"{% endif %}>
-            {{ btn.text }}
-        </a>
-        {% endfor %}
-    </div>
+    <div class="bee-subtitle">{{ config.description }}</div>
     {% endif %}
 </div>
+
+{% if config.content_html %}
+<div class="bee-card">
+    {{ config.content_html | safe }}
+</div>
+{% endif %}
+
+{% if config.buttons %}
+<div class="mt-16">
+    {% for btn in config.buttons %}
+    <a href="{{ btn.url }}" class="bee-btn{% if not loop.first %} bee-btn--outline mt-8{% endif %}"
+       {% if btn.get('external') %}target="_blank" rel="noopener"{% endif %}>
+        {{ btn.text }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

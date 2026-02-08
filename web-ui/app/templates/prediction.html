@@ -7,136 +7,175 @@
 {% endblock %}
 
 {% block content %}
-<div class="prediction-page">
-    <h1>🎯 {{ page.title }}</h1>
-
-    {% if event %}
-    <p class="description">{{ event.description or '' }}</p>
-
-    <div class="stats-bar">
-        <span class="pool">💰 Банк: <strong id="total-pool">{{ event.total_pool or 0 }}</strong></span>
-        <span class="bets">🎲 {{ event.min_bet }}-{{ event.max_bet }}</span>
-    </div>
-
-    <div class="options" id="options-list">
-        {% for opt in event.options or [] %}
-        <button class="option-btn" data-option-id="{{ opt.id }}"
-                onclick="selectOption('{{ opt.id }}')">
-            <span class="option-text">{{ opt.text }}</span>
-            {% if opt.value %}<code class="option-value">{{ opt.value }}</code>{% endif %}
-            <div class="option-stats">
-                <span>{{ opt.total_bets or 0 }} ставок</span>
-                <span>{{ opt.total_amount or 0 }} ⭐</span>
-                {% if (event.total_pool or 0) > 0 and (opt.total_amount or 0) > 0 %}
-                <span class="multiplier">×{{ "%.2f"|format((event.total_pool or 1) / (opt.total_amount or 1)) }}</span>
-                {% endif %}
-            </div>
-        </button>
-        {% endfor %}
-    </div>
-
-    <div class="bet-form" id="bet-form" style="display: none;">
-        <div class="selected-option" id="selected-label"></div>
-
-        <div class="amount-input">
-            <label>Сумма:</label>
-            <input type="range" id="amount-slider" min="{{ event.min_bet }}" max="{{ event.max_bet }}"
-                   value="{{ event.min_bet }}" oninput="updateAmount(this.value)">
-            <input type="number" id="amount-value" min="{{ event.min_bet }}" max="{{ event.max_bet }}"
-                   value="{{ event.min_bet }}" oninput="updateSlider(this.value)">
-        </div>
-
-        <div id="ton-connect-btn" style="display: none;"></div>
-        <input type="hidden" id="wallet-address" value="">
-
-        <button class="submit-btn" id="submit-btn" onclick="submitPrediction()">
-            Подтвердить предсказание
-        </button>
-    </div>
-
-    <div class="result-screen" id="result-screen" style="display: none;">
-        <div class="result-icon" id="result-icon"></div>
-        <div class="result-text" id="result-text"></div>
-    </div>
-    {% else %}
-    <p class="error">Событие не найдено или недоступно.</p>
+{% if event %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if event.description %}
+    <div class="bee-subtitle">{{ event.description }}</div>
     {% endif %}
 </div>
+
+<!-- Статистика -->
+<div class="bee-card">
+    <div class="bee-stat-grid{% if event.deadline %} bee-stat-grid--three{% endif %}">
+        <div class="bee-stat">
+            <div class="bee-stat-value">{{ event.total_pool or 0 }}</div>
+            <div class="bee-stat-label">Банк</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value">{{ event.min_bet }}&ndash;{{ event.max_bet }}</div>
+            <div class="bee-stat-label">Диапазон</div>
+        </div>
+        {% if event.deadline %}
+        <div class="bee-stat">
+            <div class="bee-stat-value" style="font-size:14px">{{ event.deadline[:10] if event.deadline|length > 10 else event.deadline }}</div>
+            <div class="bee-stat-label">Дедлайн</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Варианты -->
+<div id="options-list">
+    {% for opt in event.options or [] %}
+    {% set pct = ((opt.total_amount or 0) * 100 / (event.total_pool or 1))|round|int if (event.total_pool or 0) > 0 else 0 %}
+    <button class="bee-option" data-option-id="{{ opt.id }}"
+            onclick="selectOption('{{ opt.id }}', this)">
+        <div class="bee-option-text">
+            {{ opt.text }}
+            {% if opt.value %}<span class="bee-option-code">{{ opt.value }}</span>{% endif %}
+        </div>
+        <div class="bee-progress">
+            <div class="bee-progress-fill" style="width: {{ pct }}%"></div>
+        </div>
+        <div class="bee-option-stats">
+            <span>{{ opt.total_bets or 0 }} предсказаний</span>
+            {% if (event.total_pool or 0) > 0 and (opt.total_amount or 0) > 0 %}
+            <span class="bee-option-multiplier">&times;{{ "%.2f"|format((event.total_pool or 1) / (opt.total_amount or 1)) }}</span>
+            {% endif %}
+        </div>
+    </button>
+    {% endfor %}
+</div>
+
+<!-- Форма ставки -->
+<div class="bee-card hidden" id="bet-form">
+    <div class="bee-card-title" id="selected-label"></div>
+
+    <label class="bee-label">Сумма</label>
+    <div class="bee-amount-group">
+        <input type="range" class="bee-range" id="amount-slider"
+               min="{{ event.min_bet }}" max="{{ event.max_bet }}"
+               value="{{ event.min_bet }}" oninput="updateAmount(this.value)">
+        <input type="number" class="bee-input" id="amount-value"
+               min="{{ event.min_bet }}" max="{{ event.max_bet }}"
+               value="{{ event.min_bet }}" oninput="updateSlider(this.value)">
+    </div>
+
+    <div id="ton-connect-btn" class="hidden"></div>
+    <input type="hidden" id="wallet-address" value="">
+
+    <button class="bee-btn mt-16" id="submit-btn" onclick="submitPrediction()">
+        Подтвердить
+    </button>
+</div>
+
+<!-- Результат -->
+<div class="bee-result hidden" id="result-screen">
+    <div class="bee-result-icon" id="result-icon"></div>
+    <div class="bee-result-title" id="result-title"></div>
+    <div class="bee-result-text" id="result-text"></div>
+</div>
+
+{% else %}
+<div class="bee-result">
+    <div class="bee-result-icon">&#128533;</div>
+    <div class="bee-result-title">Событие недоступно</div>
+    <div class="bee-result-text">Не удалось загрузить данные события.</div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const EVENT_ID = {{ event.id if event else 'null' }};
-    const PAGE_SLUG = '{{ page.slug }}';
-    const PUBLIC_URL = '{{ public_url }}';
-    let selectedOptionId = null;
+    var EVENT_ID = {{ event.id if event else 'null' }};
+    var PAGE_SLUG = '{{ page.slug }}';
+    var selectedOptionId = null;
 
-    function selectOption(optionId) {
+    function selectOption(optionId, el) {
         selectedOptionId = optionId;
-        document.querySelectorAll('.option-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.optionId === optionId);
-        });
-        const label = document.querySelector(`.option-btn[data-option-id="${optionId}"] .option-text`);
-        document.getElementById('selected-label').textContent = label ? label.textContent : '';
-        document.getElementById('bet-form').style.display = 'block';
+        haptic('selection');
+
+        var buttons = document.querySelectorAll('.bee-option');
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].classList.toggle('selected', buttons[i].dataset.optionId === optionId);
+        }
+
+        var text = el.querySelector('.bee-option-text');
+        document.getElementById('selected-label').textContent = text ? text.textContent.trim() : '';
+        document.getElementById('bet-form').classList.remove('hidden');
     }
 
     function updateAmount(val) {
         document.getElementById('amount-value').value = val;
     }
+
     function updateSlider(val) {
         document.getElementById('amount-slider').value = val;
     }
 
-    async function submitPrediction() {
+    function submitPrediction() {
         if (!selectedOptionId) return;
-        const btn = document.getElementById('submit-btn');
+        var btn = document.getElementById('submit-btn');
         btn.disabled = true;
-        btn.textContent = '⏳ Отправка...';
+        btn.textContent = 'Отправка...';
 
-        const amount = parseInt(document.getElementById('amount-value').value);
-        const walletAddress = document.getElementById('wallet-address').value;
+        var amount = parseInt(document.getElementById('amount-value').value);
+        var walletAddress = document.getElementById('wallet-address').value;
 
-        try {
-            const resp = await fetch(`/p/${PAGE_SLUG}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    init_data: window.Telegram?.WebApp?.initData || '',
-                    data: {
-                        option_id: selectedOptionId,
-                        amount: amount,
-                        source: 'auto',
-                        wallet_address: walletAddress || undefined,
-                    },
-                }),
-            });
-            const data = await resp.json();
-
-            if (data.ok || resp.ok) {
-                showResult('✅', 'Предсказание принято!');
-                setTimeout(() => {
-                    if (window.Telegram?.WebApp) {
-                        Telegram.WebApp.close();
-                    }
+        fetch('/p/' + PAGE_SLUG + '/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                init_data: window.Telegram && window.Telegram.WebApp ? Telegram.WebApp.initData : '',
+                data: {
+                    option_id: selectedOptionId,
+                    amount: amount,
+                    source: 'auto',
+                    wallet_address: walletAddress || undefined
+                }
+            })
+        })
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+            if (data.ok) {
+                showResult('\u2705', 'Предсказание принято!', '');
+                haptic('notification', 'success');
+                setTimeout(function () {
+                    if (window.Telegram && Telegram.WebApp) Telegram.WebApp.close();
                 }, 2000);
             } else {
-                showResult('❌', data.detail || 'Ошибка');
+                showResult('\u274C', 'Ошибка', data.detail || 'Попробуйте позже');
+                haptic('notification', 'error');
                 btn.disabled = false;
-                btn.textContent = 'Подтвердить предсказание';
+                btn.textContent = 'Подтвердить';
             }
-        } catch (e) {
-            showResult('❌', 'Ошибка сети');
+        })
+        .catch(function () {
+            showResult('\u274C', 'Ошибка сети', 'Проверьте подключение');
+            haptic('notification', 'error');
             btn.disabled = false;
-            btn.textContent = 'Подтвердить предсказание';
-        }
+            btn.textContent = 'Подтвердить';
+        });
     }
 
-    function showResult(icon, text) {
-        document.getElementById('bet-form').style.display = 'none';
+    function showResult(icon, title, text) {
+        document.getElementById('bet-form').classList.add('hidden');
+        document.getElementById('options-list').classList.add('hidden');
         document.getElementById('result-icon').textContent = icon;
-        document.getElementById('result-text').textContent = text;
-        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('result-title').textContent = title;
+        document.getElementById('result-text').textContent = text || '';
+        document.getElementById('result-screen').classList.remove('hidden');
     }
 </script>
 {% endblock %}

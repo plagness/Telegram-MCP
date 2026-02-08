@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block content %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.description %}
+    <div class="bee-subtitle">{{ config.description }}</div>
+    {% endif %}
+</div>
+
+{% for section in config.get('sections', []) %}
+{% set items = section.get('items', []) %}
+<div class="bee-card">
+    {% if section.get('title') %}
+    <div class="bee-card-title">{{ section['title'] }}</div>
+    {% endif %}
+
+    {% if section['type'] == 'stats' %}
+    <!-- Сетка статистик -->
+    <div class="bee-stat-grid{% if items|length == 3 %} bee-stat-grid--three{% endif %}">
+        {% for item in items %}
+        <div class="bee-stat">
+            {% if item.get('icon') %}<div style="font-size:20px;margin-bottom:4px">{{ item['icon'] }}</div>{% endif %}
+            <div class="bee-stat-value">{{ item['value'] }}</div>
+            <div class="bee-stat-label">{{ item['label'] }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif section['type'] == 'progress' %}
+    <!-- Прогресс-бары -->
+    {% for item in items %}
+    <div class="mb-8">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span class="bee-label" style="margin-bottom:0">{{ item['label'] }}</span>
+            <span class="text-accent fw-bold">
+                {{ item['value'] }}{% if item.get('max') %} / {{ item['max'] }}{% endif %}
+            </span>
+        </div>
+        {% set pct = (item['value'] * 100 / item['max'])|round|int if item.get('max') else 0 %}
+        <div class="bee-progress bee-progress--lg">
+            <div class="bee-progress-fill" style="width:{{ pct }}%{% if item.get('color') %};background:{{ item['color'] }}{% endif %}"></div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% elif section['type'] == 'table' %}
+    <!-- Таблица -->
+    <div style="overflow-x:auto">
+        <table class="bee-table">
+            <thead>
+                <tr>
+                    {% for col in section.get('headers', []) %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in section.get('rows', []) %}
+                <tr>
+                    {% for cell in row %}
+                    <td{% if loop.last %} class="value"{% endif %}>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% elif section['type'] == 'chart' %}
+    <!-- Bar chart -->
+    {% set max_val = items|map(attribute='value')|max if items else 1 %}
+    <div class="bee-chart">
+        {% for item in items %}
+        {% set pct = (item['value'] * 100 / max_val)|round|int if max_val else 0 %}
+        <div class="bee-chart-row">
+            <div class="bee-chart-label">{{ item['label'] }}</div>
+            <div class="bee-chart-bar-track">
+                <div class="bee-chart-bar-fill" style="width:{{ pct }}%{% if item.get('color') %};background:{{ item['color'] }}{% endif %}">
+                    <span class="bee-chart-bar-value">{{ item['value'] }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif section['type'] == 'list' %}
+    <!-- Список -->
+    <div class="bee-list">
+        {% for item in items %}
+        <div class="bee-list-item">
+            {% if item.get('icon') %}
+            <div class="bee-list-icon">{{ item['icon'] }}</div>
+            {% endif %}
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ item['title'] }}</div>
+                {% if item.get('subtitle') %}
+                <div class="bee-list-subtitle">{{ item['subtitle'] }}</div>
+                {% endif %}
+            </div>
+            {% if item.get('badge') %}
+            <div class="bee-list-right">
+                <span class="bee-badge">{{ item['badge'] }}</span>
+            </div>
+            {% elif item.get('value') is not none %}
+            <div class="bee-list-right">
+                <span class="text-accent fw-bold">{{ item['value'] }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif section['type'] == 'html' %}
+    <!-- Произвольный HTML -->
+    {{ section.get('content', '') | safe }}
+
+    {% endif %}
+</div>
+{% endfor %}
+
+{% if config.get('buttons') %}
+<div class="mt-8">
+    {% for btn in config['buttons'] %}
+    <a href="{{ btn['url'] }}" class="bee-btn{% if not loop.first %} bee-btn--outline mt-8{% endif %}"
+       {% if btn.get('external') %}target="_blank" rel="noopener"{% endif %}>
+        {{ btn['text'] }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -41,13 +41,14 @@ async def render_page(slug: str, request: Request):
 
     templates = request.app.state.templates
 
-    # Определяем шаблон
-    if page["page_type"] == "prediction":
-        template_name = "prediction.html"
-    elif page["page_type"] == "survey":
-        template_name = "survey.html"
-    else:
-        template_name = "page.html"
+    # Определяем шаблон по типу страницы
+    template_map = {
+        "prediction": "prediction.html",
+        "survey": "survey.html",
+        "dashboard": "dashboard.html",
+        "leaderboard": "leaderboard.html",
+    }
+    template_name = template_map.get(page["page_type"], "page.html")
 
     # Для prediction — загружаем данные события
     event_data: dict[str, Any] = {}

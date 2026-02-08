@@ -3,15 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{% block title %}Telegram{% endblock %}</title>
+    <meta name="theme-color" content="#FFC107">
+    <title>{% block title %}Bee{% endblock %}</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/style.css">
     {% block head %}{% endblock %}
 </head>
 <body>
-    <div id="app">
+    <!-- Загрузочный экран с Lottie пчёлкой -->
+    <div class="bee-loading-overlay" id="bee-loading">
+        <lottie-player
+            src="https://assets-v2.lottiefiles.com/a/0dc4d50e-1153-11ee-9df9-8b85d9c9c325/nXV2n0EVQY.json"
+            background="transparent"
+            speed="1"
+            style="width: 120px; height: 120px;"
+            loop autoplay>
+        </lottie-player>
+        <div class="bee-loading-text">loading...</div>
+    </div>
+
+    <div id="app" class="bee-app"
+         {% if config and config.theme %}style="{% for k, v in config.theme.items() %}--{{ k }}: {{ v }};{% endfor %}"{% endif %}>
         {% block content %}{% endblock %}
     </div>
+
+    <!-- Toast-уведомления -->
+    <div id="toast-container"></div>
+
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2/dist/lottie-player.js"></script>
     <script src="/static/twa.js"></script>
     {% block scripts %}{% endblock %}
 </body>
