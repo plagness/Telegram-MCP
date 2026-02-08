@@ -2,6 +2,7 @@
  * TWA (Telegram Web App) bootstrap.
  *
  * - Инициализация Telegram.WebApp
+ * - Обработка start_param (Direct Link Mini Apps)
  * - Передача themeParams
  * - TON Connect (опционально)
  */
@@ -15,11 +16,19 @@
         tg.ready();
         tg.expand();
 
+        // Direct Link: start_param содержит slug страницы (например "predict-28")
+        const startParam = tg.initDataUnsafe?.start_param;
+        if (startParam && window.location.pathname === "/") {
+            // Редирект на нужную страницу
+            window.location.replace("/p/" + startParam);
+            return; // прекращаем инициализацию до редиректа
+        }
+
         // Применяем тему
         if (tg.themeParams) {
             const root = document.documentElement;
             for (const [key, value] of Object.entries(tg.themeParams)) {
-                root.style.setProperty(`--tg-theme-${camelToKebab(key)}`, value);
+                root.style.setProperty("--tg-theme-" + camelToKebab(key), value);
             }
         }
     }
@@ -29,12 +38,12 @@
     if (tonBtn && window.TON_CONNECT_UI) {
         try {
             const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-                manifestUrl: `${window.location.origin}/static/tonconnect-manifest.json`,
+                manifestUrl: window.location.origin + "/static/tonconnect-manifest.json",
                 buttonRootId: "ton-connect-btn",
             });
 
             tonConnectUI.onStatusChange(function (wallet) {
-                const input = document.getElementById("wallet-address");
+                var input = document.getElementById("wallet-address");
                 if (input && wallet) {
                     input.value = wallet.account.address;
                     tonBtn.style.display = "none";

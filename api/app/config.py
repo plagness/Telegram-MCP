@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # Web-UI (Telegram Mini App)
     webui_enabled: bool = False
     webui_public_url: str = ""
+    webui_bot_username: str = ""
+    webui_app_name: str = "app"
 
     def __init__(self, **kwargs):
         # Подхватываем fallback-переменные из корневого .env интегрированного проекта.

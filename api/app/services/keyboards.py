@@ -14,16 +14,24 @@ settings = get_settings()
 def bet_event_button(event_id: int) -> list[list[dict]]:
     """Кнопка «Предсказать» для публичного анонса в чате.
 
-    Если web-ui включён — открывает Mini App,
-    иначе — обычный callback_data.
+    Если web-ui включён и зарегистрирован Mini App — ссылка через
+    t.me Direct Link (открывается как Mini App внутри Telegram).
+    Если web-ui включён без Mini App — обычный url.
+    Иначе — callback_data.
     """
+    if settings.webui_enabled and settings.webui_bot_username and settings.webui_app_name:
+        # Direct Link Mini App: открывается внутри Telegram
+        return [[{
+            "text": "\U0001f3af Предсказать",
+            "url": f"https://t.me/{settings.webui_bot_username}/{settings.webui_app_name}?startapp=predict-{event_id}",
+        }]]
     if settings.webui_enabled and settings.webui_public_url:
         return [[{
-            "text": "🎯 Предсказать",
-            "web_app": {"url": f"{settings.webui_public_url}/p/predict-{event_id}"},
+            "text": "\U0001f3af Предсказать",
+            "url": f"{settings.webui_public_url}/p/predict-{event_id}",
         }]]
     return [[{
-        "text": "💰 Поставить",
+        "text": "\U0001f4b0 Поставить",
         "callback_data": f"bet_event_{event_id}",
     }]]
 

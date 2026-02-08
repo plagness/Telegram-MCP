@@ -6,6 +6,33 @@
 
 ---
 
+## [2026.02.14] - 2026-02-08
+
+### Добавлено
+
+#### Mini App: Direct Link + TLS + публичный доступ
+- **Direct Link Mini App**: кнопки в групповых чатах ведут на
+  `t.me/BotUsername/app?startapp=...` — открывается как Mini App внутри Telegram
+- Настройки `WEBUI_BOT_USERNAME` и `WEBUI_APP_NAME` в `api/app/config.py`
+- `keyboards.py`: приоритет Direct Link > url > callback_data
+- Корневой маршрут `GET /` в web-ui — точка входа, `twa.js` парсит
+  `start_param` и редиректит на `/p/{slug}`
+- TLS: uvicorn с `--ssl-certfile`/`--ssl-keyfile` (Let's Encrypt)
+- HTTPS-прокси: `webui.py` -> `https://tgweb:8000` с `verify=False`
+- `get_bot_token()` с fallback `BOT_TOKEN` -> `TELEGRAM_BOT_TOKEN`
+- Порт по умолчанию: `8443`
+
+### Исправлено
+- `web_app` InlineKeyboardButton только в личных чатах — для групп `url` (Direct Link)
+- HTTPS proxy: `webui.py` использовал HTTP после включения TLS
+- Пустой `BOT_TOKEN` из-за перезаписи compose environment — fallback на `TELEGRAM_BOT_TOKEN`
+
+### Документация
+- `docs/web-ui.md` — полная документация: SSL, DNS, BotFather, Tailscale proxy, troubleshooting
+- `.env.example` — обновлён с новыми переменными, порт 8443
+
+---
+
 ## [2026.02.13] - 2026-02-08
 
 ### Исправлено

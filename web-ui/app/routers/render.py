@@ -20,6 +20,18 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+@router.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """Точка входа Mini App (Direct Link).
+
+    Telegram открывает зарегистрированный URL, start_param
+    обрабатывается в twa.js (клиентский редирект на /p/{slug}).
+    """
+    templates = request.app.state.templates
+    template = templates.get_template("base.html")
+    return HTMLResponse(template.render())
+
+
 @router.get("/p/{slug}", response_class=HTMLResponse)
 async def render_page(slug: str, request: Request):
     """Рендер веб-страницы (Telegram Mini App)."""
@@ -89,7 +101,7 @@ async def submit_form(slug: str, request: Request):
 
     # Валидация initData
     init_data = body.get("init_data", "")
-    user = validate_init_data(init_data, settings.bot_token)
+    user = validate_init_data(init_data, settings.get_bot_token())
     if not user:
         raise HTTPException(status_code=401, detail="Invalid initData")
 

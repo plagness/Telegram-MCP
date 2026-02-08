@@ -28,11 +28,11 @@ async def _proxy(method: str, path: str, body: dict | None = None) -> dict:
     if not settings.webui_enabled:
         raise HTTPException(status_code=503, detail="Web-UI module is disabled")
 
-    # Внутренний URL (Docker network)
-    base = "http://tgweb:8000"
+    # Внутренний URL (Docker network, TLS без проверки — внутренняя сеть)
+    base = "https://tgweb:8000"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
             if method == "GET":
                 r = await client.get(f"{base}{path}")
             elif method == "POST":

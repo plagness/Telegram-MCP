@@ -23,11 +23,16 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    public_url: str = "https://tg.plag.space:8090"
+    public_url: str = "https://tg.plag.space:8443"
     tgapi_url: str = "http://tgapi:8000"
     bot_token: str = ""
+    telegram_bot_token: str = ""
     db_dsn: str = "postgresql://telegram:telegram@tgdb:5432/telegram"
     log_level: str = "info"
+
+    def get_bot_token(self) -> str:
+        """Токен бота: BOT_TOKEN или TELEGRAM_BOT_TOKEN (fallback)."""
+        return self.bot_token or self.telegram_bot_token
 
 
 @lru_cache
