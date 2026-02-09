@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     public_url: str = "https://tg.plag.space:8443"
     tgapi_url: str = "http://tgapi:8000"
+    llm_core_url: str = "http://llmcore:8080"
     bot_token: str = ""
     telegram_bot_token: str = ""
     db_dsn: str = "postgresql://telegram:telegram@tgdb:5432/telegram"

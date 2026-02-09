@@ -28,6 +28,9 @@ import * as predictionsModule from "./tools/predictions.js";
 import * as balanceModule from "./tools/balance.js";
 import * as webuiModule from "./tools/webui.js";
 import * as calendarModule from "./tools/calendar.js";
+import * as forumsModule from "./tools/forums.js";
+import * as storiesModule from "./tools/stories.js";
+import * as suggestedPostsModule from "./tools/suggested_posts.js";
 import * as iconsModule from "./tools/icons.js";
 
 const app = express();
@@ -151,6 +154,9 @@ const modules = [
   balanceModule,
   webuiModule,
   calendarModule,
+  forumsModule,
+  storiesModule,
+  suggestedPostsModule,
 ];
 
 for (const mod of modules) {

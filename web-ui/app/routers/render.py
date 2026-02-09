@@ -74,6 +74,7 @@ async def render_page(slug: str, request: Request):
         "dashboard": "dashboard.html",
         "leaderboard": "leaderboard.html",
         "calendar": "calendar.html",
+        "llm": "llm.html",
     }
     template_name = template_map.get(page["page_type"], "page.html")
 
@@ -89,6 +90,17 @@ async def render_page(slug: str, request: Request):
                     event_data = r.json().get("event", {})
         except Exception as e:
             logger.warning("Не удалось загрузить данные события: %s", e)
+
+    # Для LLM — загружаем dashboard из llm-core
+    llm_data: dict[str, Any] = {}
+    if page["page_type"] == "llm":
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(f"{settings.llm_core_url}/v1/dashboard")
+                if r.status_code == 200:
+                    llm_data = r.json()
+        except Exception as e:
+            logger.warning("Не удалось загрузить LLM dashboard: %s", e)
 
     # Для calendar — полный серверный рендеринг (сетка, события, всё в Jinja2)
     cal_ctx: dict[str, Any] = {}
@@ -110,6 +122,9 @@ async def render_page(slug: str, request: Request):
         event=event_data,
         config=page.get("config", {}),
         public_url=settings.public_url,
+        # LLM dashboard
+        llm=llm_data,
+        llm_core_url=settings.llm_core_url,
         # Календарь
         calendar=calendar_data,
         calendar_id=calendar_id or 0,

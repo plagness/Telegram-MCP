@@ -674,3 +674,256 @@ async def refund_star_payment(payload: dict[str, Any], bot_token: str | None = N
 async def get_star_transactions(payload: dict[str, Any] | None = None, bot_token: str | None = None) -> dict[str, Any]:
     """getStarTransactions."""
     return await _call("getStarTransactions", payload or {}, bot_token=bot_token)
+
+
+# === Batch 1: Bulk Operations + Core Edits (Bot API 7.0+) ===
+
+
+async def delete_messages(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """deleteMessages — массовое удаление (до 100 сообщений)."""
+    return await _call("deleteMessages", payload, bot_token=bot_token)
+
+
+async def forward_messages(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """forwardMessages — массовая пересылка."""
+    return await _call("forwardMessages", payload, bot_token=bot_token)
+
+
+async def copy_messages(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """copyMessages — массовое копирование."""
+    return await _call("copyMessages", payload, bot_token=bot_token)
+
+
+async def edit_message_caption(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editMessageCaption — редактирование подписи к медиа."""
+    return await _call("editMessageCaption", payload, bot_token=bot_token)
+
+
+async def edit_message_reply_markup(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editMessageReplyMarkup — изменение inline-клавиатуры."""
+    return await _call("editMessageReplyMarkup", payload, bot_token=bot_token)
+
+
+async def edit_message_media(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editMessageMedia — замена медиа в сообщении (Bot API 7.11)."""
+    return await _call("editMessageMedia", payload, bot_token=bot_token)
+
+
+async def get_file(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getFile — получение file_path для скачивания."""
+    return await _call("getFile", payload, bot_token=bot_token)
+
+
+# === Batch 2: sendMessageDraft (Bot API 9.3) ===
+
+
+async def send_message_draft(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendMessageDraft — стриминг частичного сообщения."""
+    return await _call("sendMessageDraft", payload, bot_token=bot_token)
+
+
+# === Batch 3: Базовые send-методы ===
+
+
+async def send_location(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendLocation — отправка геолокации."""
+    return await _call("sendLocation", payload, bot_token=bot_token)
+
+
+async def send_venue(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendVenue — отправка места."""
+    return await _call("sendVenue", payload, bot_token=bot_token)
+
+
+async def send_contact(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendContact — отправка контакта."""
+    return await _call("sendContact", payload, bot_token=bot_token)
+
+
+async def send_dice(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendDice — анимированные эмодзи."""
+    return await _call("sendDice", payload, bot_token=bot_token)
+
+
+async def send_video_note(
+    data: dict[str, Any],
+    video_note_file: tuple[str, BinaryIO | bytes, str] | None = None,
+    bot_token: str | None = None,
+) -> dict[str, Any]:
+    """sendVideoNote — видео-кружок."""
+    if video_note_file:
+        return await _call_multipart("sendVideoNote", data, {"video_note": video_note_file}, bot_token=bot_token)
+    return await _call("sendVideoNote", data, bot_token=bot_token)
+
+
+# === Batch 4: Live Location ===
+
+
+async def edit_message_live_location(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editMessageLiveLocation — обновление живой геолокации."""
+    return await _call("editMessageLiveLocation", payload, bot_token=bot_token)
+
+
+async def stop_message_live_location(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """stopMessageLiveLocation — остановка живой геолокации."""
+    return await _call("stopMessageLiveLocation", payload, bot_token=bot_token)
+
+
+# === Batch 6: Forum Topics ===
+
+
+async def create_forum_topic(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """createForumTopic — создание топика в форум-группе."""
+    return await _call("createForumTopic", payload, bot_token=bot_token)
+
+
+async def edit_forum_topic(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editForumTopic — редактирование топика."""
+    return await _call("editForumTopic", payload, bot_token=bot_token)
+
+
+async def close_forum_topic(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """closeForumTopic — закрытие топика."""
+    return await _call("closeForumTopic", payload, bot_token=bot_token)
+
+
+async def reopen_forum_topic(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """reopenForumTopic — повторное открытие топика."""
+    return await _call("reopenForumTopic", payload, bot_token=bot_token)
+
+
+async def delete_forum_topic(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """deleteForumTopic — удаление топика."""
+    return await _call("deleteForumTopic", payload, bot_token=bot_token)
+
+
+async def unpin_all_forum_topic_messages(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """unpinAllForumTopicMessages — открепление всех сообщений в топике."""
+    return await _call("unpinAllForumTopicMessages", payload, bot_token=bot_token)
+
+
+# === Batch 7: Chat Administration ===
+
+
+async def set_chat_title(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setChatTitle — установить название чата."""
+    return await _call("setChatTitle", payload, bot_token=bot_token)
+
+
+async def set_chat_description(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setChatDescription — установить описание чата."""
+    return await _call("setChatDescription", payload, bot_token=bot_token)
+
+
+async def delete_chat_photo(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """deleteChatPhoto — удалить фото чата."""
+    return await _call("deleteChatPhoto", payload, bot_token=bot_token)
+
+
+async def leave_chat(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """leaveChat — выход из чата."""
+    return await _call("leaveChat", payload, bot_token=bot_token)
+
+
+async def unpin_all_chat_messages(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """unpinAllChatMessages — открепить все сообщения."""
+    return await _call("unpinAllChatMessages", payload, bot_token=bot_token)
+
+
+async def create_chat_invite_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """createChatInviteLink — создать пригласительную ссылку."""
+    return await _call("createChatInviteLink", payload, bot_token=bot_token)
+
+
+async def edit_chat_invite_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editChatInviteLink — редактировать пригласительную ссылку."""
+    return await _call("editChatInviteLink", payload, bot_token=bot_token)
+
+
+async def revoke_chat_invite_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """revokeChatInviteLink — отозвать пригласительную ссылку."""
+    return await _call("revokeChatInviteLink", payload, bot_token=bot_token)
+
+
+async def export_chat_invite_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """exportChatInviteLink — экспорт основной ссылки."""
+    return await _call("exportChatInviteLink", payload, bot_token=bot_token)
+
+
+async def create_chat_subscription_invite_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """createChatSubscriptionInviteLink — подписочная ссылка (Bot API 7.9)."""
+    return await _call("createChatSubscriptionInviteLink", payload, bot_token=bot_token)
+
+
+async def edit_chat_subscription_invite_link(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editChatSubscriptionInviteLink — редактирование подписочной ссылки (Bot API 7.9)."""
+    return await _call("editChatSubscriptionInviteLink", payload, bot_token=bot_token)
+
+
+# === Batch 8: Gifts + Paid Media ===
+
+
+async def send_gift(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendGift — отправка подарка (Bot API 8.0)."""
+    return await _call("sendGift", payload, bot_token=bot_token)
+
+
+async def get_available_gifts(bot_token: str | None = None) -> dict[str, Any]:
+    """getAvailableGifts — список доступных подарков."""
+    return await _call("getAvailableGifts", {}, bot_token=bot_token)
+
+
+async def send_paid_media(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """sendPaidMedia — отправка платного медиа (Bot API 7.6)."""
+    return await _call("sendPaidMedia", payload, bot_token=bot_token)
+
+
+# === Batch 9: Stories ===
+
+
+async def post_story(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """postStory — публикация истории (Bot API 9.0)."""
+    return await _call("postStory", payload, bot_token=bot_token)
+
+
+async def edit_story(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editStory — редактирование истории."""
+    return await _call("editStory", payload, bot_token=bot_token)
+
+
+async def delete_story(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """deleteStory — удаление истории."""
+    return await _call("deleteStory", payload, bot_token=bot_token)
+
+
+# === Batch 10: Bot Profile + Subscriptions ===
+
+
+async def set_my_profile_photo(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """setMyProfilePhoto — установить фото профиля бота (Bot API 9.4)."""
+    return await _call("setMyProfilePhoto", payload, bot_token=bot_token)
+
+
+async def remove_my_profile_photo(payload: dict[str, Any] | None = None, bot_token: str | None = None) -> dict[str, Any]:
+    """removeMyProfilePhoto — удалить фото профиля бота (Bot API 9.4)."""
+    return await _call("removeMyProfilePhoto", payload or {}, bot_token=bot_token)
+
+
+async def get_user_profile_audios(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getUserProfileAudios — аудио профиля пользователя (Bot API 9.4)."""
+    return await _call("getUserProfileAudios", payload, bot_token=bot_token)
+
+
+async def approve_suggested_post(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """approveSuggestedPost — одобрить предложенный пост (Bot API 9.2)."""
+    return await _call("approveSuggestedPost", payload, bot_token=bot_token)
+
+
+async def decline_suggested_post(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """declineSuggestedPost — отклонить предложенный пост (Bot API 9.2)."""
+    return await _call("declineSuggestedPost", payload, bot_token=bot_token)
+
+
+async def edit_user_star_subscription(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """editUserStarSubscription — редактирование Star-подписки (Bot API 8.0)."""
+    return await _call("editUserStarSubscription", payload, bot_token=bot_token)

@@ -1,6 +1,6 @@
 # Python SDK
 
-Python-клиент для telegram-api. Заменяет прямые вызовы Telegram Bot API через python-telegram-bot, httpx или urllib.
+Python-клиент для telegram-api (~95 методов, полная поддержка Bot API 9.4). Заменяет прямые вызовы Telegram Bot API через python-telegram-bot, httpx или urllib.
 
 ## Установка
 
@@ -424,6 +424,145 @@ survey = await api.create_survey_page(
         {"name": "q1", "type": "text", "label": "Как вас зовут?"},
         {"name": "q2", "type": "textarea", "label": "Отзыв"}
     ]
+)
+```
+
+### Bot API 9.x — новые методы
+
+#### Боты и профиль (Bot API 9.4)
+
+```python
+# Список ботов
+bots = await api.list_bots(include_inactive=False)
+
+# Регистрация нового бота
+bot = await api.register_bot(token="123456:ABC-DEF", is_default=True)
+
+# Бот по умолчанию
+default = await api.get_default_bot()
+await api.set_default_bot(bot_id=123)
+
+# Фото профиля бота
+await api.set_my_profile_photo(photo={"type": "static", "sticker": "..."}, is_public=True)
+await api.remove_my_profile_photo()
+
+# Аудио профиля пользователя (Bot API 9.4)
+audios = await api.get_user_profile_audios(user_id=279308665)
+
+# Star-подписки
+await api.edit_user_star_subscription(
+    user_id=777,
+    telegram_payment_charge_id="...",
+    is_canceled=True,
+)
+```
+
+#### Форум-топики (Bot API 9.3)
+
+```python
+# Создание топика
+topic = await api.create_forum_topic(
+    chat_id=-100123456,
+    name="Обсуждение",
+    icon_color=7322096,
+)
+
+# Управление топиками
+await api.edit_forum_topic(chat_id=-100123456, message_thread_id=42, name="Новое имя")
+await api.close_forum_topic(chat_id=-100123456, message_thread_id=42)
+await api.reopen_forum_topic(chat_id=-100123456, message_thread_id=42)
+await api.delete_forum_topic(chat_id=-100123456, message_thread_id=42)
+await api.hide_general_forum_topic(chat_id=-100123456)
+await api.unhide_general_forum_topic(chat_id=-100123456)
+```
+
+#### Истории (Bot API 9.0–9.3)
+
+```python
+# Публикация истории
+await api.post_story(chat_id=-100123456, content={"type": "photo", "photo": "..."})
+
+# Редактирование / удаление
+await api.edit_story(chat_id=-100123456, story_id=42, content={"type": "photo", "photo": "..."})
+await api.delete_story(chat_id=-100123456, story_id=42)
+
+# Репост (Bot API 9.3)
+await api.repost_story(chat_id=-100123456, from_chat_id=-100654321, story_id=42)
+```
+
+#### Предложенные посты (Bot API 9.2)
+
+```python
+# Одобрить / отклонить
+await api.approve_suggested_post(
+    business_connection_id="abc123",
+    message_id=42,
+    is_scheduled=False,
+)
+await api.decline_suggested_post(
+    business_connection_id="abc123",
+    message_id=42,
+)
+```
+
+#### Чек-листы (Bot API 9.1)
+
+```python
+# Отправка чек-листа
+await api.send_checklist(
+    chat_id=-100123456,
+    title="Задачи",
+    tasks=[
+        {"id": 1, "text": "Первая задача"},
+        {"id": 2, "text": "Вторая задача", "checked": True},
+    ],
+)
+
+# Редактирование
+await api.edit_checklist(message_id=42, title="Обновлённый список", tasks=[...])
+```
+
+#### Звёзды и подарки (Bot API 9.1–9.3)
+
+```python
+# Баланс звёзд
+balance = await api.get_star_balance()
+
+# Подарок премиум-подписки
+await api.gift_premium(user_id=777, month_count=3, star_count=1000)
+
+# Подарки пользователя / чата
+gifts = await api.get_user_gifts(user_id=777)
+chat_gifts = await api.get_chat_gifts(chat_id=-100123456)
+```
+
+#### Черновики (Bot API 9.3)
+
+```python
+await api.send_message_draft(
+    business_connection_id="abc123",
+    chat_id=269949384,
+    text="Текст черновика",
+)
+```
+
+#### Cross-cutting параметры (Bot API 9.2)
+
+Все send-методы поддерживают новые kwargs:
+
+```python
+# direct_messages_topic_id — маршрутизация в топик
+await api.send_message(
+    chat_id=-100123456,
+    text="Сообщение в топик",
+    direct_messages_topic_id=42,
+)
+
+# suggested_post_parameters — параметры предложенного поста
+await api.send_photo(
+    chat_id=-100123456,
+    photo="https://example.com/img.jpg",
+    suggested_post_parameters={"send_date": 1234567890},
 )
 ```
 

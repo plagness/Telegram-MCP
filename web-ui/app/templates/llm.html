@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block content %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+
+<!-- Job Queue -->
+<div class="bee-card">
+    <div class="bee-card-title">Job Queue</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="stat-queued">{{ llm.get('jobs', {}).get('queued', 0) }}</div>
+            <div class="bee-stat-label">queued</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" style="color:var(--accent)" id="stat-running">{{ llm.get('jobs', {}).get('running', 0) }}</div>
+            <div class="bee-stat-label">running</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="stat-done">{{ llm.get('jobs', {}).get('done', 0) }}</div>
+            <div class="bee-stat-label">done</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" style="color:#f44336" id="stat-failed">{{ (llm.get('jobs', {}).get('error', 0) + llm.get('jobs', {}).get('failed', 0)) }}</div>
+            <div class="bee-stat-label">failed</div>
+        </div>
+    </div>
+    {% set jobs = llm.get('jobs', {}) %}
+    {% set total = jobs.get('queued', 0) + jobs.get('running', 0) + jobs.get('done', 0) + jobs.get('error', 0) %}
+    {% if total > 0 %}
+    {% set pct = (jobs.get('done', 0) * 100 / total)|round|int %}
+    <div class="bee-progress bee-progress--lg" style="margin-top:8px">
+        <div class="bee-progress-fill" id="progress-done" style="width:{{ pct }}%"></div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Costs -->
+<div class="bee-card">
+    <div class="bee-card-title">Costs (USD)</div>
+    <div class="bee-stat-grid bee-stat-grid--three">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="cost-day">${{ "%.4f"|format(llm.get('costs', {}).get('today', 0)) }}</div>
+            <div class="bee-stat-label">today</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="cost-week">${{ "%.4f"|format(llm.get('costs', {}).get('week', 0)) }}</div>
+            <div class="bee-stat-label">week</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="cost-month">${{ "%.4f"|format(llm.get('costs', {}).get('month', 0)) }}</div>
+            <div class="bee-stat-label">month</div>
+        </div>
+    </div>
+</div>
+
+<!-- Fleet -->
+{% set devices = llm.get('devices', []) %}
+{% if devices %}
+<div class="bee-card">
+    <div class="bee-card-title">Fleet ({{ devices|length }})</div>
+    <div class="bee-list" id="fleet-list">
+        {% for dev in devices %}
+        <div class="bee-list-item">
+            <div class="bee-list-icon">
+                {% if dev.status == 'online' %}
+                <span style="color:#4caf50">&#9679;</span>
+                {% elif dev.status == 'offline' %}
+                <span style="color:#f44336">&#9679;</span>
+                {% else %}
+                <span style="color:#ff9800">&#9679;</span>
+                {% endif %}
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ dev.name or dev.id }}</div>
+                <div class="bee-list-subtitle">
+                    {{ dev.models_count }} models
+                    {% if dev.latency_ms %} &middot; {{ dev.latency_ms }}ms{% endif %}
+                </div>
+            </div>
+            <div class="bee-list-right">
+                {% if dev.running_jobs > 0 %}
+                <span class="bee-badge">{{ dev.running_jobs }} jobs</span>
+                {% else %}
+                <span class="bee-badge bee-badge--outline">idle</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Running Jobs -->
+{% set running = llm.get('running_jobs', []) %}
+{% if running %}
+<div class="bee-card">
+    <div class="bee-card-title">Running ({{ running|length }})</div>
+    <div class="bee-list" id="running-list">
+        {% for job in running %}
+        <div class="bee-list-item">
+            <div class="bee-list-icon">
+                {% if 'benchmark' in job.kind %}&#127937;{% elif 'embed' in job.kind %}&#129513;{% elif 'chat' in job.kind or 'generate' in job.kind %}&#128172;{% else %}&#9889;{% endif %}
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ job.model or job.kind }}</div>
+                <div class="bee-list-subtitle">{{ job.device_id or 'cloud' }}</div>
+            </div>
+            <div class="bee-list-right">
+                <span class="bee-badge bee-badge--outline">{{ job.kind.split('.')[-1] }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Models count -->
+{% if llm.get('models_count') %}
+<div class="bee-card">
+    <div class="bee-card-title">Models</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value">{{ llm.get('models_count', 0) }}</div>
+            <div class="bee-stat-label">registered</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at">
+    {% if llm.get('updated_at') %}Updated: {{ llm['updated_at'][:19] }}{% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var REFRESH_MS = 5000;
+    var LLM_CORE = '{{ llm_core_url }}';
+
+    function fmt(n) {
+        return '$' + Number(n).toFixed(4);
+    }
+
+    function refresh() {
+        fetch(window.location.href, { headers: { 'Accept': 'text/html' } })
+            .then(function() {})
+            .catch(function() {});
+    }
+
+    // Автообновление через перезагрузку страницы каждые 5 сек
+    setInterval(function() {
+        window.location.reload();
+    }, REFRESH_MS);
+})();
+</script>
+{% endblock %}

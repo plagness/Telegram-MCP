@@ -8,7 +8,16 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from ..db import execute, fetch_all, fetch_one
-from ..models import SetChatAliasIn
+from ..models import (
+    SetChatAliasIn,
+    SetChatTitleIn,
+    SetChatDescriptionIn,
+    CreateChatInviteLinkIn,
+    EditChatInviteLinkIn,
+    RevokeChatInviteLinkIn,
+    CreateSubscriptionInviteLinkIn,
+    EditChatSubscriptionInviteLinkIn,
+)
 from ..telegram_client import (
     TelegramError,
     ban_chat_member,
@@ -20,6 +29,17 @@ from ..telegram_client import (
     restrict_chat_member,
     unban_chat_member,
     unpin_chat_message,
+    set_chat_title,
+    set_chat_description,
+    delete_chat_photo,
+    leave_chat,
+    unpin_all_chat_messages,
+    create_chat_invite_link,
+    edit_chat_invite_link,
+    revoke_chat_invite_link,
+    export_chat_invite_link,
+    create_chat_subscription_invite_link,
+    edit_chat_subscription_invite_link,
 )
 from ..utils import resolve_bot_context
 
@@ -387,4 +407,168 @@ async def promote_member_api(
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
+    return {"ok": True, "result": result}
+
+
+# === Batch 7: Chat Administration ===
+
+
+@router.put("/{chat_id}/title")
+async def set_chat_title_api(chat_id: str, payload: SetChatTitleIn) -> dict[str, Any]:
+    """Установить название чата."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    try:
+        result = await set_chat_title({"chat_id": chat_id, "title": payload.title}, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.put("/{chat_id}/description")
+async def set_chat_description_api(chat_id: str, payload: SetChatDescriptionIn) -> dict[str, Any]:
+    """Установить описание чата."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {"chat_id": chat_id}
+    if payload.description is not None:
+        telegram_payload["description"] = payload.description
+    try:
+        result = await set_chat_description(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.delete("/{chat_id}/photo")
+async def delete_chat_photo_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
+    """Удалить фото чата."""
+    bot_token, _ = await resolve_bot_context(bot_id)
+    try:
+        result = await delete_chat_photo({"chat_id": chat_id}, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.post("/{chat_id}/leave")
+async def leave_chat_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
+    """Выйти из чата."""
+    bot_token, _ = await resolve_bot_context(bot_id)
+    try:
+        result = await leave_chat({"chat_id": chat_id}, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.post("/{chat_id}/unpin-all")
+async def unpin_all_chat_messages_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
+    """Открепить все сообщения в чате."""
+    bot_token, _ = await resolve_bot_context(bot_id)
+    try:
+        result = await unpin_all_chat_messages({"chat_id": chat_id}, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.post("/{chat_id}/invite-links")
+async def create_chat_invite_link_api(chat_id: str, payload: CreateChatInviteLinkIn) -> dict[str, Any]:
+    """Создать пригласительную ссылку."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {"chat_id": chat_id}
+    if payload.name:
+        telegram_payload["name"] = payload.name
+    if payload.expire_date is not None:
+        telegram_payload["expire_date"] = payload.expire_date
+    if payload.member_limit is not None:
+        telegram_payload["member_limit"] = payload.member_limit
+    if payload.creates_join_request:
+        telegram_payload["creates_join_request"] = payload.creates_join_request
+    try:
+        result = await create_chat_invite_link(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.put("/{chat_id}/invite-links")
+async def edit_chat_invite_link_api(chat_id: str, payload: EditChatInviteLinkIn) -> dict[str, Any]:
+    """Редактировать пригласительную ссылку."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "invite_link": payload.invite_link,
+    }
+    if payload.name is not None:
+        telegram_payload["name"] = payload.name
+    if payload.expire_date is not None:
+        telegram_payload["expire_date"] = payload.expire_date
+    if payload.member_limit is not None:
+        telegram_payload["member_limit"] = payload.member_limit
+    if payload.creates_join_request is not None:
+        telegram_payload["creates_join_request"] = payload.creates_join_request
+    try:
+        result = await edit_chat_invite_link(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.delete("/{chat_id}/invite-links")
+async def revoke_chat_invite_link_api(chat_id: str, payload: RevokeChatInviteLinkIn) -> dict[str, Any]:
+    """Отозвать пригласительную ссылку."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    try:
+        result = await revoke_chat_invite_link(
+            {"chat_id": chat_id, "invite_link": payload.invite_link},
+            bot_token=bot_token,
+        )
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.post("/{chat_id}/export-invite-link")
+async def export_chat_invite_link_api(chat_id: str, bot_id: int | None = None) -> dict[str, Any]:
+    """Экспорт основной пригласительной ссылки."""
+    bot_token, _ = await resolve_bot_context(bot_id)
+    try:
+        result = await export_chat_invite_link({"chat_id": chat_id}, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.post("/{chat_id}/subscription-links")
+async def create_subscription_invite_link_api(chat_id: str, payload: CreateSubscriptionInviteLinkIn) -> dict[str, Any]:
+    """Создать подписочную пригласительную ссылку (Bot API 7.9)."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "subscription_period": payload.subscription_period,
+        "subscription_price": payload.subscription_price,
+    }
+    if payload.name:
+        telegram_payload["name"] = payload.name
+    try:
+        result = await create_chat_subscription_invite_link(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+@router.put("/{chat_id}/subscription-links")
+async def edit_subscription_invite_link_api(chat_id: str, payload: EditChatSubscriptionInviteLinkIn) -> dict[str, Any]:
+    """Редактировать подписочную пригласительную ссылку (Bot API 7.9)."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "invite_link": payload.invite_link,
+    }
+    if payload.name is not None:
+        telegram_payload["name"] = payload.name
+    try:
+        result = await edit_chat_subscription_invite_link(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     return {"ok": True, "result": result}

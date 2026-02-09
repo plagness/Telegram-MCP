@@ -2,6 +2,8 @@
 
 Базовый URL: `http://<host>:8081`
 
+**173 эндпоинта** — полная поддержка Bot API 9.4.
+
 Все ответы — JSON. При ошибке: `{"detail": "описание ошибки"}`.
 
 ---
@@ -707,6 +709,235 @@ Long polling через `getUpdates`.
 |----------|-----|----------|
 | `limit` | int | Количество |
 | `offset` | int | Смещение |
+
+---
+
+## Боты (Bot API 9.4)
+
+### `GET /v1/bots`
+
+Список зарегистрированных ботов.
+
+### `POST /v1/bots`
+
+Регистрация нового бота по токену.
+
+```json
+{"token": "123456:ABC-DEF", "is_default": true}
+```
+
+### `GET /v1/bots/default`
+
+Бот по умолчанию.
+
+### `PUT /v1/bots/{bot_id}/default`
+
+Установить бота по умолчанию.
+
+### `DELETE /v1/bots/{bot_id}`
+
+Деактивировать бота.
+
+### `POST /v1/bots/profile-photo`
+
+Установить фото профиля бота (Bot API 9.4).
+
+```json
+{"photo": {"type": "static", "sticker": "..."}, "is_public": true, "bot_id": null}
+```
+
+### `DELETE /v1/bots/profile-photo`
+
+Удалить фото профиля бота.
+
+### `GET /v1/bots/users/{user_id}/profile-audios`
+
+Получить аудио профиля пользователя (Bot API 9.4).
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `bot_id` | int | Бот (опционально) |
+| `offset` | int | Смещение |
+| `limit` | int | Количество |
+
+### `POST /v1/bots/star-subscription/edit`
+
+Редактировать Star-подписку пользователя (Bot API 8.0).
+
+```json
+{"user_id": 777, "telegram_payment_charge_id": "...", "is_canceled": true}
+```
+
+---
+
+## Форум-топики (Bot API 9.3)
+
+### `POST /v1/forums/topics`
+
+Создать топик в форум-группе.
+
+```json
+{"chat_id": -100123456, "name": "Обсуждение", "icon_color": 7322096, "icon_custom_emoji_id": "..."}
+```
+
+### `PUT /v1/forums/topics/{topic_id}`
+
+Редактировать имя/иконку топика.
+
+### `POST /v1/forums/topics/{topic_id}/close`
+
+Закрыть топик.
+
+### `POST /v1/forums/topics/{topic_id}/reopen`
+
+Повторно открыть топик.
+
+### `DELETE /v1/forums/topics/{topic_id}`
+
+Удалить топик.
+
+### `POST /v1/forums/general/hide`
+
+Скрыть General-топик.
+
+### `POST /v1/forums/general/unhide`
+
+Показать General-топик.
+
+---
+
+## Истории (Bot API 9.0–9.3)
+
+### `POST /v1/stories/post`
+
+Опубликовать историю в канал.
+
+```json
+{"chat_id": -100123456, "content": {"type": "photo", "photo": "..."}, "caption": "..."}
+```
+
+### `PUT /v1/stories/{story_id}`
+
+Редактировать опубликованную историю.
+
+### `DELETE /v1/stories/{story_id}`
+
+Удалить историю.
+
+### `POST /v1/stories/repost`
+
+Репост истории из одного канала в другой (Bot API 9.3).
+
+```json
+{"chat_id": -100123456, "from_chat_id": -100654321, "story_id": 42}
+```
+
+---
+
+## Предложенные посты (Bot API 9.2)
+
+### `POST /v1/suggested-posts/approve`
+
+Одобрить предложенный пост в бизнес-канале.
+
+```json
+{"business_connection_id": "abc123", "message_id": 42, "is_scheduled": false}
+```
+
+### `POST /v1/suggested-posts/decline`
+
+Отклонить предложенный пост.
+
+```json
+{"business_connection_id": "abc123", "message_id": 42}
+```
+
+---
+
+## Чек-листы (Bot API 9.1)
+
+### `POST /v1/checklists/send`
+
+Отправить интерактивный чек-лист (до 30 задач).
+
+```json
+{
+  "chat_id": -100123456,
+  "title": "Задачи на сегодня",
+  "tasks": [
+    {"id": 1, "text": "Первая задача"},
+    {"id": 2, "text": "Вторая задача", "checked": true}
+  ]
+}
+```
+
+### `PUT /v1/messages/{id}/checklist`
+
+Редактировать существующий чек-лист.
+
+---
+
+## Звёзды и подарки (Bot API 9.1–9.3)
+
+### `GET /v1/stars/balance`
+
+Баланс звёзд бота (Bot API 9.1).
+
+### `POST /v1/stars/invoice`
+
+Создать счёт на оплату Stars.
+
+### `POST /v1/stars/refund`
+
+Возврат Stars платежа.
+
+### `GET /v1/stars/transactions`
+
+История транзакций Stars.
+
+### `POST /v1/gifts/premium`
+
+Подарить премиум-подписку за звёзды (Bot API 9.3).
+
+```json
+{"user_id": 777, "month_count": 3, "star_count": 1000}
+```
+
+### `GET /v1/gifts/user/{user_id}`
+
+Подарки пользователя (Bot API 9.3).
+
+### `GET /v1/gifts/chat/{chat_id}`
+
+Подарки чата (Bot API 9.3).
+
+---
+
+## Черновики (Bot API 9.3)
+
+### `POST /v1/messages/draft`
+
+Отправить черновик сообщения (для стриминга LLM).
+
+```json
+{
+  "business_connection_id": "abc123",
+  "chat_id": 269949384,
+  "text": "Текст черновика",
+  "parse_mode": "HTML"
+}
+```
+
+---
+
+## Cross-cutting параметры (Bot API 9.2)
+
+Следующие параметры добавлены во все send-методы (messages, media, checklists):
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `direct_messages_topic_id` | int | Маршрутизация в топик через Direct Messages |
+| `suggested_post_parameters` | object | Параметры для предложенных постов |
 
 ---
 

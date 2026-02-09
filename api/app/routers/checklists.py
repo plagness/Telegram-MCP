@@ -22,16 +22,19 @@ from ..models import (
     GiftPremiumIn,
     RepostStoryIn,
     SendChecklistIn,
+    SendGiftIn,
 )
 from ..services import messages as message_service
 from ..telegram_client import (
     edit_message_checklist,
+    get_available_gifts,
     get_chat_gifts,
     get_my_star_balance,
     get_user_gifts,
     gift_premium_subscription,
     repost_story,
     send_checklist,
+    send_gift,
 )
 from ..utils import resolve_bot_context
 
@@ -68,6 +71,10 @@ async def send_checklist_api(payload: SendChecklistIn):
 
     bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await send_checklist(telegram_payload, bot_token=bot_token)
 
@@ -128,6 +135,10 @@ async def edit_checklist_api(message_id: int, payload: EditChecklistIn):
     target_bot_id = payload.bot_id if payload.bot_id is not None else row_bot_id
     bot_token, _ = await resolve_bot_context(target_bot_id)
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await edit_message_checklist(telegram_payload, bot_token=bot_token)
         return {"ok": True, "result": result}
@@ -171,6 +182,10 @@ async def gift_premium_api(payload: GiftPremiumIn):
         "star_count": payload.star_count,
     }
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         bot_token, _ = await resolve_bot_context(payload.bot_id)
         result = await gift_premium_subscription(telegram_payload, bot_token=bot_token)
@@ -203,12 +218,61 @@ async def get_chat_gifts_api(chat_id: int | str, bot_id: int | None = None):
 
     Возвращает подарки, отправленные в чат.
     """
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         bot_token, _ = await resolve_bot_context(bot_id)
         result = await get_chat_gifts({"chat_id": chat_id}, bot_token=bot_token)
         return {"ok": True, "result": result}
     except Exception as e:
         logger.error(f"Ошибка get_chat_gifts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === Batch 8: sendGift + getAvailableGifts ===
+
+
+@router.post("/gifts/send")
+async def send_gift_api(payload: SendGiftIn):
+    """
+    Отправить подарок пользователю или в чат (Bot API 8.0).
+
+    Требует gift_id из getAvailableGifts.
+    """
+    telegram_payload: dict = {"gift_id": payload.gift_id}
+    if payload.user_id is not None:
+        telegram_payload["user_id"] = payload.user_id
+    if payload.chat_id is not None:
+        telegram_payload["chat_id"] = payload.chat_id
+    if payload.text:
+        telegram_payload["text"] = payload.text
+    if payload.text_parse_mode:
+        telegram_payload["text_parse_mode"] = payload.text_parse_mode
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        bot_token, _ = await resolve_bot_context(payload.bot_id)
+        result = await send_gift(telegram_payload, bot_token=bot_token)
+        return {"ok": True, "result": result}
+    except Exception as e:
+        logger.error(f"Ошибка send_gift: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/gifts/available")
+async def get_available_gifts_api(bot_id: int | None = None):
+    """Список доступных подарков для отправки (Bot API 8.0)."""
+    try:
+        bot_token, _ = await resolve_bot_context(bot_id)
+        result = await get_available_gifts(bot_token=bot_token)
+        return {"ok": True, "result": result}
+    except Exception as e:
+        logger.error(f"Ошибка get_available_gifts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -228,6 +292,10 @@ async def repost_story_api(payload: RepostStoryIn):
         "story_id": payload.story_id,
     }
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         bot_token, _ = await resolve_bot_context(payload.bot_id)
         result = await repost_story(telegram_payload, bot_token=bot_token)

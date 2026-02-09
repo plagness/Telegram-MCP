@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ToolDef, ApiRequestFn } from "../types.js";
 
-/** Инструменты для Stars-платежей, подарков, историй (Bot API 9.1+) */
+/** Инструменты для Stars-платежей, подарков (Bot API 9.1+) */
 export function register(apiRequest: ApiRequestFn): ToolDef[] {
   return [
     {
@@ -95,6 +95,50 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
       }),
       execute: async (params) => apiRequest(`/v1/gifts/chat/${params.chat_id}${params.bot_id !== undefined ? `?bot_id=${params.bot_id}` : ""}`),
     },
+
+    // === Batch 8: sendGift + getAvailableGifts ===
+    {
+      name: "gifts.send",
+      description: "Отправить подарок пользователю или в чат (Bot API 8.0). Требует gift_id из gifts.available.",
+      parameters: z.object({
+        bot_id: z.number().int().optional(),
+        gift_id: z.string(),
+        user_id: z.number().int().optional(),
+        chat_id: z.union([z.string(), z.number()]).optional(),
+        text: z.string().optional(),
+        text_parse_mode: z.string().optional(),
+      }),
+      execute: async (params) => apiRequest("/v1/gifts/send", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+    },
+    {
+      name: "gifts.available",
+      description: "Получить список доступных подарков для отправки (Bot API 8.0).",
+      parameters: z.object({
+        bot_id: z.number().int().optional(),
+      }).optional(),
+      execute: async (params) => apiRequest(`/v1/gifts/available${params?.bot_id !== undefined ? `?bot_id=${params.bot_id}` : ""}`),
+    },
+
+    // === Batch 10: Star Subscriptions ===
+    {
+      name: "stars.edit_subscription",
+      description: "Редактировать Star-подписку пользователя (отмена/возобновление, Bot API 8.0).",
+      parameters: z.object({
+        bot_id: z.number().int().optional(),
+        user_id: z.number().int(),
+        telegram_payment_charge_id: z.string(),
+        is_canceled: z.boolean(),
+      }),
+      execute: async (params) => apiRequest("/v1/bots/star-subscription/edit", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+    },
+
+    // === Batch 8: Stories (repost, kept here for backward compatibility) ===
     {
       name: "stories.repost",
       description: "Репостнуть историю из одного канала в другой (Bot API 9.3).",

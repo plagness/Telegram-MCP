@@ -15,6 +15,13 @@ from ..models import (
     SendVoiceIn,
     SendStickerIn,
     SendMediaGroupIn,
+    GetFileIn,
+    SendLocationIn,
+    SendVenueIn,
+    SendContactIn,
+    SendDiceIn,
+    SendVideoNoteIn,
+    SendPaidMediaIn,
 )
 from ..services import messages as message_service
 from ..telegram_client import (
@@ -27,6 +34,13 @@ from ..telegram_client import (
     send_voice,
     send_sticker,
     send_media_group,
+    get_file,
+    send_location,
+    send_venue,
+    send_contact,
+    send_dice,
+    send_video_note,
+    send_paid_media,
 )
 from ..utils import resolve_bot_context
 
@@ -50,6 +64,14 @@ async def send_photo_json(payload: SendPhotoIn) -> dict[str, Any]:
         telegram_payload["message_thread_id"] = payload.message_thread_id
     if payload.reply_markup:
         telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.show_caption_above_media is not None:
+        telegram_payload["show_caption_above_media"] = payload.show_caption_above_media
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
@@ -70,6 +92,10 @@ async def send_photo_json(payload: SendPhotoIn) -> dict[str, Any]:
     if payload.dry_run:
         return {"message": row, "dry_run": True}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         await message_service.add_event(row["id"], "send_attempt", telegram_payload)
         result = await send_photo(telegram_payload, bot_token=bot_token)
@@ -171,6 +197,12 @@ async def send_document_json(payload: SendDocumentIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.reply_markup:
         telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     row = await message_service.create_message(
         chat_id=payload.chat_id,
@@ -189,6 +221,10 @@ async def send_document_json(payload: SendDocumentIn) -> dict[str, Any]:
     if payload.dry_run:
         return {"message": row, "dry_run": True}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         await message_service.add_event(row["id"], "send_attempt", telegram_payload)
         result = await send_document(telegram_payload, bot_token=bot_token)
@@ -225,6 +261,14 @@ async def send_video_json(payload: SendVideoIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.reply_markup:
         telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.show_caption_above_media is not None:
+        telegram_payload["show_caption_above_media"] = payload.show_caption_above_media
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     row = await message_service.create_message(
         chat_id=payload.chat_id,
@@ -243,6 +287,10 @@ async def send_video_json(payload: SendVideoIn) -> dict[str, Any]:
     if payload.dry_run:
         return {"message": row, "dry_run": True}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         await message_service.add_event(row["id"], "send_attempt", telegram_payload)
         result = await send_video(telegram_payload, bot_token=bot_token)
@@ -310,6 +358,12 @@ async def send_media_group_api(payload: SendMediaGroupIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.message_thread_id:
         telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
 
@@ -318,6 +372,10 @@ async def send_media_group_api(payload: SendMediaGroupIn) -> dict[str, Any]:
         return {"ok": True, "dry_run": True, "payload": telegram_payload}
 
     # Отправляем через Telegram API
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await send_media_group(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
@@ -384,10 +442,22 @@ async def send_animation_api(payload: SendAnimationIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.message_thread_id:
         telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.show_caption_above_media is not None:
+        telegram_payload["show_caption_above_media"] = payload.show_caption_above_media
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     if payload.dry_run:
         return {"ok": True, "dry_run": True, "payload": telegram_payload}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await send_animation(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
@@ -418,10 +488,20 @@ async def send_audio_api(payload: SendAudioIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.message_thread_id:
         telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     if payload.dry_run:
         return {"ok": True, "dry_run": True, "payload": telegram_payload}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await send_audio(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
@@ -448,10 +528,20 @@ async def send_voice_api(payload: SendVoiceIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.message_thread_id:
         telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     if payload.dry_run:
         return {"ok": True, "dry_run": True, "payload": telegram_payload}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await send_voice(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
@@ -472,13 +562,358 @@ async def send_sticker_api(payload: SendStickerIn) -> dict[str, Any]:
         telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
     if payload.message_thread_id:
         telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
 
     if payload.dry_run:
         return {"ok": True, "dry_run": True, "payload": telegram_payload}
 
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
     try:
         result = await send_sticker(telegram_payload, bot_token=bot_token)
     except TelegramError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
     return {"ok": True, "result": result}
+
+
+# === Batch 1: getFile ===
+
+
+@router.post("/get-file")
+async def get_file_api(payload: GetFileIn) -> dict[str, Any]:
+    """Получить file_path для скачивания файла по file_id."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    try:
+        result = await get_file({"file_id": payload.file_id}, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"ok": True, "result": result}
+
+
+# === Batch 3: Базовые send-методы ===
+
+
+@router.post("/send-location")
+async def send_location_api(payload: SendLocationIn) -> dict[str, Any]:
+    """Отправка геолокации (+ live location при задании live_period)."""
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+    }
+    if payload.horizontal_accuracy is not None:
+        telegram_payload["horizontal_accuracy"] = payload.horizontal_accuracy
+    if payload.live_period is not None:
+        telegram_payload["live_period"] = payload.live_period
+    if payload.heading is not None:
+        telegram_payload["heading"] = payload.heading
+    if payload.proximity_alert_radius is not None:
+        telegram_payload["proximity_alert_radius"] = payload.proximity_alert_radius
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.reply_markup:
+        telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        result = await send_location(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    row = await message_service.create_message(
+        chat_id=payload.chat_id,
+        bot_id=resolved_bot_id,
+        direction="outbound",
+        text=f"📍 {payload.latitude}, {payload.longitude}",
+        parse_mode=None,
+        status="sent",
+        request_id=payload.request_id,
+        payload=telegram_payload,
+        is_live=bool(payload.live_period),
+        reply_to_message_id=payload.reply_to_message_id,
+        message_thread_id=payload.message_thread_id,
+        message_type="location",
+    )
+    await message_service.update_message(
+        row["id"], telegram_message_id=result.get("message_id"), sent=True,
+    )
+    updated = await message_service.get_message(row["id"])
+    return {"message": updated, "result": result}
+
+
+@router.post("/send-venue")
+async def send_venue_api(payload: SendVenueIn) -> dict[str, Any]:
+    """Отправка места (venue) с адресом и координатами."""
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "title": payload.title,
+        "address": payload.address,
+    }
+    if payload.foursquare_id:
+        telegram_payload["foursquare_id"] = payload.foursquare_id
+    if payload.foursquare_type:
+        telegram_payload["foursquare_type"] = payload.foursquare_type
+    if payload.google_place_id:
+        telegram_payload["google_place_id"] = payload.google_place_id
+    if payload.google_place_type:
+        telegram_payload["google_place_type"] = payload.google_place_type
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.reply_markup:
+        telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        result = await send_venue(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    row = await message_service.create_message(
+        chat_id=payload.chat_id,
+        bot_id=resolved_bot_id,
+        direction="outbound",
+        text=f"📍 {payload.title} — {payload.address}",
+        parse_mode=None,
+        status="sent",
+        request_id=payload.request_id,
+        payload=telegram_payload,
+        is_live=False,
+        reply_to_message_id=payload.reply_to_message_id,
+        message_thread_id=payload.message_thread_id,
+        message_type="venue",
+    )
+    await message_service.update_message(
+        row["id"], telegram_message_id=result.get("message_id"), sent=True,
+    )
+    updated = await message_service.get_message(row["id"])
+    return {"message": updated, "result": result}
+
+
+@router.post("/send-contact")
+async def send_contact_api(payload: SendContactIn) -> dict[str, Any]:
+    """Отправка контакта (телефон + имя)."""
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "phone_number": payload.phone_number,
+        "first_name": payload.first_name,
+    }
+    if payload.last_name:
+        telegram_payload["last_name"] = payload.last_name
+    if payload.vcard:
+        telegram_payload["vcard"] = payload.vcard
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.reply_markup:
+        telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        result = await send_contact(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    row = await message_service.create_message(
+        chat_id=payload.chat_id,
+        bot_id=resolved_bot_id,
+        direction="outbound",
+        text=f"{payload.first_name} {payload.phone_number}",
+        parse_mode=None,
+        status="sent",
+        request_id=payload.request_id,
+        payload=telegram_payload,
+        is_live=False,
+        reply_to_message_id=payload.reply_to_message_id,
+        message_thread_id=payload.message_thread_id,
+        message_type="contact",
+    )
+    await message_service.update_message(
+        row["id"], telegram_message_id=result.get("message_id"), sent=True,
+    )
+    updated = await message_service.get_message(row["id"])
+    return {"message": updated, "result": result}
+
+
+@router.post("/send-dice")
+async def send_dice_api(payload: SendDiceIn) -> dict[str, Any]:
+    """Отправка анимированного эмодзи (🎲🎯🏀⚽🎳🎰)."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {"chat_id": payload.chat_id}
+    if payload.emoji:
+        telegram_payload["emoji"] = payload.emoji
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.reply_markup:
+        telegram_payload["reply_markup"] = payload.reply_markup
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        result = await send_dice(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+@router.post("/send-video-note")
+async def send_video_note_api(payload: SendVideoNoteIn) -> dict[str, Any]:
+    """Отправка видео-кружка (video note) по URL или file_id."""
+    bot_token, _ = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "video_note": payload.video_note,
+    }
+    if payload.duration:
+        telegram_payload["duration"] = payload.duration
+    if payload.length:
+        telegram_payload["length"] = payload.length
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.message_effect_id:
+        telegram_payload["message_effect_id"] = payload.message_effect_id
+    if payload.business_connection_id:
+        telegram_payload["business_connection_id"] = payload.business_connection_id
+    if payload.allow_paid_broadcast is not None:
+        telegram_payload["allow_paid_broadcast"] = payload.allow_paid_broadcast
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        result = await send_video_note(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "result": result}
+
+
+# === Batch 8: sendPaidMedia ===
+
+
+@router.post("/send-paid-media")
+async def send_paid_media_api(payload: SendPaidMediaIn) -> dict[str, Any]:
+    """Отправка платного медиа-контента (Bot API 7.6)."""
+    bot_token, resolved_bot_id = await resolve_bot_context(payload.bot_id)
+    telegram_payload: dict[str, Any] = {
+        "chat_id": payload.chat_id,
+        "star_count": payload.star_count,
+        "media": payload.media,
+    }
+    if payload.caption:
+        telegram_payload["caption"] = payload.caption
+    if payload.parse_mode:
+        telegram_payload["parse_mode"] = payload.parse_mode
+    if payload.show_caption_above_media is not None:
+        telegram_payload["show_caption_above_media"] = payload.show_caption_above_media
+    if payload.reply_to_message_id:
+        telegram_payload["reply_to_message_id"] = payload.reply_to_message_id
+    if payload.message_thread_id:
+        telegram_payload["message_thread_id"] = payload.message_thread_id
+    if payload.reply_markup:
+        telegram_payload["reply_markup"] = payload.reply_markup
+
+    if payload.dry_run:
+        return {"ok": True, "dry_run": True, "payload": telegram_payload}
+
+    if payload.direct_messages_topic_id is not None:
+        telegram_payload["direct_messages_topic_id"] = payload.direct_messages_topic_id
+    if payload.suggested_post_parameters is not None:
+        telegram_payload["suggested_post_parameters"] = payload.suggested_post_parameters
+    try:
+        result = await send_paid_media(telegram_payload, bot_token=bot_token)
+    except TelegramError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    row = await message_service.create_message(
+        chat_id=payload.chat_id,
+        bot_id=resolved_bot_id,
+        direction="outbound",
+        text=payload.caption,
+        parse_mode=payload.parse_mode,
+        status="sent",
+        request_id=payload.request_id,
+        payload=telegram_payload,
+        is_live=False,
+        reply_to_message_id=payload.reply_to_message_id,
+        message_thread_id=payload.message_thread_id,
+        message_type="paid_media",
+    )
+    await message_service.update_message(
+        row["id"], telegram_message_id=result.get("message_id"), sent=True,
+    )
+    updated = await message_service.get_message(row["id"])
+    return {"message": updated, "result": result}

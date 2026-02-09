@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CreatePageIn(BaseModel):
     slug: str = Field(..., max_length=100)
     title: str = Field(..., max_length=200)
-    page_type: str = Field("page", pattern="^(page|survey|prediction|dashboard|leaderboard|calendar)$")
+    page_type: str = Field("page", pattern="^(page|survey|prediction|dashboard|leaderboard|calendar|llm)$")
     config: dict[str, Any] = Field(default_factory=dict)
     template: str | None = None
     creator_id: int | None = None

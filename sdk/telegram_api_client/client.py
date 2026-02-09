@@ -96,6 +96,8 @@ class TelegramAPI:
         live: bool = False,
         dry_run: bool = False,
         request_id: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Отправить текстовое сообщение.
@@ -129,6 +131,10 @@ class TelegramAPI:
         if request_id:
             payload["request_id"] = request_id
 
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
         data = await self._post("/v1/messages/send", payload)
         return data.get("message", data)
 
@@ -234,6 +240,8 @@ class TelegramAPI:
         request_id: str | None = None,
         dry_run: bool = False,
         filename: str = "photo.jpg",
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Отправить фото.
@@ -261,6 +269,10 @@ class TelegramAPI:
                 payload["request_id"] = request_id
             if dry_run:
                 payload["dry_run"] = True
+            if direct_messages_topic_id is not None:
+                payload["direct_messages_topic_id"] = direct_messages_topic_id
+            if suggested_post_parameters is not None:
+                payload["suggested_post_parameters"] = suggested_post_parameters
             data = await self._post("/v1/media/send-photo", payload)
             return data.get("message", data)
         else:
@@ -286,6 +298,11 @@ class TelegramAPI:
             if dry_run:
                 form["dry_run"] = "true"
 
+            if direct_messages_topic_id is not None:
+                form["direct_messages_topic_id"] = str(direct_messages_topic_id)
+            if suggested_post_parameters is not None:
+                import json as _json
+                form["suggested_post_parameters"] = _json.dumps(suggested_post_parameters)
             files = {"file": (filename, file_data, "image/jpeg")}
             resp = await self._client.post("/v1/media/upload-photo", data=form, files=files)
             if resp.status_code >= 400:
@@ -311,6 +328,8 @@ class TelegramAPI:
         parse_mode: str | None = None,
         request_id: str | None = None,
         dry_run: bool = False,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Отправить документ по URL или file_id."""
         payload: dict[str, Any] = {"chat_id": chat_id, "document": document}
@@ -324,6 +343,10 @@ class TelegramAPI:
             payload["request_id"] = request_id
         if dry_run:
             payload["dry_run"] = True
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
         data = await self._post("/v1/media/send-document", payload)
         return data.get("message", data)
 
@@ -337,6 +360,8 @@ class TelegramAPI:
         message_thread_id: int | None = None,
         request_id: str | None = None,
         dry_run: bool = False,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Отправить медиа-группу (альбом из 2-10 фото/видео).
@@ -376,6 +401,10 @@ class TelegramAPI:
         if dry_run:
             payload["dry_run"] = True
 
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
         data = await self._post("/v1/media/send-media-group", payload)
         return data
 
@@ -388,14 +417,22 @@ class TelegramAPI:
         message_id: int,
         *,
         bot_id: int | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Переслать сообщение."""
-        data = await self._post("/v1/messages/forward", {
+        payload: dict[str, Any] = {
             "chat_id": chat_id,
             "from_chat_id": from_chat_id,
             "message_id": message_id,
-            "bot_id": bot_id,
-        })
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        data = await self._post("/v1/messages/forward", payload)
         return data.get("message", data)
 
     async def copy_message(
@@ -407,6 +444,8 @@ class TelegramAPI:
         bot_id: int | None = None,
         caption: str | None = None,
         parse_mode: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Копировать сообщение (без пометки 'Переслано')."""
         payload: dict[str, Any] = {
@@ -420,6 +459,10 @@ class TelegramAPI:
             payload["caption"] = caption
         if parse_mode:
             payload["parse_mode"] = parse_mode
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
         data = await self._post("/v1/messages/copy", payload)
         return data
 
@@ -647,6 +690,8 @@ class TelegramAPI:
         reply_markup: dict[str, Any] | None = None,
         dry_run: bool = False,
         request_id: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Создание опроса или викторины.
@@ -687,6 +732,10 @@ class TelegramAPI:
         if request_id:
             payload["request_id"] = request_id
 
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
         data = await self._post("/v1/polls/send", payload)
         return data.get("message", data)
 
@@ -782,6 +831,8 @@ class TelegramAPI:
         message_thread_id: int | None = None,
         reply_to_message_id: int | None = None,
         request_id: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Отправить чек-лист (Bot API 9.1).
@@ -815,6 +866,10 @@ class TelegramAPI:
             payload["reply_to_message_id"] = reply_to_message_id
         if request_id is not None:
             payload["request_id"] = request_id
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
         return await self._post("/v1/checklists/send", payload)
 
     async def edit_checklist(
@@ -944,6 +999,783 @@ class TelegramAPI:
         if bot_id is not None:
             payload["bot_id"] = bot_id
         return await self._post("/v1/stories/repost", payload)
+
+    # === Batch 1: Bulk Operations + Core Edits ===
+
+    async def delete_messages(
+        self,
+        chat_id: int | str,
+        message_ids: list[int],
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Массовое удаление до 100 сообщений (Bot API 7.0)."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "message_ids": message_ids}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post("/v1/messages/delete-batch", payload)
+
+    async def forward_messages(
+        self,
+        chat_id: int | str,
+        from_chat_id: int | str,
+        message_ids: list[int],
+        bot_id: int | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Массовая пересылка до 100 сообщений (Bot API 7.0)."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "from_chat_id": from_chat_id,
+            "message_ids": message_ids,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/messages/forward-batch", payload)
+
+    async def copy_messages(
+        self,
+        chat_id: int | str,
+        from_chat_id: int | str,
+        message_ids: list[int],
+        bot_id: int | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Массовое копирование до 100 сообщений (Bot API 7.0)."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "from_chat_id": from_chat_id,
+            "message_ids": message_ids,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/messages/copy-batch", payload)
+
+    async def edit_message_caption(
+        self,
+        message_id: int,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        reply_markup: dict[str, Any] | None = None,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать подпись к медиа-сообщению."""
+        payload: dict[str, Any] = {"message_id": message_id}
+        if caption is not None:
+            payload["caption"] = caption
+        if parse_mode is not None:
+            payload["parse_mode"] = parse_mode
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post(f"/v1/messages/{message_id}/edit-caption", payload)
+
+    async def edit_message_markup(
+        self,
+        message_id: int,
+        reply_markup: dict[str, Any] | None = None,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Изменить inline-клавиатуру сообщения."""
+        payload: dict[str, Any] = {"message_id": message_id}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post(f"/v1/messages/{message_id}/edit-markup", payload)
+
+    async def edit_message_media(
+        self,
+        message_id: int,
+        media: dict[str, Any],
+        reply_markup: dict[str, Any] | None = None,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Заменить медиа в сообщении."""
+        payload: dict[str, Any] = {"message_id": message_id, "media": media}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post(f"/v1/messages/{message_id}/edit-media", payload)
+
+    async def get_file(
+        self,
+        file_id: str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Получить file_path для скачивания файла."""
+        payload: dict[str, Any] = {"file_id": file_id}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post("/v1/media/get-file", payload)
+
+    # === Batch 2: sendMessageDraft ===
+
+    async def send_message_draft(
+        self,
+        chat_id: int | str,
+        text: str | None = None,
+        bot_id: int | None = None,
+        business_connection_id: str | None = None,
+        message_thread_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Отправить черновик сообщения (стриминг LLM, Bot API 9.3)."""
+        payload: dict[str, Any] = {"chat_id": chat_id}
+        if text is not None:
+            payload["text"] = text
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if business_connection_id is not None:
+            payload["business_connection_id"] = business_connection_id
+        if message_thread_id is not None:
+            payload["message_thread_id"] = message_thread_id
+        return await self._post("/v1/messages/draft", payload)
+
+    # === Batch 3: Basic send methods ===
+
+    async def send_location(
+        self,
+        chat_id: int | str,
+        latitude: float,
+        longitude: float,
+        bot_id: int | None = None,
+        live_period: int | None = None,
+        heading: int | None = None,
+        proximity_alert_radius: int | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Отправить геолокацию."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "latitude": latitude,
+            "longitude": longitude,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if live_period is not None:
+            payload["live_period"] = live_period
+        if heading is not None:
+            payload["heading"] = heading
+        if proximity_alert_radius is not None:
+            payload["proximity_alert_radius"] = proximity_alert_radius
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/media/send-location", payload)
+
+    async def send_venue(
+        self,
+        chat_id: int | str,
+        latitude: float,
+        longitude: float,
+        title: str,
+        address: str,
+        bot_id: int | None = None,
+        foursquare_id: str | None = None,
+        foursquare_type: str | None = None,
+        google_place_id: str | None = None,
+        google_place_type: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Отправить место (адрес + координаты)."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "title": title,
+            "address": address,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if foursquare_id is not None:
+            payload["foursquare_id"] = foursquare_id
+        if foursquare_type is not None:
+            payload["foursquare_type"] = foursquare_type
+        if google_place_id is not None:
+            payload["google_place_id"] = google_place_id
+        if google_place_type is not None:
+            payload["google_place_type"] = google_place_type
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/media/send-venue", payload)
+
+    async def send_contact(
+        self,
+        chat_id: int | str,
+        phone_number: str,
+        first_name: str,
+        bot_id: int | None = None,
+        last_name: str | None = None,
+        vcard: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Отправить контакт."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "phone_number": phone_number,
+            "first_name": first_name,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if last_name is not None:
+            payload["last_name"] = last_name
+        if vcard is not None:
+            payload["vcard"] = vcard
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/media/send-contact", payload)
+
+    async def send_dice(
+        self,
+        chat_id: int | str,
+        emoji: str = "🎲",
+        bot_id: int | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Отправить анимированный эмодзи (🎲🎯🏀⚽🎳🎰)."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "emoji": emoji}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/media/send-dice", payload)
+
+    async def send_video_note(
+        self,
+        chat_id: int | str,
+        video_note: str,
+        bot_id: int | None = None,
+        duration: int | None = None,
+        length: int | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Отправить видео-кружок."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "video_note": video_note}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if duration is not None:
+            payload["duration"] = duration
+        if length is not None:
+            payload["length"] = length
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/media/send-video-note", payload)
+
+    # === Batch 4: Live Location ===
+
+    async def edit_live_location(
+        self,
+        message_id: int,
+        latitude: float,
+        longitude: float,
+        bot_id: int | None = None,
+        horizontal_accuracy: float | None = None,
+        heading: int | None = None,
+        proximity_alert_radius: int | None = None,
+    ) -> dict[str, Any]:
+        """Обновить живую геолокацию."""
+        payload: dict[str, Any] = {
+            "message_id": message_id,
+            "latitude": latitude,
+            "longitude": longitude,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if horizontal_accuracy is not None:
+            payload["horizontal_accuracy"] = horizontal_accuracy
+        if heading is not None:
+            payload["heading"] = heading
+        if proximity_alert_radius is not None:
+            payload["proximity_alert_radius"] = proximity_alert_radius
+        return await self._post(f"/v1/messages/{message_id}/edit-live-location", payload)
+
+    async def stop_live_location(
+        self,
+        message_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Остановить живую геолокацию."""
+        payload: dict[str, Any] = {"message_id": message_id}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post(f"/v1/messages/{message_id}/stop-live-location", payload)
+
+    # === Batch 6: Forum Topics ===
+
+    async def create_forum_topic(
+        self,
+        chat_id: int | str,
+        name: str,
+        bot_id: int | None = None,
+        icon_color: int | None = None,
+        icon_custom_emoji_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать тему форума."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "name": name}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if icon_color is not None:
+            payload["icon_color"] = icon_color
+        if icon_custom_emoji_id is not None:
+            payload["icon_custom_emoji_id"] = icon_custom_emoji_id
+        return await self._post("/v1/forums/create", payload)
+
+    async def edit_forum_topic(
+        self,
+        chat_id: int | str,
+        message_thread_id: int,
+        bot_id: int | None = None,
+        name: str | None = None,
+        icon_custom_emoji_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать тему форума."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_thread_id": message_thread_id,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if name is not None:
+            payload["name"] = name
+        if icon_custom_emoji_id is not None:
+            payload["icon_custom_emoji_id"] = icon_custom_emoji_id
+        return await self._post("/v1/forums/edit", payload)
+
+    async def close_forum_topic(
+        self,
+        chat_id: int | str,
+        message_thread_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Закрыть тему форума."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._post(f"/v1/forums/{chat_id}/{message_thread_id}/close{qs}")
+
+    async def reopen_forum_topic(
+        self,
+        chat_id: int | str,
+        message_thread_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Переоткрыть тему форума."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._post(f"/v1/forums/{chat_id}/{message_thread_id}/reopen{qs}")
+
+    async def delete_forum_topic(
+        self,
+        chat_id: int | str,
+        message_thread_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Удалить тему форума."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._delete(f"/v1/forums/{chat_id}/{message_thread_id}{qs}")
+
+    async def unpin_all_forum_topic_messages(
+        self,
+        chat_id: int | str,
+        message_thread_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Открепить все сообщения в теме форума."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._post(f"/v1/forums/{chat_id}/{message_thread_id}/unpin-all{qs}")
+
+    # === Batch 7: Chat Administration ===
+
+    async def set_chat_title(
+        self,
+        chat_id: int | str,
+        title: str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Установить название чата."""
+        payload: dict[str, Any] = {"bot_id": bot_id, "title": title}
+        return await self._put(f"/v1/chats/{chat_id}/title", payload)
+
+    async def set_chat_description(
+        self,
+        chat_id: int | str,
+        description: str | None = None,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Установить описание чата."""
+        payload: dict[str, Any] = {"bot_id": bot_id, "description": description}
+        return await self._put(f"/v1/chats/{chat_id}/description", payload)
+
+    async def delete_chat_photo(
+        self,
+        chat_id: int | str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Удалить фото чата."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._delete(f"/v1/chats/{chat_id}/photo{qs}")
+
+    async def leave_chat(
+        self,
+        chat_id: int | str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Выйти из чата."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._post(f"/v1/chats/{chat_id}/leave{qs}")
+
+    async def unpin_all_chat_messages(
+        self,
+        chat_id: int | str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Открепить все сообщения в чате."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._post(f"/v1/chats/{chat_id}/unpin-all{qs}")
+
+    async def create_chat_invite_link(
+        self,
+        chat_id: int | str,
+        bot_id: int | None = None,
+        name: str | None = None,
+        expire_date: int | None = None,
+        member_limit: int | None = None,
+        creates_join_request: bool | None = None,
+    ) -> dict[str, Any]:
+        """Создать пригласительную ссылку."""
+        payload: dict[str, Any] = {"chat_id": chat_id}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if name is not None:
+            payload["name"] = name
+        if expire_date is not None:
+            payload["expire_date"] = expire_date
+        if member_limit is not None:
+            payload["member_limit"] = member_limit
+        if creates_join_request is not None:
+            payload["creates_join_request"] = creates_join_request
+        return await self._post(f"/v1/chats/{chat_id}/invite-links", payload)
+
+    async def export_chat_invite_link(
+        self,
+        chat_id: int | str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Экспортировать основную пригласительную ссылку."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._post(f"/v1/chats/{chat_id}/export-invite-link{qs}")
+
+    async def edit_chat_invite_link(
+        self,
+        chat_id: int | str,
+        invite_link: str,
+        bot_id: int | None = None,
+        name: str | None = None,
+        expire_date: int | None = None,
+        member_limit: int | None = None,
+        creates_join_request: bool | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать пригласительную ссылку."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "invite_link": invite_link}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if name is not None:
+            payload["name"] = name
+        if expire_date is not None:
+            payload["expire_date"] = expire_date
+        if member_limit is not None:
+            payload["member_limit"] = member_limit
+        if creates_join_request is not None:
+            payload["creates_join_request"] = creates_join_request
+        return await self._put(f"/v1/chats/{chat_id}/invite-links", payload)
+
+    async def revoke_chat_invite_link(
+        self,
+        chat_id: int | str,
+        invite_link: str,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Отозвать пригласительную ссылку."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "invite_link": invite_link}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._delete(f"/v1/chats/{chat_id}/invite-links")
+
+    async def create_chat_subscription_invite_link(
+        self,
+        chat_id: int | str,
+        subscription_period: int,
+        subscription_price: int,
+        bot_id: int | None = None,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        """Создать подписочную пригласительную ссылку (Bot API 7.9)."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "subscription_period": subscription_period,
+            "subscription_price": subscription_price,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if name is not None:
+            payload["name"] = name
+        return await self._post(f"/v1/chats/{chat_id}/subscription-links", payload)
+
+    async def edit_chat_subscription_invite_link(
+        self,
+        chat_id: int | str,
+        invite_link: str,
+        bot_id: int | None = None,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать подписочную пригласительную ссылку (Bot API 7.9)."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "invite_link": invite_link}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if name is not None:
+            payload["name"] = name
+        return await self._put(f"/v1/chats/{chat_id}/subscription-links", payload)
+
+    # === Batch 8: Gifts + Paid Media ===
+
+    async def send_gift(
+        self,
+        gift_id: str,
+        user_id: int | None = None,
+        chat_id: int | str | None = None,
+        bot_id: int | None = None,
+        text: str | None = None,
+        text_parse_mode: str | None = None,
+    ) -> dict[str, Any]:
+        """Отправить подарок пользователю или в чат (Bot API 8.0)."""
+        payload: dict[str, Any] = {"gift_id": gift_id}
+        if user_id is not None:
+            payload["user_id"] = user_id
+        if chat_id is not None:
+            payload["chat_id"] = chat_id
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if text is not None:
+            payload["text"] = text
+        if text_parse_mode is not None:
+            payload["text_parse_mode"] = text_parse_mode
+        return await self._post("/v1/gifts/send", payload)
+
+    async def get_available_gifts(
+        self,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Получить список доступных подарков (Bot API 8.0)."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._get(f"/v1/gifts/available{qs}")
+
+    async def send_paid_media(
+        self,
+        chat_id: int | str,
+        star_count: int,
+        media: list[dict[str, Any]],
+        bot_id: int | None = None,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        direct_messages_topic_id: int | None = None,
+        suggested_post_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Отправить платный медиа-контент (Bot API 7.6)."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "star_count": star_count,
+            "media": media,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if caption is not None:
+            payload["caption"] = caption
+        if parse_mode is not None:
+            payload["parse_mode"] = parse_mode
+        if direct_messages_topic_id is not None:
+            payload["direct_messages_topic_id"] = direct_messages_topic_id
+        if suggested_post_parameters is not None:
+            payload["suggested_post_parameters"] = suggested_post_parameters
+        return await self._post("/v1/media/send-paid-media", payload)
+
+    # === Batch 9: Stories ===
+
+    async def post_story(
+        self,
+        chat_id: int | str,
+        content: dict[str, Any],
+        bot_id: int | None = None,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        areas: list[dict[str, Any]] | None = None,
+        post_to_chat_page: bool | None = None,
+        protect_content: bool | None = None,
+    ) -> dict[str, Any]:
+        """Опубликовать историю в канал (Bot API 9.0)."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "content": content}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if caption is not None:
+            payload["caption"] = caption
+        if parse_mode is not None:
+            payload["parse_mode"] = parse_mode
+        if areas is not None:
+            payload["areas"] = areas
+        if post_to_chat_page is not None:
+            payload["post_to_chat_page"] = post_to_chat_page
+        if protect_content is not None:
+            payload["protect_content"] = protect_content
+        return await self._post("/v1/stories/post", payload)
+
+    async def edit_story(
+        self,
+        chat_id: int | str,
+        story_id: int,
+        bot_id: int | None = None,
+        content: dict[str, Any] | None = None,
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        areas: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать опубликованную историю."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "story_id": story_id}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if content is not None:
+            payload["content"] = content
+        if caption is not None:
+            payload["caption"] = caption
+        if parse_mode is not None:
+            payload["parse_mode"] = parse_mode
+        if areas is not None:
+            payload["areas"] = areas
+        return await self._put(f"/v1/stories/{chat_id}/{story_id}", payload)
+
+    async def delete_story(
+        self,
+        chat_id: int | str,
+        story_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Удалить историю."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._delete(f"/v1/stories/{chat_id}/{story_id}{qs}")
+
+    # === Batch 10: Bot Profile + Star Subscriptions ===
+
+    async def set_my_profile_photo(
+        self,
+        photo: str,
+        bot_id: int | None = None,
+        is_public: bool | None = None,
+    ) -> dict[str, Any]:
+        """Установить фото профиля бота (Bot API 9.4)."""
+        payload: dict[str, Any] = {"photo": photo}
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if is_public is not None:
+            payload["is_public"] = is_public
+        return await self._post("/v1/bots/profile-photo", payload)
+
+    async def remove_my_profile_photo(
+        self,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Удалить фото профиля бота (Bot API 9.4)."""
+        qs = f"?bot_id={bot_id}" if bot_id is not None else ""
+        return await self._delete(f"/v1/bots/profile-photo{qs}")
+
+    async def get_user_profile_audios(
+        self,
+        user_id: int,
+        bot_id: int | None = None,
+        offset: int | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        """Получить аудио профиля пользователя (Bot API 9.4)."""
+        params: dict[str, Any] = {}
+        if bot_id is not None:
+            params["bot_id"] = bot_id
+        if offset is not None:
+            params["offset"] = offset
+        if limit is not None:
+            params["limit"] = limit
+        qs = "&".join(f"{k}={v}" for k, v in params.items())
+        return await self._get(f"/v1/bots/users/{user_id}/profile-audios{'?' + qs if qs else ''}")
+
+    # === Suggested Posts (Bot API 9.2) ===
+
+    async def approve_suggested_post(
+        self,
+        business_connection_id: str,
+        message_id: int,
+        bot_id: int | None = None,
+        is_scheduled: bool | None = None,
+    ) -> dict[str, Any]:
+        """Одобрить предложенный пост (Bot API 9.2)."""
+        payload: dict[str, Any] = {
+            "business_connection_id": business_connection_id,
+            "message_id": message_id,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        if is_scheduled is not None:
+            payload["is_scheduled"] = is_scheduled
+        return await self._post("/v1/suggested-posts/approve", payload)
+
+    async def decline_suggested_post(
+        self,
+        business_connection_id: str,
+        message_id: int,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Отклонить предложенный пост (Bot API 9.2)."""
+        payload: dict[str, Any] = {
+            "business_connection_id": business_connection_id,
+            "message_id": message_id,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post("/v1/suggested-posts/decline", payload)
+
+    async def edit_user_star_subscription(
+        self,
+        user_id: int,
+        telegram_payment_charge_id: str,
+        is_canceled: bool,
+        bot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Редактировать Star-подписку пользователя (Bot API 8.0)."""
+        payload: dict[str, Any] = {
+            "user_id": user_id,
+            "telegram_payment_charge_id": telegram_payment_charge_id,
+            "is_canceled": is_canceled,
+        }
+        if bot_id is not None:
+            payload["bot_id"] = bot_id
+        return await self._post("/v1/bots/star-subscription/edit", payload)
 
     # === Prediction Markets (Betting) ===
 

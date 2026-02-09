@@ -6,6 +6,137 @@
 
 ---
 
+## [2026.02.17] - 2026-02-09
+
+### Добавлено
+
+#### 🚀 Bot API 9.1–9.4 — полная поддержка
+
+Масштабная реализация всех методов Bot API 9.1–9.4 по всем 5 слоям архитектуры: Telegram Client, Pydantic Models, FastAPI Routers, MCP Tools (TypeScript), Python SDK.
+
+**Итого:** 128 MCP-инструментов, 173 API-эндпоинта, ~95 SDK-методов.
+
+##### Bot API 9.4
+
+- **setMyProfilePhoto / removeMyProfilePhoto** — установка и удаление фото профиля бота
+  - Эндпоинты: `POST /v1/bots/profile-photo`, `DELETE /v1/bots/profile-photo`
+  - MCP: `bots.set_profile_photo`, `bots.remove_profile_photo`
+  - SDK: `set_my_profile_photo()`, `remove_my_profile_photo()`
+- **getUserProfileAudios** — получение аудио профиля пользователя
+  - Эндпоинт: `GET /v1/bots/users/{user_id}/profile-audios`
+  - MCP: `bots.user_profile_audios`
+  - SDK: `get_user_profile_audios()`
+- **editUserStarSubscription** — редактирование Star-подписки пользователя
+  - Эндпоинт: `POST /v1/bots/star-subscription/edit`
+  - MCP: `stars.edit_subscription`
+  - SDK: `edit_user_star_subscription()`
+- **Стилизованные кнопки**: параметр `button_style` (primary, danger, success) + `icon_custom_emoji_id` для inline-кнопок — проксируются через существующие send-методы
+
+##### Bot API 9.3
+
+- **sendMessageDraft** — отправка черновиков в бизнес-чаты
+  - Эндпоинт: `POST /v1/messages/draft`
+  - MCP: `messages.draft`
+  - SDK: `send_message_draft()`
+- **getUserGifts / getChatGifts** — подарки пользователя и чата
+  - Эндпоинты: `GET /v1/gifts/user/{user_id}`, `GET /v1/gifts/chat/{chat_id}`
+  - MCP: `stars.gifts_user`, `stars.gifts_chat`
+  - SDK: `get_user_gifts()`, `get_chat_gifts()`
+- **repostStory** — репост историй между каналами
+  - Эндпоинт: `POST /v1/stories/repost`
+  - MCP: `stories.repost`
+  - SDK: `repost_story()`
+- **postStory / editStory / deleteStory** — управление историями каналов
+  - Эндпоинты: `POST /v1/stories/post`, `PUT /v1/stories/{story_id}`, `DELETE /v1/stories/{story_id}`
+  - MCP: `stories.post`, `stories.edit`, `stories.delete`
+  - SDK: `post_story()`, `edit_story()`, `delete_story()`
+- **Форум-топики** — полное управление топиками (вкл. личные чаты)
+  - Эндпоинты: `POST /v1/forums/topics`, `PUT /v1/forums/topics/{id}`, `POST /v1/forums/topics/{id}/close`, `POST /v1/forums/topics/{id}/reopen`, `DELETE /v1/forums/topics/{id}`, `POST /v1/forums/general/hide`, `POST /v1/forums/general/unhide`
+  - MCP: `forums.create_topic`, `forums.edit_topic`, `forums.close_topic`, `forums.reopen_topic`, `forums.delete_topic`, `forums.hide_general`, `forums.unhide_general`
+  - SDK: `create_forum_topic()`, `edit_forum_topic()`, `close_forum_topic()`, `reopen_forum_topic()`, `delete_forum_topic()`, `hide_general_forum_topic()`, `unhide_general_forum_topic()`
+
+##### Bot API 9.2
+
+- **approveSuggestedPost / declineSuggestedPost** — управление предложенными постами в бизнес-каналах
+  - Эндпоинты: `POST /v1/suggested-posts/approve`, `POST /v1/suggested-posts/decline`
+  - MCP: `suggested_posts.approve`, `suggested_posts.decline`
+  - SDK: `approve_suggested_post()`, `decline_suggested_post()`
+  - Новый роутер: `api/app/routers/suggested_posts.py`
+  - Новый MCP-модуль: `mcp/src/tools/suggested_posts.ts`
+- **direct_messages_topic_id** — маршрутизация сообщений в топики через Direct Messages
+  - Добавлен в ~22 Send*In модели + ForwardMessageIn, CopyMessageIn
+  - Проброс в роутерах: messages.py (~5 функций), media.py (~14 функций), checklists.py
+  - SDK: kwargs в ~20 методах
+- **suggested_post_parameters** — параметры для предложенных постов
+  - Добавлен в ~22 Send*In модели + forward/copy
+  - Проброс в тех же роутерах и SDK
+
+##### Bot API 9.1
+
+- **sendChecklist / editMessageChecklist** — интерактивные чек-листы с задачами
+  - Эндпоинты: `POST /v1/checklists/send`, `PUT /v1/messages/{id}/checklist`
+  - MCP: `checklists.send`, `checklists.edit`
+  - SDK: `send_checklist()`, `edit_checklist()`
+- **getMyStarBalance** — баланс звёзд бота
+  - Эндпоинт: `GET /v1/stars/balance`
+  - MCP: `stars.balance`
+  - SDK: `get_star_balance()`
+- **giftPremiumSubscription** — подарок премиум-подписки
+  - Эндпоинт: `POST /v1/gifts/premium`
+  - MCP: `stars.gifts_premium`
+  - SDK: `gift_premium()`
+
+#### 🤖 Мультибот-архитектура
+
+Полная поддержка нескольких ботов с единым реестром и маршрутизацией.
+
+- Реестр ботов: `GET/POST /v1/bots`, `GET /v1/bots/default`, `PUT /v1/bots/{id}/default`, `DELETE /v1/bots/{id}`
+- Авто-регистрация из `TELEGRAM_BOT_TOKEN` и `TELEGRAM_BOT_TOKENS`
+- `bot_id` параметр во всех send/webhook/commands/stars/checklists эндпоинтах
+- MCP: `bots.list`, `bots.register`, `bots.default`, `bot.info`
+- SDK: `list_bots()`, `register_bot()`, `get_default_bot()`, `set_default_bot()`
+- Базовая информация о боте: `GET /v1/bot/me`
+
+#### 📡 Расширенные медиа, сообщения и чаты
+
+- **sendAnimation, sendAudio, sendVoice, sendSticker** — полная поддержка всех типов медиа
+- **sendMediaGroup** — альбомы (2-10 фото/видео)
+- **sendVenue, sendContact, sendDice, sendLocation** — специальные типы сообщений
+- **forwardMessages / copyMessages** — пакетная пересылка/копирование
+- **message_effect_id** — эффекты на сообщениях
+- **show_caption_above_media** — подпись над медиа
+- **Chat Management**: ban/unban/restrict/promote участников
+- **Chat Info**: расширенная информация о чатах, alias, history
+- **MCP**: `media.send_video`, `media.send_audio`, `media.send_voice`, `media.send_sticker`, `media.send_animation`, `media.send_venue`, `media.send_contact`, `media.send_dice`, `media.send_location`, `media.send_media_group`, `messages.forward_bulk`, `messages.copy_bulk`, `messages.pin`, `messages.unpin`, `chats.list`, `chats.alias`, `chats.history`, `chats.ban`, `chats.unban`, `chats.restrict`, `chats.promote`, `chats.create_invite_link`
+
+#### 💰 Баланс и виртуальные валюты
+
+- Внутренняя система балансов: пополнение, списание, история транзакций
+- Поддержка множественных валют
+- MCP: `balance.get`, `balance.credit`, `balance.debit`, `balance.currencies`
+
+### Исправлено
+
+- **SDK**: параметр `is_personal` переименован в `is_public` в `set_my_profile_photo()` (соответствие Bot API)
+
+### Изменено
+- VERSION: `2026.02.16` → `2026.02.17`
+- MCP tools: 78 → 128 (+50 инструментов)
+- API endpoints: ~92 → 173 (+81 эндпоинт)
+- SDK methods: ~77 → ~95 (+18 методов)
+- Новые роутеры: `bots.py`, `forums.py`, `stories.py`, `suggested_posts.py`
+- Новые MCP-модули: `bots.ts`, `forums.ts`, `stories.ts`, `suggested_posts.ts`
+- README: бейдж Bot API 9.4, обновлённые счётчики
+
+### Документация
+- `README.md` — бейдж Bot API 9.4, секция Bot API 9.1–9.4, обновлённая структура
+- `CHANGELOG.md` — подробный лог всех изменений
+- `docs/mcp.md` — обновлён: 128 инструментов, новые секции
+- `docs/api.md` — обновлён: новые эндпоинты Bot API 9.x
+- `docs/sdk.md` — обновлён: новые методы SDK
+
+---
+
 ## [2026.02.16] - 2026-02-09
 
 ### Добавлено

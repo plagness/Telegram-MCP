@@ -120,28 +120,113 @@
     </div>
 </div>
 
-{# ── Полноэкранная детализация события ──────────────── #}
+{# ── Полноэкранная детализация v5 — секции с коллапсами ── #}
 <div class="bee-cal-fulldetail hidden" id="fulldetail">
     <div class="bee-cal-fulldetail-bar" id="fd-bar"></div>
     <button class="bee-cal-fulldetail-close" id="fd-close">&#10005;</button>
     <div class="bee-cal-fulldetail-content">
+        {# Header (фиксирован) #}
         <div class="bee-cal-fulldetail-header">
             <div class="bee-cal-fulldetail-emoji" id="fd-emoji"></div>
             <div class="bee-cal-fulldetail-title" id="fd-title"></div>
         </div>
         <div id="fd-type-card"></div>
-        <div class="bee-cal-fulldetail-badges" id="fd-badges"></div>
-        <div class="bee-cal-fulldetail-time" id="fd-time"></div>
-        <div id="fd-trigger-at"></div>
-        <div id="fd-tick-info"></div>
-        <div class="bee-cal-fulldetail-desc" id="fd-desc"></div>
-        <div class="bee-cal-fulldetail-tags" id="fd-tags"></div>
-        <div id="fd-widgets"></div>
-        <div class="bee-cal-fulldetail-creator" id="fd-creator"></div>
-        <div id="fd-cost-source"></div>
-        <div class="bee-cal-fulldetail-action hidden" id="fd-action"></div>
-        <div class="bee-cal-fulldetail-result hidden" id="fd-result"></div>
-        <div class="bee-cal-fulldetail-meta" id="fd-meta"></div>
+
+        {# Статус и время (фиксирован) #}
+        <div class="bee-fd-fixed" id="fd-status-time">
+            <div class="bee-cal-fulldetail-badges" id="fd-badges"></div>
+            <div class="bee-cal-fulldetail-time" id="fd-time"></div>
+            <div id="fd-trigger-at"></div>
+            <div id="fd-tick-info"></div>
+        </div>
+
+        {# Секция: Описание (раскрыта) #}
+        <div class="bee-fd-section hidden" id="fd-section-desc" data-default="expanded">
+            <button class="bee-fd-section__header" aria-expanded="true">
+                <span class="bee-fd-section__icon">&#128196;</span>
+                <span class="bee-fd-section__title">Описание</span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body">
+                <div class="bee-cal-fulldetail-desc" id="fd-desc"></div>
+            </div>
+        </div>
+
+        {# Секция: Теги (раскрыта) #}
+        <div class="bee-fd-section hidden" id="fd-section-tags" data-default="expanded">
+            <button class="bee-fd-section__header" aria-expanded="true">
+                <span class="bee-fd-section__icon">&#127991;</span>
+                <span class="bee-fd-section__title">Теги</span>
+                <span class="bee-fd-section__count hidden" id="fd-tags-count"></span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body">
+                <div class="bee-fd-tags" id="fd-tags"></div>
+            </div>
+        </div>
+
+        {# Секция: Метрики / Виджеты (раскрыта) #}
+        <div class="bee-fd-section hidden" id="fd-section-widgets" data-default="expanded">
+            <button class="bee-fd-section__header" aria-expanded="true">
+                <span class="bee-fd-section__icon">&#128202;</span>
+                <span class="bee-fd-section__title">Метрики</span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body">
+                <div class="bee-fd-widgets" id="fd-widgets"></div>
+            </div>
+        </div>
+
+        {# Секция: Автор (раскрыта) #}
+        <div class="bee-fd-section hidden" id="fd-section-creator" data-default="expanded">
+            <button class="bee-fd-section__header" aria-expanded="true">
+                <span class="bee-fd-section__icon">&#128100;</span>
+                <span class="bee-fd-section__title">Автор</span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body">
+                <div class="bee-cal-fulldetail-creator" id="fd-creator"></div>
+                <div id="fd-cost-source"></div>
+            </div>
+        </div>
+
+        {# Секция: Действие (свёрнута) #}
+        <div class="bee-fd-section hidden" id="fd-section-action" data-default="collapsed">
+            <button class="bee-fd-section__header" aria-expanded="false">
+                <span class="bee-fd-section__icon">&#9881;&#65039;</span>
+                <span class="bee-fd-section__title">Действие</span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body" style="display:none">
+                <div class="bee-fd-json" id="fd-action"></div>
+            </div>
+        </div>
+
+        {# Секция: Результат (свёрнута) #}
+        <div class="bee-fd-section hidden" id="fd-section-result" data-default="collapsed">
+            <button class="bee-fd-section__header" aria-expanded="false">
+                <span class="bee-fd-section__icon">&#128200;</span>
+                <span class="bee-fd-section__title">Результат</span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body" style="display:none">
+                <div class="bee-fd-json" id="fd-result"></div>
+            </div>
+        </div>
+
+        {# Секция: Метаданные (свёрнута) #}
+        <div class="bee-fd-section hidden" id="fd-section-meta" data-default="collapsed">
+            <button class="bee-fd-section__header" aria-expanded="false">
+                <span class="bee-fd-section__icon">&#128295;</span>
+                <span class="bee-fd-section__title">Метаданные</span>
+                <span class="bee-fd-section__chevron">&#9662;</span>
+            </button>
+            <div class="bee-fd-section__body" style="display:none">
+                <div class="bee-fd-meta" id="fd-meta"></div>
+            </div>
+        </div>
+
+        {# Admin actions (фиксирован) #}
         <div class="bee-cal-fulldetail-actions hidden" id="fd-admin">
             <button class="bee-btn" id="fd-done-btn">&#10003; Выполнено</button>
             <button class="bee-btn bee-btn--danger" id="fd-delete-btn">&#10005; Удалить</button>
@@ -592,18 +677,67 @@
         'vote': 'rgba(139,92,246,0.08)', 'routine': 'rgba(107,114,128,0.08)'
     };
 
+    // ── v5: Инициализация секций (один раз) ──
+    (function initSections() {
+        var headers = fulldetail.querySelectorAll('.bee-fd-section__header');
+        for (var i = 0; i < headers.length; i++) {
+            headers[i].addEventListener('click', function () {
+                var section = this.closest('.bee-fd-section');
+                var body = section.querySelector('.bee-fd-section__body');
+                var expanded = this.getAttribute('aria-expanded') === 'true';
+                this.setAttribute('aria-expanded', !expanded ? 'true' : 'false');
+                body.style.display = expanded ? 'none' : '';
+                haptic('selection');
+            });
+        }
+    })();
+
+    // Сбросить все секции к default-состоянию
+    function resetSections() {
+        var sections = fulldetail.querySelectorAll('.bee-fd-section');
+        for (var i = 0; i < sections.length; i++) {
+            var sec = sections[i];
+            var def = sec.getAttribute('data-default');
+            var header = sec.querySelector('.bee-fd-section__header');
+            var body = sec.querySelector('.bee-fd-section__body');
+            if (def === 'collapsed') {
+                header.setAttribute('aria-expanded', 'false');
+                body.style.display = 'none';
+            } else {
+                header.setAttribute('aria-expanded', 'true');
+                body.style.display = '';
+            }
+            sec.classList.add('hidden');
+        }
+    }
+
+    // Показать секцию (убрать hidden)
+    function showSection(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+    }
+
     function openFullDetail(card) {
         var d = card.dataset;
         var entryType = d.entryType || 'event';
         var typeColor = TYPE_COLORS[entryType] || '#FFC107';
         var typeBg = TYPE_BG[entryType] || 'rgba(255,193,7,0.08)';
 
+        // Сбросить все секции
+        resetSections();
+
         // Цветная полоска — по типу
         document.getElementById('fd-bar').style.background = (entryType !== 'event') ? typeColor : d.color;
 
-        // Эмодзи + заголовок
+        // Эмодзи / Simple Icon + заголовок
         var emojiEl = document.getElementById('fd-emoji');
-        if (entryType !== 'event' && !d.emoji) {
+        if (d.iconHas === 'true' && d.iconUrl) {
+            // Simple Icon — рендер как картинку
+            emojiEl.innerHTML = '<span class="bee-cal-event-icon-inline" style="background:' + escapeHtml(d.iconColor) + ';width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center">'
+                + '<img src="' + escapeHtml(d.iconUrl) + '" alt="" width="24" height="24" loading="lazy" style="filter:brightness(0) invert(1)">'
+                + '</span>';
+            emojiEl.style.display = '';
+        } else if (entryType !== 'event' && !d.emoji) {
             emojiEl.textContent = d.entryTypeIcon || '';
             emojiEl.style.display = d.entryTypeIcon ? '' : 'none';
         } else {
@@ -681,35 +815,46 @@
             tickInfoEl.innerHTML = '';
         }
 
-        // Описание
-        var descEl = document.getElementById('fd-desc');
-        descEl.textContent = d.desc || '';
-        descEl.style.display = d.desc ? '' : 'none';
-
-        // Теги
-        var tagsHtml = '';
-        var tags = d.tags ? d.tags.split(',') : [];
-        for (var i = 0; i < tags.length; i++) {
-            if (tags[i]) tagsHtml += '<span class="bee-cal-tag" data-tag="' + escapeHtml(tags[i]) + '" style="cursor:pointer">' + escapeHtml(tags[i]) + '</span> ';
+        // Секция: Описание
+        if (d.desc) {
+            document.getElementById('fd-desc').textContent = d.desc;
+            showSection('fd-section-desc');
         }
-        document.getElementById('fd-tags').innerHTML = tagsHtml;
-        document.getElementById('fd-tags').style.display = tagsHtml ? '' : 'none';
 
-        // Виджеты (динамические данные)
+        // Секция: Теги
+        var tags = d.tags ? d.tags.split(',').filter(function (t) { return t; }) : [];
+        if (tags.length > 0) {
+            var tagsHtml = '';
+            for (var i = 0; i < tags.length; i++) {
+                tagsHtml += '<span class="bee-cal-tag" data-tag="' + escapeHtml(tags[i]) + '" style="cursor:pointer">' + escapeHtml(tags[i]) + '</span> ';
+            }
+            document.getElementById('fd-tags').innerHTML = tagsHtml;
+            var tagsCountEl = document.getElementById('fd-tags-count');
+            if (tags.length > 3) {
+                tagsCountEl.textContent = tags.length;
+                tagsCountEl.classList.remove('hidden');
+            } else {
+                tagsCountEl.classList.add('hidden');
+            }
+            showSection('fd-section-tags');
+        }
+
+        // Секция: Виджеты
         var widgetsEl = document.getElementById('fd-widgets');
         var widgetsJson = d.widgetsJson || '';
+        var hasWidgets = false;
         if (widgetsJson) {
             try {
                 var widgetsList = JSON.parse(widgetsJson);
                 if (widgetsList && widgetsList.length > 0) {
-                    var wHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+                    hasWidgets = true;
+                    var wHtml = '';
                     for (var wi = 0; wi < widgetsList.length; wi++) {
                         var w = widgetsList[wi];
                         var wClass = 'bee-cal-widget bee-cal-widget--' + (w.type || 'rate');
                         if (w.change && w.change > 0) wClass += ' bee-cal-widget--up';
                         else if (w.change && w.change < 0) wClass += ' bee-cal-widget--down';
                         wHtml += '<span class="' + wClass + '" style="font-size:13px;padding:4px 10px">';
-                        // Simple Icons или emoji fallback
                         if (w.has_icon && w.icon_url) {
                             wHtml += '<img src="' + escapeHtml(w.icon_url) + '" alt="" width="14" height="14" class="bee-cal-widget-icon" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'\'"><span style="display:none">' + escapeHtml(w.icon || '') + '</span> ';
                         } else {
@@ -722,19 +867,13 @@
                         }
                         wHtml += '</span>';
                     }
-                    wHtml += '</div>';
                     widgetsEl.innerHTML = wHtml;
-                } else {
-                    widgetsEl.innerHTML = '';
                 }
-            } catch (ex) {
-                widgetsEl.innerHTML = '';
-            }
-        } else {
-            widgetsEl.innerHTML = '';
+            } catch (ex) {}
         }
+        if (hasWidgets) showSection('fd-section-widgets');
 
-        // Создатель + participant
+        // Секция: Автор
         var creatorHtml = '';
         if (d.creatorType && d.creatorType !== 'unknown') {
             var typeLabel = d.creatorType === 'ai' ? 'Нейросеть' : 'Пользователь';
@@ -742,7 +881,6 @@
             var pName = d.participantName || '';
             var namesDisplay = cName;
             if (pName) namesDisplay += ' и ' + escapeHtml(pName);
-            // Аватарки (stacked в fulldetail) с Simple Icons
             var creatorHasIcon = d.creatorHasIcon === 'true';
             var creatorIconUrl = d.creatorIconUrl || '';
             var creatorAvaContent;
@@ -771,56 +909,54 @@
         }
         var creatorEl = document.getElementById('fd-creator');
         creatorEl.innerHTML = creatorHtml;
-        creatorEl.style.display = creatorHtml ? '' : 'none';
+        var hasCostSource = d.cost || d.sourceLabel;
+        if (creatorHtml || hasCostSource) {
+            showSection('fd-section-creator');
+        }
 
-        // Cost + Source
+        // Cost + Source (внутри секции Автор)
         var costSourceEl = document.getElementById('fd-cost-source');
         var csHtml = '';
-        if (d.cost || d.sourceLabel) {
-            csHtml = '<div class="bee-cal-fulldetail-cost-row">';
+        if (hasCostSource) {
+            csHtml = '<div class="bee-cal-fulldetail-cost-row" style="margin-top:8px">';
             if (d.cost) csHtml += '<span class="bee-cal-cost-badge">' + escapeHtml(d.cost) + '</span>';
             if (d.sourceLabel) csHtml += '<span class="bee-cal-source-badge">' + escapeHtml(d.sourceLabel) + '</span>';
             csHtml += '</div>';
         }
         costSourceEl.innerHTML = csHtml;
 
-        // Action JSON
-        var actionEl = document.getElementById('fd-action');
+        // Секция: Действие
         var actionJson = d.actionJson || '';
         if (actionJson && actionJson !== '{}') {
-            actionEl.innerHTML = '<div class="bee-cal-action-block-title">&#9881;&#65039; Действие</div>' +
-                '<div class="bee-cal-action-block">' + escapeHtml(actionJson) + '</div>';
-            actionEl.classList.remove('hidden');
-        } else {
-            actionEl.classList.add('hidden');
+            document.getElementById('fd-action').textContent = actionJson;
+            showSection('fd-section-action');
         }
 
-        // Result JSON
-        var resultEl = document.getElementById('fd-result');
+        // Секция: Результат
         var resultJson = d.resultJson || '';
         if (resultJson && resultJson !== 'null') {
+            var resultEl = document.getElementById('fd-result');
+            resultEl.textContent = resultJson;
             var resultStatus = '';
             try {
                 var rObj = JSON.parse(resultJson);
                 resultStatus = rObj && rObj.status ? rObj.status : '';
             } catch (ex) {}
-            var rBlockClass = 'bee-cal-result-block';
-            if (resultStatus === 'success') rBlockClass += ' bee-cal-result-block--success';
-            else if (resultStatus === 'failed') rBlockClass += ' bee-cal-result-block--failed';
-            resultEl.innerHTML = '<div class="bee-cal-result-block-title">&#128202; Результат</div>' +
-                '<div class="' + rBlockClass + '">' + escapeHtml(resultJson) + '</div>';
-            resultEl.classList.remove('hidden');
-        } else {
-            resultEl.classList.add('hidden');
+            resultEl.className = 'bee-fd-json';
+            if (resultStatus === 'success') resultEl.className += ' bee-fd-json--success';
+            else if (resultStatus === 'failed') resultEl.className += ' bee-fd-json--failed';
+            showSection('fd-section-result');
         }
 
-        // Мета
+        // Секция: Метаданные (всегда показывается)
         var meta = [];
         if (d.entryId) meta.push('ID: ' + d.entryId);
         if (d.createdBy) meta.push('created_by: ' + d.createdBy);
         if (d.sourceModule) meta.push('source: ' + d.sourceModule);
         if (entryType !== 'event') meta.push('type: ' + entryType);
+        if (d.tickInfo) meta.push(d.tickInfo);
         document.getElementById('fd-meta').textContent = meta.join(' \u00B7 ');
+        showSection('fd-section-meta');
 
         // Админ-кнопки
         var adminEl = document.getElementById('fd-admin');

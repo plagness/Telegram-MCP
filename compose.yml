@@ -93,8 +93,12 @@ services:
     environment:
       DB_DSN: postgresql://${DB_USER:-telegram}:${DB_PASSWORD:-telegram}@tgdb:5432/${DB_NAME:-telegram}
       TGAPI_URL: http://tgapi:8000
+      LLM_CORE_URL: ${LLM_CORE_URL:-http://llmcore:8080}
       PUBLIC_URL: ${WEBUI_PUBLIC_URL:-https://tg.plag.space:8443}
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    networks:
+      - default
+      - llm
     volumes:
       - /home/plag/.certbot/flat:/certs:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-certfile", "/certs/fullchain.pem", "--ssl-keyfile", "/certs/privkey.pem"]
@@ -106,3 +110,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+networks:
+  llm:
+    external: true
+    name: llm-mcp_default
