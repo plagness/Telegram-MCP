@@ -110,3 +110,52 @@ async def get_submissions(
 ):
     """Ответы на форму."""
     return await _proxy("GET", f"/api/v1/pages/{slug}/submissions?limit={limit}&offset={offset}")
+
+
+# --- Календарь (прокси к tgapi /v1/calendar) ---
+
+
+@router.get("/calendar/{calendar_id}")
+async def get_calendar_proxy(calendar_id: int):
+    """Получить календарь (прокси)."""
+    from ..services import calendar as cal_svc
+
+    cal = await cal_svc.get_calendar(calendar_id)
+    if not cal:
+        raise HTTPException(status_code=404, detail="Calendar not found")
+    return {"ok": True, "calendar": cal}
+
+
+@router.get("/calendar/{calendar_id}/entries")
+async def calendar_entries_proxy(
+    calendar_id: int,
+    start: str | None = Query(None),
+    end: str | None = Query(None),
+    tags: str | None = Query(None),
+    status: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Записи календаря (прокси)."""
+    from ..services import calendar as cal_svc
+
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    entries = await cal_svc.list_entries(
+        calendar_id=calendar_id,
+        start=start, end=end,
+        tags=tag_list, status=status,
+        limit=limit, offset=offset,
+    )
+    return {"ok": True, "entries": entries, "count": len(entries)}
+
+
+@router.get("/calendar/{calendar_id}/upcoming")
+async def calendar_upcoming_proxy(
+    calendar_id: int,
+    limit: int = Query(3, ge=1, le=20),
+):
+    """Ближайшие события (прокси)."""
+    from ..services import calendar as cal_svc
+
+    entries = await cal_svc.get_upcoming(calendar_id, limit=limit)
+    return {"ok": True, "entries": entries, "count": len(entries)}

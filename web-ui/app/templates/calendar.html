@@ -1,0 +1,900 @@
+{% extends "base.html" %}
+
+{% block title %}{{ calendar.title if calendar else page.title }}{% endblock %}
+
+{% block content %}
+{# ── Заголовок с аватаркой чата + профиль юзера ──────── #}
+<div class="bee-card bee-hex-bg">
+    {% if chat_info %}
+    <div class="bee-cal-header">
+        <div class="bee-cal-avatar">
+            {% if chat_photo_url %}
+            <img src="{{ chat_photo_url }}" alt="" class="bee-cal-avatar-img"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+            <span class="bee-cal-avatar-initials" style="display:none">{{ chat_info.title[:2] | upper }}</span>
+            {% else %}
+            <span class="bee-cal-avatar-initials">{{ chat_info.title[:2] | upper }}</span>
+            {% endif %}
+        </div>
+        <div class="bee-cal-header-text">
+            <div class="bee-title" style="margin-bottom:2px">{{ chat_info.title }}</div>
+            {% if chat_info.member_count %}
+            <span class="bee-badge" style="font-size:11px;padding:2px 8px">{{ chat_info.member_count }} уч.</span>
+            {% endif %}
+        </div>
+        <div class="bee-cal-user-mini" id="user-avatar" title="Профиль">
+            <span class="bee-cal-user-mini-fallback" id="user-fallback">?</span>
+        </div>
+    </div>
+    {% else %}
+    <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="bee-title">{{ calendar.title if calendar else page.title }}</div>
+        <div class="bee-cal-user-mini" id="user-avatar" title="Профиль">
+            <span class="bee-cal-user-mini-fallback" id="user-fallback">?</span>
+        </div>
+    </div>
+    {% endif %}
+    {% if calendar and calendar.description %}
+    <div class="bee-subtitle" style="margin-top:6px">{{ calendar.description }}</div>
+    {% endif %}
+</div>
+
+{# ── Переключатель вида + Поиск + Навигация + Сетка ──── #}
+<div class="bee-card">
+    <div class="bee-cal-toggle">
+        <button class="bee-cal-toggle-btn active" id="btn-month">Месяц</button>
+        <button class="bee-cal-toggle-btn" id="btn-list">Список</button>
+    </div>
+
+    {# Кнопка поиска #}
+    <button class="bee-cal-search-btn" id="search-open">
+        <span>&#128269;</span>
+        <span>Поиск и фильтры...</span>
+        <span class="bee-cal-search-count hidden" id="search-count">0</span>
+    </button>
+
+    {# Навигация по месяцам #}
+    <div class="bee-cal-nav">
+        <a class="bee-cal-nav-btn" href="?month={{ prev_month_param }}">&larr;</a>
+        <div class="bee-cal-nav-title">{{ month_title }}</div>
+        <a class="bee-cal-nav-btn" href="?month={{ next_month_param }}">&rarr;</a>
+    </div>
+
+    {# Сетка месяца #}
+    <div id="month-view">
+        <div class="bee-cal-grid">
+            {% for wd in weekdays %}
+            <div class="bee-cal-weekday">{{ wd }}</div>
+            {% endfor %}
+
+            {% for week in grid_weeks %}
+            {% for cell in week %}
+            <div class="bee-cal-day{% if cell.other %} bee-cal-day--other{% endif %}{% if cell.is_today %} bee-cal-day--today{% endif %}{% if cell.events %} bee-cal-day--has-events{% endif %}{% if selected_day == cell.date_key %} bee-cal-day--selected{% endif %}"
+                 {% if not cell.other and cell.date_key %}data-date="{{ cell.date_key }}"{% endif %}>
+                <span>{{ cell.day }}</span>
+                {% if cell.events %}
+                <div class="bee-cal-dots">
+                    {% for e in cell.events[:4] %}
+                    <div class="bee-cal-dot" style="background:{{ e._color }}"></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Список (скрыт по умолчанию) #}
+    <div id="list-view" class="hidden">
+        {% if entries_grouped %}
+        {% for group in entries_grouped %}
+        <div class="bee-cal-date-header">{{ group.date_label }}</div>
+        {% for e in group.entries %}
+        {% include "calendar_event.html" %}
+        {% endfor %}
+        {% endfor %}
+        {% else %}
+        <div class="bee-cal-empty">Нет событий</div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Панели событий по дням ─────────────────────────── #}
+{% for dk, panel in day_panels.items() %}
+<div class="bee-card hidden day-panel" data-date="{{ dk }}"{% if selected_day == dk %} style="display:block"{% endif %}>
+    <div class="bee-cal-detail">
+        <div class="bee-cal-detail-header">{{ panel.date_label }}</div>
+        {% for e in panel.entries %}
+        {% include "calendar_event.html" %}
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{# Пустой день #}
+<div class="bee-card hidden" id="empty-day">
+    <div class="bee-cal-detail">
+        <div class="bee-cal-detail-header" id="empty-day-date"></div>
+        <div class="bee-cal-empty">Нет событий</div>
+    </div>
+</div>
+
+{# ── Полноэкранная детализация события ──────────────── #}
+<div class="bee-cal-fulldetail hidden" id="fulldetail">
+    <div class="bee-cal-fulldetail-bar" id="fd-bar"></div>
+    <button class="bee-cal-fulldetail-close" id="fd-close">&#10005;</button>
+    <div class="bee-cal-fulldetail-content">
+        <div class="bee-cal-fulldetail-header">
+            <div class="bee-cal-fulldetail-emoji" id="fd-emoji"></div>
+            <div class="bee-cal-fulldetail-title" id="fd-title"></div>
+        </div>
+        <div class="bee-cal-fulldetail-badges" id="fd-badges"></div>
+        <div class="bee-cal-fulldetail-time" id="fd-time"></div>
+        <div class="bee-cal-fulldetail-desc" id="fd-desc"></div>
+        <div class="bee-cal-fulldetail-tags" id="fd-tags"></div>
+        <div class="bee-cal-fulldetail-creator" id="fd-creator"></div>
+        <div class="bee-cal-fulldetail-meta" id="fd-meta"></div>
+        <div class="bee-cal-fulldetail-actions hidden" id="fd-admin">
+            <button class="bee-btn" id="fd-done-btn">&#10003; Выполнено</button>
+            <button class="bee-btn bee-btn--danger" id="fd-delete-btn">&#10005; Удалить</button>
+        </div>
+    </div>
+</div>
+
+{# ── Поиск / фильтры (fullscreen overlay) ──────────── #}
+<div class="bee-cal-search-overlay hidden" id="search-overlay">
+    <div class="bee-cal-search-header">
+        <input type="text" class="bee-input" id="search-text" placeholder="Поиск по названию или описанию...">
+        <button class="bee-cal-search-close" id="search-close">&#10005;</button>
+    </div>
+
+    <div class="bee-cal-search-section">
+        <div class="bee-cal-search-section-title">Статус</div>
+        <div class="bee-cal-search-pills" id="search-status">
+            <button class="bee-cal-search-pill bee-cal-search-pill--active" data-val="all">Все</button>
+            <button class="bee-cal-search-pill" data-val="active">Активно</button>
+            <button class="bee-cal-search-pill" data-val="done">Выполнено</button>
+            <button class="bee-cal-search-pill" data-val="cancelled">Отменено</button>
+        </div>
+    </div>
+
+    <div class="bee-cal-search-section">
+        <div class="bee-cal-search-section-title">Приоритет</div>
+        <div class="bee-cal-search-pills" id="search-priority">
+            <button class="bee-cal-search-pill bee-cal-search-pill--active" data-val="all">Все</button>
+            <button class="bee-cal-search-pill" data-val="5" style="border-color:#E74C3C">&#9679; Критичный</button>
+            <button class="bee-cal-search-pill" data-val="4" style="border-color:#E67E22">&#9679; Высокий</button>
+            <button class="bee-cal-search-pill" data-val="3" style="border-color:#FFC107">&#9679; Средний</button>
+            <button class="bee-cal-search-pill" data-val="2" style="border-color:#2ECC71">&#9679; Обычный</button>
+            <button class="bee-cal-search-pill" data-val="1" style="border-color:#95A5A6">&#9679; Низкий</button>
+        </div>
+    </div>
+
+    {% if all_tags %}
+    <div class="bee-cal-search-section">
+        <div class="bee-cal-search-section-title">Теги</div>
+        <div class="bee-cal-search-tags" id="search-tags">
+            {% for tag in all_tags %}
+            {% set tc = tag_colors.get(tag.lower(), 'var(--tg-hint)') if tag_colors else 'var(--tg-hint)' %}
+            <div class="bee-cal-search-tag-item" data-tag="{{ tag | lower }}">
+                <div class="bee-cal-search-tag-check">&#10003;</div>
+                <span style="color:{{ tc }}">&#9679;</span>
+                <span>{{ tag }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="bee-cal-search-section">
+        <div class="bee-cal-search-section-title">Создатель</div>
+        <div class="bee-cal-search-pills" id="search-creator">
+            <button class="bee-cal-search-pill bee-cal-search-pill--active" data-val="all">Все</button>
+            <button class="bee-cal-search-pill" data-val="user">&#128100; Пользователи</button>
+            <button class="bee-cal-search-pill" data-val="ai">&#129302; Нейросети</button>
+        </div>
+    </div>
+
+    <div class="bee-cal-search-actions">
+        <button class="bee-btn" id="search-apply">Применить</button>
+        <button class="bee-btn bee-btn--outline" id="search-reset">Сбросить</button>
+    </div>
+</div>
+
+{# ── Эмодзи-пикер (только для админов) ─────────────── #}
+{% if is_admin %}
+<div class="bee-cal-emoji-overlay hidden" id="emoji-overlay">
+    <div class="bee-cal-emoji-sheet" onclick="event.stopPropagation()">
+        <div class="bee-cal-emoji-cat">&#128197; Время</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="📅">📅</button>
+            <button class="bee-cal-emoji-item" data-e="🗓️">🗓️</button>
+            <button class="bee-cal-emoji-item" data-e="⏰">⏰</button>
+            <button class="bee-cal-emoji-item" data-e="⏳">⏳</button>
+            <button class="bee-cal-emoji-item" data-e="🔔">🔔</button>
+            <button class="bee-cal-emoji-item" data-e="📆">📆</button>
+            <button class="bee-cal-emoji-item" data-e="🕐">🕐</button>
+            <button class="bee-cal-emoji-item" data-e="🌙">🌙</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#128188; Работа</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="💼">💼</button>
+            <button class="bee-cal-emoji-item" data-e="📊">📊</button>
+            <button class="bee-cal-emoji-item" data-e="💻">💻</button>
+            <button class="bee-cal-emoji-item" data-e="🔧">🔧</button>
+            <button class="bee-cal-emoji-item" data-e="⚙️">⚙️</button>
+            <button class="bee-cal-emoji-item" data-e="📝">📝</button>
+            <button class="bee-cal-emoji-item" data-e="✏️">✏️</button>
+            <button class="bee-cal-emoji-item" data-e="📋">📋</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#128101; Люди</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="👥">👥</button>
+            <button class="bee-cal-emoji-item" data-e="🤝">🤝</button>
+            <button class="bee-cal-emoji-item" data-e="💬">💬</button>
+            <button class="bee-cal-emoji-item" data-e="📞">📞</button>
+            <button class="bee-cal-emoji-item" data-e="🎤">🎤</button>
+            <button class="bee-cal-emoji-item" data-e="👤">👤</button>
+            <button class="bee-cal-emoji-item" data-e="🧑‍💻">🧑‍💻</button>
+            <button class="bee-cal-emoji-item" data-e="📣">📣</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#127919; Цели</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="🎯">🎯</button>
+            <button class="bee-cal-emoji-item" data-e="🏆">🏆</button>
+            <button class="bee-cal-emoji-item" data-e="⭐">⭐</button>
+            <button class="bee-cal-emoji-item" data-e="🚀">🚀</button>
+            <button class="bee-cal-emoji-item" data-e="💡">💡</button>
+            <button class="bee-cal-emoji-item" data-e="🔥">🔥</button>
+            <button class="bee-cal-emoji-item" data-e="✅">✅</button>
+            <button class="bee-cal-emoji-item" data-e="❌">❌</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#128193; Файлы</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="📁">📁</button>
+            <button class="bee-cal-emoji-item" data-e="📂">📂</button>
+            <button class="bee-cal-emoji-item" data-e="📎">📎</button>
+            <button class="bee-cal-emoji-item" data-e="🔗">🔗</button>
+            <button class="bee-cal-emoji-item" data-e="📄">📄</button>
+            <button class="bee-cal-emoji-item" data-e="📑">📑</button>
+            <button class="bee-cal-emoji-item" data-e="📤">📤</button>
+            <button class="bee-cal-emoji-item" data-e="📥">📥</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#127881; Праздники</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="🎉">🎉</button>
+            <button class="bee-cal-emoji-item" data-e="🎂">🎂</button>
+            <button class="bee-cal-emoji-item" data-e="🎊">🎊</button>
+            <button class="bee-cal-emoji-item" data-e="🎁">🎁</button>
+            <button class="bee-cal-emoji-item" data-e="🥳">🥳</button>
+            <button class="bee-cal-emoji-item" data-e="💐">💐</button>
+            <button class="bee-cal-emoji-item" data-e="🍕">🍕</button>
+            <button class="bee-cal-emoji-item" data-e="🎈">🎈</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#9888;&#65039; Важно</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="⚠️">⚠️</button>
+            <button class="bee-cal-emoji-item" data-e="🚨">🚨</button>
+            <button class="bee-cal-emoji-item" data-e="❗">❗</button>
+            <button class="bee-cal-emoji-item" data-e="🔴">🔴</button>
+            <button class="bee-cal-emoji-item" data-e="🟡">🟡</button>
+            <button class="bee-cal-emoji-item" data-e="🟢">🟢</button>
+            <button class="bee-cal-emoji-item" data-e="🔵">🔵</button>
+            <button class="bee-cal-emoji-item" data-e="⛔">⛔</button>
+        </div>
+
+        <div class="bee-cal-emoji-cat">&#127760; Разное</div>
+        <div class="bee-cal-emoji-grid">
+            <button class="bee-cal-emoji-item" data-e="🌐">🌐</button>
+            <button class="bee-cal-emoji-item" data-e="🏠">🏠</button>
+            <button class="bee-cal-emoji-item" data-e="🚗">🚗</button>
+            <button class="bee-cal-emoji-item" data-e="✈️">✈️</button>
+            <button class="bee-cal-emoji-item" data-e="🏥">🏥</button>
+            <button class="bee-cal-emoji-item" data-e="💰">💰</button>
+            <button class="bee-cal-emoji-item" data-e="📱">📱</button>
+            <button class="bee-cal-emoji-item" data-e="🔑">🔑</button>
+        </div>
+
+        <div class="bee-cal-emoji-clear" id="emoji-clear">Убрать эмодзи</div>
+    </div>
+</div>
+{% endif %}
+
+{# ── FAB для админа ──────────────────────────────────── #}
+{% if is_admin %}
+<button class="bee-cal-fab" id="fab-add">+</button>
+
+{# Модалка создания/редактирования #}
+<div class="bee-cal-modal-overlay hidden" id="modal-overlay">
+    <div class="bee-cal-modal" onclick="event.stopPropagation()">
+        <div class="bee-cal-modal-title" id="modal-title">Новое событие</div>
+        <form id="entry-form">
+            <input type="hidden" id="entry-id" value="">
+            <input type="hidden" id="entry-emoji" value="">
+
+            <div class="bee-field">
+                <label class="bee-label">Эмодзи</label>
+                <button type="button" class="bee-cal-search-btn" id="emoji-trigger" style="margin:0">
+                    <span id="emoji-preview">Выбрать эмодзи...</span>
+                </button>
+            </div>
+
+            <div class="bee-field">
+                <label class="bee-label">Заголовок <span class="required">*</span></label>
+                <input type="text" id="entry-title" class="bee-input" required maxlength="300">
+            </div>
+
+            <div class="bee-field">
+                <label class="bee-label">Описание</label>
+                <textarea id="entry-desc" class="bee-textarea" rows="3"></textarea>
+            </div>
+
+            <div style="display:flex;gap:8px">
+                <div class="bee-field" style="flex:1">
+                    <label class="bee-label">Начало <span class="required">*</span></label>
+                    <input type="datetime-local" id="entry-start" class="bee-input" required>
+                </div>
+                <div class="bee-field" style="flex:1">
+                    <label class="bee-label">Конец</label>
+                    <input type="datetime-local" id="entry-end" class="bee-input">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+                <div class="bee-field" style="flex:1">
+                    <label class="bee-label">Приоритет</label>
+                    <select id="entry-priority" class="bee-select">
+                        <option value="1">1 — Низкий</option>
+                        <option value="2">2 — Обычный</option>
+                        <option value="3" selected>3 — Средний</option>
+                        <option value="4">4 — Высокий</option>
+                        <option value="5">5 — Критичный</option>
+                    </select>
+                </div>
+                <div class="bee-field" style="flex:1">
+                    <label class="bee-label">Статус</label>
+                    <select id="entry-status" class="bee-select">
+                        <option value="active">Активно</option>
+                        <option value="done">Выполнено</option>
+                        <option value="cancelled">Отменено</option>
+                        <option value="archived">Архив</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bee-field">
+                <label class="bee-label">Теги (через запятую)</label>
+                <input type="text" id="entry-tags" class="bee-input" placeholder="work, meeting, deadline">
+            </div>
+
+            <div class="bee-field">
+                <label class="bee-checkbox-label">
+                    <input type="checkbox" id="entry-allday"> Весь день
+                </label>
+            </div>
+
+            <div class="bee-field">
+                <label class="bee-checkbox-label">
+                    <input type="checkbox" id="entry-ai" checked> AI реагирует
+                </label>
+            </div>
+
+            <button type="submit" class="bee-btn mt-8" id="save-btn">Сохранить</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    "use strict";
+
+    var PAGE_SLUG = '{{ page.slug }}';
+    var IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+    var CALENDAR_ID = {{ calendar_id }};
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+
+    // Экранирование HTML для защиты от XSS
+    function escapeHtml(s) {
+        if (!s) return '';
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Профиль пользователя ────────────────
+    (function initUserProfile() {
+        var userAva = document.getElementById('user-avatar');
+        var userFallback = document.getElementById('user-fallback');
+        if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) return;
+        var u = tg.initDataUnsafe.user;
+        if (u.photo_url) {
+            var img = document.createElement('img');
+            img.src = u.photo_url;
+            img.alt = u.first_name || '';
+            img.onerror = function () { this.remove(); };
+            if (userFallback) userFallback.style.display = 'none';
+            userAva.insertBefore(img, userAva.firstChild);
+        } else if (u.first_name && userFallback) {
+            userFallback.textContent = u.first_name.charAt(0).toUpperCase();
+        }
+    })();
+
+    // ── Переключение вида ──────────────────────
+    var btnMonth = document.getElementById('btn-month');
+    var btnList = document.getElementById('btn-list');
+    var monthView = document.getElementById('month-view');
+    var listView = document.getElementById('list-view');
+
+    if (btnMonth) btnMonth.onclick = function () {
+        monthView.classList.remove('hidden');
+        listView.classList.add('hidden');
+        btnMonth.classList.add('active');
+        btnList.classList.remove('active');
+        haptic('selection');
+    };
+    if (btnList) btnList.onclick = function () {
+        monthView.classList.add('hidden');
+        listView.classList.remove('hidden');
+        btnList.classList.add('active');
+        btnMonth.classList.remove('active');
+        haptic('selection');
+    };
+
+    // ── Выбор дня в сетке ──────────────────────
+    var dayEls = document.querySelectorAll('.bee-cal-day[data-date]');
+    var panels = document.querySelectorAll('.day-panel');
+    var emptyDay = document.getElementById('empty-day');
+    var emptyDayDate = document.getElementById('empty-day-date');
+
+    for (var i = 0; i < dayEls.length; i++) {
+        dayEls[i].addEventListener('click', onDayClick);
+    }
+
+    function onDayClick() {
+        var dk = this.getAttribute('data-date');
+        var prev = document.querySelector('.bee-cal-day--selected');
+        if (prev) prev.classList.remove('bee-cal-day--selected');
+        this.classList.add('bee-cal-day--selected');
+
+        for (var j = 0; j < panels.length; j++) {
+            panels[j].classList.add('hidden');
+            panels[j].style.display = '';
+        }
+        if (emptyDay) emptyDay.classList.add('hidden');
+
+        var panel = document.querySelector('.day-panel[data-date="' + dk + '"]');
+        if (panel) {
+            panel.classList.remove('hidden');
+        } else if (emptyDay) {
+            if (emptyDayDate) emptyDayDate.textContent = dk;
+            emptyDay.classList.remove('hidden');
+        }
+        haptic('selection');
+    }
+
+    // ── Действия (done/delete) ──────────────────
+    function triggerAction(action, id) {
+        if (action === 'done') {
+            fetch('/p/' + PAGE_SLUG + '/calendar/entries/' + id + '/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'done', init_data: initData })
+            }).then(function () {
+                showToast('Выполнено', 'success');
+                setTimeout(function () { location.reload(); }, 600);
+            });
+            haptic('notification', 'success');
+        } else if (action === 'delete') {
+            if (!confirm('Удалить событие?')) return;
+            fetch('/p/' + PAGE_SLUG + '/calendar/entries/' + id, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ init_data: initData })
+            }).then(function () {
+                showToast('Удалено', 'success');
+                setTimeout(function () { location.reload(); }, 600);
+            });
+            haptic('notification', 'warning');
+        }
+    }
+
+    // ── Полноэкранная детализация события ────────
+    var fulldetail = document.getElementById('fulldetail');
+    var fdClose = document.getElementById('fd-close');
+
+    if (fdClose) fdClose.onclick = function () { fulldetail.classList.add('hidden'); };
+
+    document.addEventListener('click', function (e) {
+        var card = e.target.closest('.bee-cal-event--clickable');
+        if (!card) return;
+        if (e.target.closest('[data-action]')) return;
+        if (e.target.closest('.bee-cal-event-tag')) return;
+        openFullDetail(card);
+        haptic('impact', 'light');
+    });
+
+    function openFullDetail(card) {
+        var d = card.dataset;
+
+        // Цветная полоска
+        document.getElementById('fd-bar').style.background = d.color;
+
+        // Эмодзи + заголовок
+        var emojiEl = document.getElementById('fd-emoji');
+        emojiEl.textContent = d.emoji || '';
+        emojiEl.style.display = d.emoji ? '' : 'none';
+        document.getElementById('fd-title').textContent = d.title;
+
+        // Бейджи (значения из серверных enum-ов — безопасны, но экранируем на всякий случай)
+        var badges = '';
+        badges += '<span class="bee-badge" style="background:' + escapeHtml(d.priorityColor) + ';color:#fff;font-size:11px">' + escapeHtml(d.priorityLabel) + '</span>';
+        if (d.status === 'done') badges += ' <span class="bee-badge bee-badge--success" style="font-size:11px">Выполнено</span>';
+        else if (d.status === 'cancelled') badges += ' <span class="bee-badge bee-badge--error" style="font-size:11px">Отменено</span>';
+        else badges += ' <span class="bee-badge" style="font-size:11px">Активно</span>';
+        if (d.ai === 'false') badges += ' <span class="bee-cal-ai-badge">AI OFF</span>';
+        if (d.allDay === 'true') badges += ' <span class="bee-badge bee-badge--outline" style="font-size:11px">Весь день</span>';
+        document.getElementById('fd-badges').innerHTML = badges;
+
+        // Время
+        var timeStr = '';
+        if (d.start) {
+            var s = d.start.replace('T', ' ').slice(0, 16);
+            timeStr = '&#128337; ' + s;
+            if (d.end) timeStr += ' — ' + d.end.replace('T', ' ').slice(0, 16);
+        } else if (d.time) {
+            timeStr = '&#128337; ' + d.time;
+        }
+        document.getElementById('fd-time').innerHTML = timeStr;
+        document.getElementById('fd-time').style.display = timeStr ? '' : 'none';
+
+        // Описание
+        var descEl = document.getElementById('fd-desc');
+        descEl.textContent = d.desc || '';
+        descEl.style.display = d.desc ? '' : 'none';
+
+        // Теги (пользовательские данные — экранируем)
+        var tagsHtml = '';
+        var tags = d.tags ? d.tags.split(',') : [];
+        for (var i = 0; i < tags.length; i++) {
+            if (tags[i]) tagsHtml += '<span class="bee-cal-tag" data-tag="' + escapeHtml(tags[i]) + '" style="cursor:pointer">' + escapeHtml(tags[i]) + '</span> ';
+        }
+        document.getElementById('fd-tags').innerHTML = tagsHtml;
+        document.getElementById('fd-tags').style.display = tagsHtml ? '' : 'none';
+
+        // Создатель (имя может содержать пользовательский текст — экранируем)
+        var creatorHtml = '';
+        if (d.creatorType && d.creatorType !== 'unknown') {
+            var typeLabel = d.creatorType === 'ai' ? 'Нейросеть' : 'Пользователь';
+            var cName = escapeHtml(d.creatorName || d.createdBy || 'Неизвестно');
+            creatorHtml = '<div class="bee-cal-creator-ava" style="background:' + escapeHtml(d.creatorColor) + '">' + escapeHtml(d.creatorEmoji) + '</div>' +
+                '<div><div class="bee-cal-creator-name">' + cName + '</div>' +
+                '<div class="bee-cal-creator-type">' + typeLabel + '</div></div>';
+        }
+        var creatorEl = document.getElementById('fd-creator');
+        creatorEl.innerHTML = creatorHtml;
+        creatorEl.style.display = creatorHtml ? '' : 'none';
+
+        // Мета (используем textContent — безопасно от XSS)
+        var meta = [];
+        if (d.entryId) meta.push('ID: ' + d.entryId);
+        if (d.createdBy) meta.push('created_by: ' + d.createdBy);
+        document.getElementById('fd-meta').textContent = meta.join(' \u00B7 ');
+
+        // Админ-кнопки
+        var adminEl = document.getElementById('fd-admin');
+        if (IS_ADMIN && adminEl) {
+            adminEl.classList.remove('hidden');
+            var doneBtn = document.getElementById('fd-done-btn');
+            var delBtn = document.getElementById('fd-delete-btn');
+            var eid = d.entryId;
+            doneBtn.style.display = (d.status === 'done') ? 'none' : '';
+            doneBtn.onclick = function () { triggerAction('done', eid); fulldetail.classList.add('hidden'); };
+            delBtn.onclick = function () { triggerAction('delete', eid); fulldetail.classList.add('hidden'); };
+        } else if (adminEl) {
+            adminEl.classList.add('hidden');
+        }
+
+        fulldetail.classList.remove('hidden');
+    }
+
+    // ── Поиск / фильтры ────────────────────────
+    var searchOverlay = document.getElementById('search-overlay');
+    var searchOpen = document.getElementById('search-open');
+    var searchCloseBtn = document.getElementById('search-close');
+    var searchText = document.getElementById('search-text');
+    var searchCount = document.getElementById('search-count');
+
+    var filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all' };
+
+    if (searchOpen) searchOpen.onclick = function () {
+        searchOverlay.classList.remove('hidden');
+        searchText.focus();
+        haptic('impact', 'light');
+    };
+    if (searchCloseBtn) searchCloseBtn.onclick = function () {
+        searchOverlay.classList.add('hidden');
+    };
+
+    // Пилюли статуса
+    setupPills('search-status', function (val) { filters.status = val; });
+    // Пилюли приоритета
+    setupPills('search-priority', function (val) { filters.priority = val; });
+    // Пилюли создателя
+    setupPills('search-creator', function (val) { filters.creator = val; });
+
+    function setupPills(containerId, onSelect) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        container.addEventListener('click', function (e) {
+            var pill = e.target.closest('.bee-cal-search-pill');
+            if (!pill) return;
+            var pills = container.querySelectorAll('.bee-cal-search-pill');
+            for (var i = 0; i < pills.length; i++) pills[i].classList.remove('bee-cal-search-pill--active');
+            pill.classList.add('bee-cal-search-pill--active');
+            onSelect(pill.getAttribute('data-val'));
+            haptic('selection');
+        });
+    }
+
+    // Теги (чекбоксы)
+    var searchTagsEl = document.getElementById('search-tags');
+    if (searchTagsEl) searchTagsEl.addEventListener('click', function (e) {
+        var item = e.target.closest('.bee-cal-search-tag-item');
+        if (!item) return;
+        var tag = item.getAttribute('data-tag');
+        item.classList.toggle('bee-cal-search-tag-item--active');
+        var idx = filters.tags.indexOf(tag);
+        if (idx >= 0) filters.tags.splice(idx, 1);
+        else filters.tags.push(tag);
+        haptic('selection');
+    });
+
+    // Применить фильтры
+    var applyBtn = document.getElementById('search-apply');
+    if (applyBtn) applyBtn.onclick = function () {
+        filters.text = (searchText ? searchText.value : '').toLowerCase().trim();
+        applyFilters();
+        searchOverlay.classList.add('hidden');
+        haptic('notification', 'success');
+    };
+
+    // Сбросить
+    var resetBtn = document.getElementById('search-reset');
+    if (resetBtn) resetBtn.onclick = function () {
+        filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all' };
+        if (searchText) searchText.value = '';
+        // Сбрасываем пилюли
+        var allPills = searchOverlay.querySelectorAll('.bee-cal-search-pill');
+        for (var i = 0; i < allPills.length; i++) {
+            allPills[i].classList.toggle('bee-cal-search-pill--active', allPills[i].getAttribute('data-val') === 'all');
+        }
+        // Сбрасываем теги
+        var tagItems = searchOverlay.querySelectorAll('.bee-cal-search-tag-item--active');
+        for (var j = 0; j < tagItems.length; j++) tagItems[j].classList.remove('bee-cal-search-tag-item--active');
+        applyFilters();
+        haptic('selection');
+    };
+
+    function applyFilters() {
+        var events = document.querySelectorAll('.bee-cal-event[data-entry-id]');
+        var activeCount = 0;
+        if (filters.status !== 'all') activeCount++;
+        if (filters.priority !== 'all') activeCount++;
+        if (filters.tags.length > 0) activeCount++;
+        if (filters.text) activeCount++;
+        if (filters.creator !== 'all') activeCount++;
+
+        // Показываем/скрываем счётчик
+        if (searchCount) {
+            if (activeCount > 0) {
+                searchCount.textContent = activeCount;
+                searchCount.classList.remove('hidden');
+            } else {
+                searchCount.classList.add('hidden');
+            }
+        }
+
+        for (var i = 0; i < events.length; i++) {
+            var ev = events[i];
+            var show = true;
+
+            // Текст
+            if (filters.text) {
+                var title = (ev.getAttribute('data-title') || '').toLowerCase();
+                var desc = (ev.getAttribute('data-desc') || '').toLowerCase();
+                if (title.indexOf(filters.text) < 0 && desc.indexOf(filters.text) < 0) show = false;
+            }
+            // Статус
+            if (show && filters.status !== 'all') {
+                if (ev.getAttribute('data-status') !== filters.status) show = false;
+            }
+            // Приоритет
+            if (show && filters.priority !== 'all') {
+                if (ev.getAttribute('data-priority') !== filters.priority) show = false;
+            }
+            // Теги
+            if (show && filters.tags.length > 0) {
+                var evTags = ev.getAttribute('data-tags') || '';
+                var tagMatch = false;
+                for (var j = 0; j < filters.tags.length; j++) {
+                    if (evTags.indexOf(filters.tags[j]) >= 0) { tagMatch = true; break; }
+                }
+                if (!tagMatch) show = false;
+            }
+            // Создатель
+            if (show && filters.creator !== 'all') {
+                var cType = ev.getAttribute('data-creator-type') || '';
+                if (cType !== filters.creator) show = false;
+            }
+
+            ev.style.display = show ? '' : 'none';
+        }
+    }
+
+    // ── Клик по тегу → фильтрация ──────────────
+    document.addEventListener('click', function (e) {
+        var tagEl = e.target.closest('.bee-cal-event-tag, #fd-tags .bee-cal-tag');
+        if (!tagEl) return;
+        e.stopPropagation();
+        var tag = tagEl.getAttribute('data-tag');
+        if (!tag) return;
+
+        if (fulldetail && !fulldetail.classList.contains('hidden')) {
+            fulldetail.classList.add('hidden');
+        }
+
+        filters.tags = [tag];
+        filters.text = '';
+        filters.status = 'all';
+        filters.priority = 'all';
+        filters.creator = 'all';
+        applyFilters();
+        showToast('Фильтр: ' + tag, 'success');
+        haptic('selection');
+    });
+
+    // ── Делегирование кнопок действий ──────────
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        var id = btn.getAttribute('data-entry-id');
+        if (!id) return;
+        e.stopPropagation();
+        triggerAction(action, id);
+    });
+
+    // ── Эмодзи-пикер ──────────────────────────
+    var emojiOverlay = document.getElementById('emoji-overlay');
+    var emojiTrigger = document.getElementById('emoji-trigger');
+    var emojiPreview = document.getElementById('emoji-preview');
+    var emojiInput = document.getElementById('entry-emoji');
+    var emojiClear = document.getElementById('emoji-clear');
+
+    if (emojiOverlay) emojiOverlay.onclick = function (e) {
+        if (e.target === emojiOverlay) emojiOverlay.classList.add('hidden');
+    };
+    if (emojiTrigger) emojiTrigger.onclick = function () {
+        emojiOverlay.classList.remove('hidden');
+        haptic('impact', 'light');
+    };
+    if (emojiClear) emojiClear.onclick = function () {
+        emojiInput.value = '';
+        emojiPreview.textContent = 'Выбрать эмодзи...';
+        emojiOverlay.classList.add('hidden');
+    };
+
+    if (emojiOverlay) emojiOverlay.addEventListener('click', function (e) {
+        var item = e.target.closest('.bee-cal-emoji-item');
+        if (!item) return;
+        var emoji = item.getAttribute('data-e');
+        if (emoji && emojiInput) {
+            emojiInput.value = emoji;
+            emojiPreview.textContent = emoji + ' выбрано';
+            emojiOverlay.classList.add('hidden');
+            haptic('notification', 'success');
+        }
+    });
+
+    // ── Админ: CRUD ────────────────────────────
+    if (!IS_ADMIN) return;
+
+    var fab = document.getElementById('fab-add');
+    var overlay = document.getElementById('modal-overlay');
+    var form = document.getElementById('entry-form');
+
+    if (fab) fab.onclick = function () {
+        resetForm();
+        document.getElementById('modal-title').textContent = 'Новое событие';
+        document.getElementById('save-btn').textContent = 'Создать';
+        overlay.classList.remove('hidden');
+        haptic('impact', 'medium');
+    };
+
+    if (overlay) overlay.onclick = function (e) {
+        if (e.target === overlay) overlay.classList.add('hidden');
+    };
+
+    if (form) form.onsubmit = function (e) {
+        e.preventDefault();
+        var btn = document.getElementById('save-btn');
+        btn.disabled = true;
+
+        var entryId = document.getElementById('entry-id').value;
+        var tagsRaw = document.getElementById('entry-tags').value;
+        var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
+
+        var body = {
+            title: document.getElementById('entry-title').value,
+            description: document.getElementById('entry-desc').value || null,
+            emoji: document.getElementById('entry-emoji').value || null,
+            start_at: new Date(document.getElementById('entry-start').value).toISOString(),
+            end_at: document.getElementById('entry-end').value ? new Date(document.getElementById('entry-end').value).toISOString() : null,
+            priority: parseInt(document.getElementById('entry-priority').value),
+            status: document.getElementById('entry-status').value,
+            all_day: document.getElementById('entry-allday').checked,
+            ai_actionable: document.getElementById('entry-ai').checked,
+            tags: tags,
+            init_data: initData,
+        };
+
+        var method, path;
+        if (entryId) {
+            method = 'PUT';
+            path = '/p/' + PAGE_SLUG + '/calendar/entries/' + entryId;
+        } else {
+            method = 'POST';
+            path = '/p/' + PAGE_SLUG + '/calendar/entries';
+            body.calendar_id = CALENDAR_ID;
+        }
+
+        fetch(path, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            .then(function (r) { return r.json(); })
+            .then(function (result) {
+                if (result.ok !== false && !result.detail) {
+                    showToast(entryId ? 'Обновлено' : 'Создано', 'success');
+                    setTimeout(function () { location.reload(); }, 600);
+                } else {
+                    showToast(result.detail || 'Ошибка', 'error');
+                    btn.disabled = false;
+                }
+            })
+            .catch(function () { showToast('Ошибка сети', 'error'); btn.disabled = false; });
+
+        return false;
+    };
+
+    function resetForm() {
+        document.getElementById('entry-id').value = '';
+        document.getElementById('entry-emoji').value = '';
+        document.getElementById('emoji-preview').textContent = 'Выбрать эмодзи...';
+        document.getElementById('entry-title').value = '';
+        document.getElementById('entry-desc').value = '';
+        document.getElementById('entry-tags').value = '';
+        document.getElementById('entry-priority').value = '3';
+        document.getElementById('entry-status').value = 'active';
+        document.getElementById('entry-allday').checked = false;
+        document.getElementById('entry-ai').checked = true;
+        var now = new Date();
+        document.getElementById('entry-start').value = toLocalISO(now);
+        document.getElementById('entry-end').value = '';
+    }
+
+    function toLocalISO(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+               'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+})();
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # MCP-инструменты
 
-MCP-сервер предоставляет 57 инструментов для интеграции с LLM.
+MCP-сервер предоставляет 71 инструмент для интеграции с LLM.
 
 Работает по двум протоколам:
 - **stdio** — стандартный MCP-транспорт для Claude и других LLM
@@ -138,11 +138,30 @@ curl http://127.0.0.1:3335/tools \
 | `checklists.send` | Отправить чек-лист |
 | `checklists.edit` | Редактировать чек-лист |
 
+### Календарь
+
+| Инструмент | Описание |
+|------------|----------|
+| `calendar.create` | Создать календарь |
+| `calendar.list` | Список календарей |
+| `calendar.create_entry` | Создать запись в календаре |
+| `calendar.list_entries` | Список записей (с фильтрацией по дате, статусу, тегам) |
+| `calendar.get_entry` | Получить запись по ID |
+| `calendar.get_chain` | Получить цепочку связанных событий (parent/children) |
+| `calendar.update_entry` | Обновить запись (title, emoji, priority, tags, status) |
+| `calendar.move_entry` | Переместить запись (изменить start_at/end_at) |
+| `calendar.set_status` | Установить статус (active, done, cancelled, archived) |
+| `calendar.delete_entry` | Удалить запись |
+| `calendar.entry_history` | История изменений записи |
+| `calendar.bulk_create` | Массовое создание записей (до 100) |
+| `calendar.bulk_delete` | Массовое удаление записей (до 100) |
+| `calendar.upcoming` | Предстоящие активные события |
+
 ### Web-UI
 
 | Инструмент | Описание |
 |------------|----------|
-| `webui.create_page` | Создать страницу (page/survey/prediction) |
+| `webui.create_page` | Создать страницу (page/survey/prediction/calendar) |
 | `webui.list_pages` | Список страниц |
 | `webui.create_link` | Создать индивидуальную ссылку |
 | `webui.get_submissions` | Получить ответы формы |

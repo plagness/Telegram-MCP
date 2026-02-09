@@ -91,12 +91,15 @@ services:
     environment:
       DB_DSN: postgresql://${DB_USER:-telegram}:${DB_PASSWORD:-telegram}@tgdb:5432/${DB_NAME:-telegram}
       TGAPI_URL: http://tgapi:8000
-      PUBLIC_URL: ${WEBUI_PUBLIC_URL:-https://tg.plag.space:8090}
+      PUBLIC_URL: ${WEBUI_PUBLIC_URL:-https://tg.plag.space:8443}
       BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    volumes:
+      - /home/plag/.certbot/flat:/certs:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-certfile", "/certs/fullchain.pem", "--ssl-keyfile", "/certs/privkey.pem"]
     ports:
-      - "${PORT_WEBUI:-8090}:8000"
+      - "${PORT_WEBUI:-8443}:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request, ssl; ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE; urllib.request.urlopen('https://localhost:8000/health', context=ctx)"]
       interval: 10s
       timeout: 5s
       retries: 3

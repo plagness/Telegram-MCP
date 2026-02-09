@@ -573,3 +573,126 @@ class ResolveEventIn(BaseModel):
     winning_option_ids: list[str] = Field(default_factory=list, description="ID победивших вариантов (может быть несколько, пустой = возврат всем)")
     resolution_source: str = Field(..., description="Источник решения (llm-mcp/ollama/openrouter/manual)")
     resolution_data: dict[str, Any] | None = Field(None, description="Данные от LLM/новости")
+
+
+# === Calendar ===
+
+
+class CreateCalendarIn(BaseModel):
+    """Создание календаря."""
+    slug: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=200)
+    description: str | None = None
+    owner_id: int | None = None
+    chat_id: str | int | None = None
+    bot_id: int | None = None
+    timezone: str = "UTC"
+    is_public: bool = True
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateCalendarIn(BaseModel):
+    """Обновление календаря."""
+    title: str | None = Field(None, max_length=200)
+    description: str | None = None
+    chat_id: str | int | None = None
+    timezone: str | None = None
+    is_public: bool | None = None
+    config: dict[str, Any] | None = None
+
+
+class CreateEntryIn(BaseModel):
+    """Создание записи в календаре."""
+    calendar_id: int
+    parent_id: int | None = None
+    title: str = Field(..., max_length=300)
+    description: str | None = None
+    emoji: str | None = None
+    start_at: str
+    end_at: str | None = None
+    all_day: bool = False
+    status: str = Field("active", pattern="^(active|done|cancelled|archived)$")
+    priority: int = Field(3, ge=1, le=5)
+    color: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    attachments: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    series_id: str | None = None
+    repeat: str | None = Field(None, pattern="^(daily|weekly|biweekly|monthly|yearly|weekdays)$")
+    repeat_until: str | None = None
+    position: int = 0
+    created_by: str | None = None
+    ai_actionable: bool = True
+    performed_by: str | None = None
+
+
+class UpdateEntryIn(BaseModel):
+    """Обновление записи календаря."""
+    parent_id: int | None = None
+    title: str | None = Field(None, max_length=300)
+    description: str | None = None
+    emoji: str | None = None
+    start_at: str | None = None
+    end_at: str | None = None
+    all_day: bool | None = None
+    status: str | None = Field(None, pattern="^(active|done|cancelled|archived)$")
+    priority: int | None = Field(None, ge=1, le=5)
+    color: str | None = None
+    tags: list[str] | None = None
+    attachments: list[dict[str, Any]] | None = None
+    metadata: dict[str, Any] | None = None
+    series_id: str | None = None
+    repeat: str | None = None
+    repeat_until: str | None = None
+    position: int | None = None
+    ai_actionable: bool | None = None
+    performed_by: str | None = None
+
+
+class MoveEntryIn(BaseModel):
+    """Перемещение записи на новое время."""
+    start_at: str
+    end_at: str | None = None
+    performed_by: str | None = None
+
+
+class SetStatusIn(BaseModel):
+    """Смена статуса записи."""
+    status: str = Field(..., pattern="^(active|done|cancelled|archived)$")
+    performed_by: str | None = None
+
+
+class BulkEntryIn(BaseModel):
+    """Одна запись в массовом создании (calendar_id задаётся на уровне запроса)."""
+    parent_id: int | None = None
+    title: str = Field(..., max_length=300)
+    description: str | None = None
+    emoji: str | None = None
+    start_at: str
+    end_at: str | None = None
+    all_day: bool = False
+    status: str = Field("active", pattern="^(active|done|cancelled|archived)$")
+    priority: int = Field(3, ge=1, le=5)
+    color: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    attachments: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    series_id: str | None = None
+    repeat: str | None = Field(None, pattern="^(daily|weekly|biweekly|monthly|yearly|weekdays)$")
+    repeat_until: str | None = None
+    position: int = 0
+    created_by: str | None = None
+    ai_actionable: bool = True
+    performed_by: str | None = None
+
+
+class BulkCreateEntriesIn(BaseModel):
+    """Массовое создание записей."""
+    calendar_id: int
+    entries: list[BulkEntryIn] = Field(..., min_length=1, max_length=100)
+
+
+class BulkDeleteEntriesIn(BaseModel):
+    """Массовое удаление записей."""
+    ids: list[int] = Field(..., min_length=1, max_length=100)
+    performed_by: str | None = None

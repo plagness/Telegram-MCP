@@ -968,3 +968,950 @@ a { color: var(--accent-dark); }
 @media (min-width: 521px) {
     .bee-app { padding: 24px 32px; }
 }
+
+/* ══════════════════════════════════════════════
+   Calendar Module
+   ══════════════════════════════════════════════ */
+
+/* ── Navigation ───────────────────────────── */
+
+.bee-cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.bee-cal-nav-title {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    text-align: center;
+    flex: 1;
+}
+
+.bee-cal-nav-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tg-separator);
+    border: none;
+    border-radius: 50%;
+    font-size: 18px;
+    color: var(--tg-text);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.bee-cal-nav-btn:active { background: var(--accent-glow); }
+
+/* ── View toggle ──────────────────────────── */
+
+.bee-cal-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--tg-separator);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+}
+
+.bee-cal-toggle-btn {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--tg-hint);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: var(--font);
+}
+
+.bee-cal-toggle-btn.active {
+    background: var(--tg-bg);
+    color: var(--tg-text);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* ── Month grid ───────────────────────────── */
+
+.bee-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.bee-cal-weekday {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--tg-hint);
+    text-transform: uppercase;
+    padding: 6px 0;
+    letter-spacing: 0.5px;
+}
+
+.bee-cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, box-shadow 0.15s;
+    min-height: 44px;
+    position: relative;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tg-text);
+}
+
+.bee-cal-day:active { transform: scale(0.95); }
+
+.bee-cal-day--other {
+    color: var(--tg-hint);
+    opacity: 0.35;
+}
+
+.bee-cal-day--today {
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 700;
+    border-radius: 50%;
+}
+
+.bee-cal-day--today .bee-cal-dot { background: var(--accent-text); }
+
+.bee-cal-day--selected {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-radius: var(--radius-sm);
+}
+
+.bee-cal-day--today.bee-cal-day--selected {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 8px var(--accent-glow);
+}
+
+/* ── Event dots ───────────────────────────── */
+
+.bee-cal-dots {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    min-height: 6px;
+}
+
+.bee-cal-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+/* ── Day detail panel ─────────────────────── */
+
+.bee-cal-detail {
+    animation: slideUp var(--anim-duration) ease;
+}
+
+.bee-cal-detail-header {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    padding: 4px 0 8px;
+    color: var(--tg-hint);
+}
+
+.bee-cal-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--tg-hint);
+    font-size: var(--font-size-sm);
+}
+
+/* ── Event card ───────────────────────────── */
+
+.bee-cal-event {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--tg-separator);
+    align-items: flex-start;
+}
+
+.bee-cal-event:last-child { border-bottom: none; }
+
+.bee-cal-event-priority {
+    width: 3px;
+    min-height: 36px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    align-self: stretch;
+}
+
+.bee-cal-event-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.bee-cal-event-time {
+    font-size: 12px;
+    color: var(--tg-hint);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 2px;
+}
+
+.bee-cal-event-title {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bee-cal-event-title--done {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.bee-cal-event-desc {
+    font-size: var(--font-size-sm);
+    color: var(--tg-hint);
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.bee-cal-event-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.bee-cal-event-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.bee-cal-event-action {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--tg-separator);
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.bee-cal-event-action:active { background: var(--accent-glow); }
+
+/* ── Chain (linked events) ────────────────── */
+
+.bee-cal-chain {
+    position: relative;
+    padding-left: 18px;
+}
+
+.bee-cal-chain::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    opacity: 0.3;
+    border-radius: 1px;
+}
+
+.bee-cal-chain-link {
+    font-size: var(--font-size-xs);
+    color: var(--accent);
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+/* ── Filters ──────────────────────────────── */
+
+.bee-cal-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.bee-cal-tag {
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--tg-separator);
+    background: transparent;
+    font-size: var(--font-size-xs);
+    color: var(--tg-text);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+}
+
+.bee-cal-tag:active { transform: scale(0.95); }
+
+.bee-cal-tag--active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+/* ── FAB (admin add button) ───────────────── */
+
+.bee-cal-fab {
+    position: fixed;
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: var(--accent-text);
+    border: none;
+    font-size: 28px;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 16px var(--accent-shadow);
+    z-index: 100;
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bee-cal-fab:active {
+    transform: scale(0.9);
+    box-shadow: 0 2px 8px var(--accent-shadow);
+}
+
+/* ── Modal (admin create/edit) ────────────── */
+
+.bee-cal-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.bee-cal-modal {
+    background: var(--tg-bg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: var(--page-pad);
+    animation: slideUp 0.3s ease;
+}
+
+.bee-cal-modal-title {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+/* ── List view date header ────────────────── */
+
+.bee-cal-date-header {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--tg-hint);
+    padding: 12px 0 4px;
+    border-bottom: 1px solid var(--tg-separator);
+    margin-bottom: 4px;
+}
+
+/* ── AI actionable indicator ──────────────── */
+
+.bee-cal-ai-off {
+    opacity: 0.5;
+    position: relative;
+}
+
+.bee-cal-ai-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--tg-separator);
+    color: var(--tg-hint);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ── Clickable event card ────────────────── */
+
+.bee-cal-event--clickable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+
+.bee-cal-event--clickable:active {
+    background: var(--accent-glow);
+}
+
+/* ── Event meta row (time + badges inline) ── */
+
+.bee-cal-event-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+    flex-wrap: wrap;
+}
+
+.bee-cal-event-meta .bee-cal-event-time {
+    margin-bottom: 0;
+}
+
+/* ── Status modifiers on event card ──────── */
+
+.bee-cal-event--done { opacity: 0.55; }
+.bee-cal-event--cancelled { opacity: 0.4; }
+
+/* ── Chat header with avatar ─────────────── */
+
+.bee-cal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bee-cal-header-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.bee-cal-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.bee-cal-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bee-cal-avatar-initials {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-text);
+}
+
+/* ── Event tag in card (clickable) ───────── */
+
+.bee-cal-event-tag {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bee-cal-event-tag:active {
+    transform: scale(0.92);
+}
+
+/* ── Detail bottom sheet ─────────────────── */
+
+.bee-cal-detail-sheet {
+    position: relative;
+}
+
+.bee-cal-detail-color {
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 12px;
+}
+
+.bee-cal-detail-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.bee-cal-detail-time {
+    font-size: var(--font-size-sm);
+    color: var(--tg-hint);
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.bee-cal-detail-desc {
+    font-size: var(--font-size-base);
+    color: var(--tg-text);
+    line-height: 1.6;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+}
+
+.bee-cal-detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.bee-cal-detail-meta {
+    font-size: var(--font-size-xs);
+    color: var(--tg-hint);
+    line-height: 1.6;
+}
+
+/* ── Search button + overlay ─────────────── */
+
+.bee-cal-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--tg-bg);
+    border: 1.5px solid var(--tg-separator);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--tg-hint);
+    cursor: pointer;
+    margin: 10px 0;
+    font-family: var(--font);
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s;
+}
+
+.bee-cal-search-btn:active { border-color: var(--accent); }
+
+.bee-cal-search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: var(--tg-bg);
+    overflow-y: auto;
+    padding: var(--page-pad);
+    padding-top: max(var(--page-pad), env(safe-area-inset-top, 12px));
+    animation: slideUp 0.25s ease;
+}
+
+.bee-cal-search-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.bee-cal-search-header .bee-input { flex: 1; }
+
+.bee-cal-search-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--tg-separator);
+    border-radius: 50%;
+    font-size: 18px;
+    color: var(--tg-text);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bee-cal-search-section { margin-bottom: 16px; }
+
+.bee-cal-search-section-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--tg-hint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.bee-cal-search-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.bee-cal-search-pill {
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1.5px solid var(--tg-separator);
+    background: transparent;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--tg-text);
+    cursor: pointer;
+    font-family: var(--font);
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+}
+
+.bee-cal-search-pill--active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+.bee-cal-search-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.bee-cal-search-tag-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bee-cal-search-tag-item:active { background: var(--accent-glow); }
+
+.bee-cal-search-tag-check {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--tg-hint);
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: transparent;
+    transition: all 0.15s;
+}
+
+.bee-cal-search-tag-item--active .bee-cal-search-tag-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+.bee-cal-search-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.bee-cal-search-actions .bee-btn { flex: 1; }
+
+.bee-cal-search-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 5px;
+    margin-left: auto;
+}
+
+/* ── Full-screen event detail ────────────── */
+
+.bee-cal-fulldetail {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    background: var(--tg-bg);
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+}
+
+.bee-cal-fulldetail-bar {
+    height: 4px;
+    width: 100%;
+}
+
+.bee-cal-fulldetail-content {
+    padding: var(--page-pad);
+    padding-top: 12px;
+    padding-bottom: max(calc(var(--page-pad) + 20px), env(safe-area-inset-bottom, 20px));
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.bee-cal-fulldetail-close {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top, 12px));
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--tg-section-bg);
+    border-radius: 50%;
+    font-size: 18px;
+    color: var(--tg-text);
+    cursor: pointer;
+    z-index: 251;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.bee-cal-fulldetail-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-right: 44px;
+}
+
+.bee-cal-fulldetail-emoji {
+    font-size: 40px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.bee-cal-fulldetail-title {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    line-height: 1.3;
+    flex: 1;
+    word-break: break-word;
+}
+
+.bee-cal-fulldetail-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.bee-cal-fulldetail-time {
+    font-size: var(--font-size-base);
+    color: var(--tg-hint);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bee-cal-fulldetail-desc {
+    font-size: var(--font-size-base);
+    color: var(--tg-text);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin-bottom: 16px;
+}
+
+.bee-cal-fulldetail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.bee-cal-fulldetail-creator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--tg-section-bg);
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+}
+
+.bee-cal-creator-ava {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.bee-cal-creator-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.bee-cal-creator-type {
+    font-size: var(--font-size-xs);
+    color: var(--tg-hint);
+}
+
+.bee-cal-fulldetail-meta {
+    font-size: var(--font-size-xs);
+    color: var(--tg-hint);
+    line-height: 1.8;
+    margin-bottom: 16px;
+}
+
+.bee-cal-fulldetail-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.bee-cal-fulldetail-actions .bee-btn { flex: 1; }
+
+/* ── Emoji picker ────────────────────────── */
+
+.bee-cal-emoji-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 400;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn 0.15s ease;
+}
+
+.bee-cal-emoji-sheet {
+    background: var(--tg-bg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-width: 520px;
+    max-height: 55vh;
+    overflow-y: auto;
+    padding: 16px;
+    animation: slideUp 0.25s ease;
+}
+
+.bee-cal-emoji-cat {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--tg-hint);
+    margin: 10px 0 4px;
+}
+
+.bee-cal-emoji-cat:first-child { margin-top: 0; }
+
+.bee-cal-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+}
+
+.bee-cal-emoji-item {
+    width: 100%;
+    aspect-ratio: 1;
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.1s;
+}
+
+.bee-cal-emoji-item:active { background: var(--accent-glow); }
+
+.bee-cal-emoji-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    margin-top: 8px;
+    color: var(--tg-hint);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    border: 1px dashed var(--tg-separator);
+    border-radius: var(--radius-sm);
+}
+
+/* ── User profile in header ──────────────── */
+
+.bee-cal-user-mini {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    flex-shrink: 0;
+    background: var(--tg-separator);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bee-cal-user-mini img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bee-cal-user-mini-fallback {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--tg-hint);
+}
+
+/* ── Event card: emoji + creator ─────────── */
+
+.bee-cal-event-emoji {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.bee-cal-event-row-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.bee-cal-event-creator-ava {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    color: #fff;
+}

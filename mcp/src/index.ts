@@ -27,6 +27,7 @@ import * as starsModule from "./tools/stars.js";
 import * as predictionsModule from "./tools/predictions.js";
 import * as balanceModule from "./tools/balance.js";
 import * as webuiModule from "./tools/webui.js";
+import * as calendarModule from "./tools/calendar.js";
 
 const app = express();
 app.use(cors());
@@ -124,6 +125,7 @@ const modules = [
   predictionsModule,
   balanceModule,
   webuiModule,
+  calendarModule,
 ];
 
 for (const mod of modules) {

@@ -1,14 +1,14 @@
 # Telegram-MCP
 
-[![Version](https://img.shields.io/badge/version-2026.02.12-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
+[![Version](https://img.shields.io/badge/version-2026.02.15-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20tools-57-orange.svg)](docs/mcp.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-71-orange.svg)](docs/mcp.md)
 
 Автономный микросервис для стандартизации работы с Telegram Bot API через MCP (Model Context Protocol).
 
-Централизует отправку сообщений, медиа, управление командами, приём вебхуков, **prediction markets**, **web-ui (Telegram Mini App)** и предоставляет **57 MCP-инструментов** для интеграции с LLM (Claude, ChatGPT и др.).
+Централизует отправку сообщений, медиа, управление командами, приём вебхуков, **prediction markets**, **календарь**, **web-ui (Telegram Mini App)** и предоставляет **71 MCP-инструмент** для интеграции с LLM (Claude, ChatGPT и др.).
 
 ## ✨ Возможности
 
@@ -64,7 +64,7 @@
 - **Rate limiting**: token-bucket по chat_id
 - **Retry**: автоматический retry при 429/5xx
 - **Python SDK**: готовый клиент для интеграции
-- **MCP**: 46 инструментов для LLM
+- **MCP**: 71 инструмент для LLM
 
 ### 🚀 Bot API 9.x (2025-2026)
 - **Чек-листы** (Bot API 9.1): интерактивные списки задач с галочками (до 30 элементов)
@@ -81,6 +81,16 @@
 - **Stars Payments**: полная поддержка invoice, refund, transactions
 - **Web-UI**: интерфейс предсказаний в Telegram Mini App (при `WEBUI_ENABLED=true`)
 - **MCP tools**: 7 инструментов для автоматизации через LLM
+
+### 📅 Календарь (Calendar v2)
+- **Месячная сетка** с цветными точками событий + переключение на список
+- **Полноэкранная детализация**: эмодзи, бейджи, время, описание, теги, создатель
+- **Поиск и фильтры**: текст, статус, приоритет, теги, создатель
+- **Эмодзи-пикер**: 64 эмодзи в 8 категориях для событий
+- **Аватарки создателей**: AI-модели (Claude, GPT, Gemini, Llama) + пользователи
+- **Админ-панель**: создание, редактирование, статусы, удаление
+- **XSS-защита**: экранирование пользовательских данных
+- **MCP tools**: 14 инструментов для управления через LLM
 
 ### 🌐 Web-UI (Telegram Mini App)
 - **Страницы**: создание HTML-страниц, открываемых как Mini App в Telegram
@@ -107,7 +117,7 @@
                                │
 ┌─────────────────┐     ┌──────▼───────────┐
 │  Telegram TWA   │────▶│  tgweb            │
-│  (Mini App)     │     │  (FastAPI :8090)  │
+│  (Mini App)     │     │  (FastAPI :8443)  │
 └─────────────────┘     └──────────────────┘
                                │
                         ┌──────▼───────────┐
@@ -120,7 +130,7 @@
 |-----------|-----------|------|------------|
 | **tgapi** | Python / FastAPI | 8081 | HTTP API, вебхуки, шаблоны |
 | **tgmcp** | Node.js / TypeScript | 3335 | MCP-тулзы + HTTP-мост |
-| **tgweb** | Python / FastAPI | 8090 | Web-UI (Telegram Mini App) |
+| **tgweb** | Python / FastAPI | 8443 | Web-UI (Telegram Mini App) + Календарь |
 | **tgdb** | PostgreSQL 16 | 5436 | Сообщения, шаблоны, обновления, команды |
 
 ## Быстрый старт
@@ -136,7 +146,7 @@ docker compose -f compose.yml up -d
 # 3. Проверить
 curl http://127.0.0.1:8081/health
 curl http://127.0.0.1:3335/health
-curl http://127.0.0.1:8090/health
+curl -sk https://127.0.0.1:8443/health
 ```
 
 ## Примеры использования
@@ -240,10 +250,12 @@ Telegram-MCP/
 │   │   │   ├── callbacks.py    # Callback queries
 │   │   │   ├── chats.py        # Чаты и участники
 │   │   │   ├── webhook.py      # Вебхуки
+│   │   │   ├── calendar.py      # Календарь: CRUD, bulk, history
 │   │   │   ├── webui.py        # Proxy → tgweb
 │   │   │   └── health.py       # Healthcheck, метрики
 │   │   └── services/       # Бизнес-логика
 │   │       ├── predictions.py  # Сервис предсказаний
+│   │       ├── calendar.py     # Сервис календаря
 │   │       ├── keyboards.py    # Билдеры inline-клавиатур
 │   │       └── ...
 │   └── Dockerfile
@@ -254,6 +266,7 @@ Telegram-MCP/
 │   │   └── tools/          # Модули по доменам
 │   │       ├── messages.ts, media.ts, chats.ts, ...
 │   │       ├── predictions.ts, balance.ts, stars.ts
+│   │       ├── calendar.ts # Календарь (14 инструментов)
 │   │       └── webui.ts    # Web-UI инструменты
 │   └── Dockerfile
 ├── web-ui/                 # Web-UI (Telegram Mini App)
@@ -264,7 +277,7 @@ Telegram-MCP/
 │   │   ├── auth.py         # Telegram initData HMAC-SHA256
 │   │   ├── routers/        # health, pages, render
 │   │   ├── services/       # pages, links
-│   │   ├── templates/      # base, prediction, survey, page
+│   │   ├── templates/      # base, calendar, prediction, survey, page
 │   │   └── static/         # style.css, twa.js, tonconnect-manifest.json
 │   └── Dockerfile
 ├── sdk/                    # Python SDK
@@ -274,7 +287,8 @@ Telegram-MCP/
 ├── db/init/                # SQL-миграции
 │   ├── 01_schema.sql       # Основная схема
 │   ├── 02_extensions.sql   # Медиа, callbacks, webhook config
-│   └── 10_web_ui.sql       # Web-UI таблицы
+│   ├── 10_web_ui.sql       # Web-UI таблицы
+│   └── 11_calendar.sql     # Календарь
 ├── templates/              # Jinja2-шаблоны (auto-seed)
 ├── scripts/                # Тестовые скрипты
 ├── docs/                   # Документация
@@ -311,7 +325,7 @@ Telegram-MCP/
 | `TEMPLATE_AUTOSEED` | Автозагрузка шаблонов из `templates/` | `true` |
 | `WEBUI_ENABLED` | Включить web-ui (web_app кнопки) | `false` |
 | `WEBUI_PUBLIC_URL` | Публичный URL для Mini App | — |
-| `PORT_WEBUI` | Внешний порт web-ui | `8090` |
+| `PORT_WEBUI` | Внешний порт web-ui | `8443` |
 
 Если `TELEGRAM_API_URL`/`TELEGRAM_API_BASE` не заданы, MCP сначала использует `http://tgapi:8000`.
 Для обратной совместимости на 1 релиз при ошибке сети выполняется retry на legacy `http://telegram-api:8000`.

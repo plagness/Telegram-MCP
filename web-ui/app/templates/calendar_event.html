@@ -1,0 +1,66 @@
+{# Карточка события (include для calendar.html) #}
+<div class="bee-cal-event bee-cal-event--clickable{% if not e.ai_actionable %} bee-cal-ai-off{% endif %}{% if e.status == 'done' %} bee-cal-event--done{% endif %}{% if e.status == 'cancelled' %} bee-cal-event--cancelled{% endif %}"
+     data-entry-id="{{ e.id }}"
+     data-tags="{{ e._tags_lower }}"
+     data-title="{{ e.title }}"
+     data-desc="{{ e.description or '' }}"
+     data-time="{{ e._time }}"
+     data-priority="{{ e.priority }}"
+     data-priority-label="{{ e._priority_label }}"
+     data-priority-color="{{ e._priority_color }}"
+     data-status="{{ e.status }}"
+     data-color="{{ e._color }}"
+     data-all-day="{{ 'true' if e.all_day else 'false' }}"
+     data-ai="{{ 'true' if e.ai_actionable else 'false' }}"
+     data-created-by="{{ e.created_by or '' }}"
+     data-creator-type="{{ e._creator.type }}"
+     data-creator-name="{{ e._creator.name }}"
+     data-creator-emoji="{{ e._creator.emoji }}"
+     data-creator-color="{{ e._creator.color }}"
+     data-emoji="{{ e.emoji or '' }}"
+     data-start="{{ e.start_at or '' }}"
+     data-end="{{ e.end_at or '' }}">
+    <div class="bee-cal-event-priority" style="background:{{ e._color }}"></div>
+    {% if e.emoji %}
+    <div class="bee-cal-event-emoji">{{ e.emoji }}</div>
+    {% endif %}
+    <div class="bee-cal-event-body">
+        <div class="bee-cal-event-meta">
+            {% if e._time %}
+            <span class="bee-cal-event-time">{{ e._time }}</span>
+            {% endif %}
+            {% if e.priority >= 4 %}
+            <span class="bee-badge" style="font-size:10px;padding:1px 6px;background:{{ e._priority_color }};color:#fff">{{ e._priority_label }}</span>
+            {% endif %}
+            {% if e.status == 'done' %}
+            <span class="bee-badge bee-badge--success" style="font-size:10px;padding:1px 6px">&#10003;</span>
+            {% elif e.status == 'cancelled' %}
+            <span class="bee-badge bee-badge--error" style="font-size:10px;padding:1px 6px">&#10005;</span>
+            {% endif %}
+        </div>
+        <div class="bee-cal-event-title{% if e.status == 'done' %} bee-cal-event-title--done{% endif %}">{{ e.title }}</div>
+        {% if e.description %}
+        <div class="bee-cal-event-desc">{{ e.description }}</div>
+        {% endif %}
+        {% if e.tags %}
+        <div class="bee-cal-event-tags">
+            {% for tag in e.tags %}
+            {% set tc = tag_colors.get(tag.lower(), 'var(--tg-hint)') if tag_colors else 'var(--tg-hint)' %}
+            <span class="bee-badge bee-badge--outline bee-cal-event-tag" data-tag="{{ tag | lower }}" style="border-color:{{ tc }};color:{{ tc }}">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if not e.ai_actionable %}
+        <span class="bee-cal-ai-badge">AI OFF</span>
+        {% endif %}
+    </div>
+    <div class="bee-cal-event-creator-ava" style="background:{{ e._creator.color }}" title="{{ e._creator.name or e.created_by or '' }}">{{ e._creator.emoji }}</div>
+    {% if is_admin %}
+    <div class="bee-cal-event-actions">
+        {% if e.status != 'done' %}
+        <button class="bee-cal-event-action" title="Готово" data-action="done" data-entry-id="{{ e.id }}">&#10003;</button>
+        {% endif %}
+        <button class="bee-cal-event-action" title="Удалить" data-action="delete" data-entry-id="{{ e.id }}">&#10005;</button>
+    </div>
+    {% endif %}
+</div>
