@@ -86,6 +86,11 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
           .optional()
           .default(3)
           .describe("Приоритет от 1 (низкий) до 5 (критический)"),
+        emoji: z.string().optional().describe("Эмодзи для визуального обозначения"),
+        icon: z
+          .string()
+          .optional()
+          .describe("Simple Icons slug для SVG-иконки (bitcoin, telegram, claude...). Проверить доступность: icons.resolve"),
         color: z.string().optional().describe("Цвет записи (hex или название)"),
         tags: z.array(z.string()).optional().describe("Теги для фильтрации"),
         attachments: z
@@ -98,7 +103,7 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
           )
           .optional()
           .describe("Вложения"),
-        metadata: z.record(z.any()).optional().describe("Произвольные метаданные"),
+        metadata: z.record(z.any()).optional().describe("Произвольные метаданные (widgets: [{label, value, icon}])"),
         series_id: z.string().optional().describe("ID серии повторяющихся событий"),
         repeat: z
           .enum(["daily", "weekly", "biweekly", "monthly", "yearly", "weekdays"])
@@ -143,6 +148,15 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
         priority: z.number().int().min(1).max(5).optional().describe("Фильтр по приоритету"),
         ai_actionable: z.boolean().optional().describe("Фильтр по ai_actionable"),
         series_id: z.string().optional().describe("Фильтр по серии"),
+        entry_type: z
+          .enum(["event", "task", "trigger", "monitor", "vote", "routine"])
+          .optional()
+          .describe("Фильтр по типу записи"),
+        trigger_status: z
+          .enum(["pending", "scheduled", "fired", "success", "failed", "skipped", "expired"])
+          .optional()
+          .describe("Фильтр по статусу триггера"),
+        source_module: z.string().optional().describe("Фильтр по модулю-источнику"),
         limit: z.number().int().min(1).max(500).optional().default(50),
         offset: z.number().int().min(0).optional().default(0),
       }),
@@ -157,6 +171,9 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
         if (params.ai_actionable !== undefined)
           qs.set("ai_actionable", String(params.ai_actionable));
         if (params.series_id) qs.set("series_id", params.series_id);
+        if (params.entry_type) qs.set("entry_type", params.entry_type);
+        if (params.trigger_status) qs.set("trigger_status", params.trigger_status);
+        if (params.source_module) qs.set("source_module", params.source_module);
         qs.set("limit", String(params.limit));
         qs.set("offset", String(params.offset));
         return apiRequest(`/v1/calendar/entries?${qs.toString()}`);
@@ -208,6 +225,11 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
           .max(5)
           .optional()
           .describe("Новый приоритет (1-5)"),
+        emoji: z.string().optional().describe("Эмодзи"),
+        icon: z
+          .string()
+          .optional()
+          .describe("Simple Icons slug для SVG-иконки (bitcoin, telegram, claude...)"),
         color: z.string().optional().describe("Новый цвет"),
         tags: z.array(z.string()).optional().describe("Новые теги (заменяют старые)"),
         attachments: z
@@ -220,7 +242,7 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
           )
           .optional()
           .describe("Новые вложения"),
-        metadata: z.record(z.any()).optional().describe("Новые метаданные"),
+        metadata: z.record(z.any()).optional().describe("Новые метаданные (widgets: [{label, value, icon}])"),
         series_id: z.string().optional().describe("ID серии"),
         repeat: z
           .enum(["daily", "weekly", "biweekly", "monthly", "yearly", "weekdays"])
@@ -335,6 +357,8 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
               all_day: z.boolean().optional().default(false),
               status: z.enum(["active", "done", "cancelled", "archived"]).optional().default("active"),
               priority: z.number().int().min(1).max(5).optional().default(3),
+              emoji: z.string().optional(),
+              icon: z.string().optional().describe("Simple Icons slug"),
               color: z.string().optional(),
               tags: z.array(z.string()).optional(),
               attachments: z
@@ -411,6 +435,212 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
         return apiRequest(
           `/v1/calendar/calendars/${params.calendar_id}/upcoming?${qs.toString()}`,
         );
+      },
+    },
+
+    /* ── 15. calendar.get_due ──────────────────────────────────── */
+    {
+      name: "calendar.get_due",
+      description:
+        "Получить записи, готовые к исполнению (trigger_at <= сейчас, статус pending). Planner вызывает периодически, чтобы найти триггеры и мониторы для запуска.",
+      parameters: z.object({
+        calendar_id: z.number().int().optional().describe("Фильтр по календарю"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .default(10)
+          .describe("Количество записей"),
+      }),
+      execute: async (params) => {
+        const qs = new URLSearchParams();
+        if (params.calendar_id !== undefined)
+          qs.set("calendar_id", String(params.calendar_id));
+        qs.set("limit", String(params.limit));
+        return apiRequest(`/v1/calendar/entries/due?${qs.toString()}`);
+      },
+    },
+
+    /* ── 16. calendar.fire ─────────────────────────────────────── */
+    {
+      name: "calendar.fire",
+      description:
+        "Записать результат исполнения триггера. Planner вызывает после выполнения действия, чтобы зафиксировать результат.",
+      parameters: z.object({
+        entry_id: z.number().int().describe("ID записи"),
+        result: z.record(z.any()).describe("Результат выполнения: {status, output, error, actual_cost, ...}"),
+        trigger_status: z
+          .enum(["success", "failed"])
+          .optional()
+          .default("success")
+          .describe("Итоговый статус"),
+        performed_by: z.string().optional().describe("Кто выполнил"),
+      }),
+      execute: async (params) => {
+        const { entry_id, ...body } = params;
+        return apiRequest(`/v1/calendar/entries/${entry_id}/fire`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      },
+    },
+
+    /* ── 17. calendar.tick ─────────────────────────────────────── */
+    {
+      name: "calendar.tick",
+      description:
+        "Продвинуть тик монитора — увеличить счётчик, пересчитать next_tick_at. Если max_ticks достигнут, монитор завершается.",
+      parameters: z.object({
+        entry_id: z.number().int().describe("ID монитора"),
+        result: z.record(z.any()).optional().describe("Результат текущего тика"),
+        performed_by: z.string().optional().describe("Кто выполнил"),
+      }),
+      execute: async (params) => {
+        const { entry_id, ...body } = params;
+        return apiRequest(`/v1/calendar/entries/${entry_id}/tick`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      },
+    },
+
+    /* ── 18. calendar.budget ───────────────────────────────────── */
+    {
+      name: "calendar.budget",
+      description:
+        "Сводка бюджета: сумма стоимостей записей за период. Возвращает total_cost, entry_count, by_module, limit, remaining.",
+      parameters: z.object({
+        calendar_id: z.number().int().optional().describe("Фильтр по календарю"),
+        period: z
+          .enum(["day", "week", "month"])
+          .optional()
+          .default("day")
+          .describe("Период: day ($1), week ($7), month ($20)"),
+        date: z.string().optional().describe("Дата (ISO), по умолчанию = сегодня"),
+        source_module: z.string().optional().describe("Фильтр по модулю-источнику"),
+      }),
+      execute: async (params) => {
+        const qs = new URLSearchParams();
+        if (params.calendar_id !== undefined)
+          qs.set("calendar_id", String(params.calendar_id));
+        qs.set("period", params.period);
+        if (params.date) qs.set("date", params.date);
+        if (params.source_module) qs.set("source_module", params.source_module);
+        return apiRequest(`/v1/calendar/budget?${qs.toString()}`);
+      },
+    },
+
+    /* ── 19. calendar.create_trigger ───────────────────────────── */
+    {
+      name: "calendar.create_trigger",
+      description:
+        "Создать одноразовый триггер — событие, которое исполнит действие в заданное время. Шорткат для create_entry с entry_type='trigger'.",
+      parameters: z.object({
+        calendar_id: z.number().int().describe("ID календаря"),
+        title: z.string().max(300).describe("Описание триггера"),
+        trigger_at: z.string().describe("Когда сработать (ISO 8601)"),
+        action: z
+          .record(z.any())
+          .describe(
+            "Определение действия: {type, module, tool, params, flags, on_success, on_failure}",
+          ),
+        description: z.string().optional().describe("Подробное описание"),
+        emoji: z.string().optional().describe("Эмодзи"),
+        icon: z
+          .string()
+          .optional()
+          .describe("Simple Icons slug для SVG-иконки (bitcoin, telegram, claude...)"),
+        priority: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .default(3)
+          .describe("Приоритет (1-5)"),
+        tags: z.array(z.string()).optional().describe("Теги"),
+        cost_estimate: z.number().optional().default(0).describe("Оценка стоимости в USD"),
+        source_module: z.string().optional().describe("Модуль-источник"),
+        expires_at: z.string().optional().describe("Время протухания (ISO 8601)"),
+        created_by: z.string().optional().describe("Автор"),
+        performed_by: z.string().optional().describe("Кто выполнил"),
+        parent_id: z.number().int().optional().describe("Родительская запись"),
+        metadata: z.record(z.any()).optional().describe("Метаданные"),
+      }),
+      execute: async (params) => {
+        const body = {
+          ...params,
+          entry_type: "trigger",
+          start_at: params.trigger_at,
+          trigger_status: "pending",
+        };
+        return apiRequest("/v1/calendar/entries", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      },
+    },
+
+    /* ── 20. calendar.create_monitor ───────────────────────────── */
+    {
+      name: "calendar.create_monitor",
+      description:
+        "Создать монитор — периодическую проверку с заданным интервалом. Planner будет вызывать tick для продвижения.",
+      parameters: z.object({
+        calendar_id: z.number().int().describe("ID календаря"),
+        title: z.string().max(300).describe("Описание монитора"),
+        start_at: z.string().describe("Начало мониторинга (ISO 8601)"),
+        tick_interval: z
+          .string()
+          .regex(/^\d+(m|h|d)$/)
+          .describe("Интервал тиков: 5m, 10m, 30m, 1h, 6h, 1d"),
+        action: z
+          .record(z.any())
+          .describe(
+            "Действие при каждом тике: {type, module, tool, params, ...}",
+          ),
+        description: z.string().optional().describe("Подробное описание"),
+        emoji: z.string().optional().describe("Эмодзи"),
+        icon: z
+          .string()
+          .optional()
+          .describe("Simple Icons slug для SVG-иконки (bitcoin, telegram, claude...)"),
+        priority: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .default(3)
+          .describe("Приоритет (1-5)"),
+        tags: z.array(z.string()).optional().describe("Теги"),
+        cost_estimate: z.number().optional().default(0).describe("Оценка стоимости за тик (USD)"),
+        source_module: z.string().optional().describe("Модуль-источник"),
+        max_ticks: z
+          .number()
+          .int()
+          .optional()
+          .describe("Максимум тиков (null = безлимитно)"),
+        expires_at: z.string().optional().describe("Время протухания (ISO 8601)"),
+        created_by: z.string().optional().describe("Автор"),
+        performed_by: z.string().optional().describe("Кто выполнил"),
+        parent_id: z.number().int().optional().describe("Родительская запись"),
+        metadata: z.record(z.any()).optional().describe("Метаданные"),
+      }),
+      execute: async (params) => {
+        const body = {
+          ...params,
+          entry_type: "monitor",
+          trigger_at: params.start_at,
+          next_tick_at: params.start_at,
+          trigger_status: "pending",
+        };
+        return apiRequest("/v1/calendar/entries", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
       },
     },
   ];

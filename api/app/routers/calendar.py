@@ -14,8 +14,12 @@ from ..models import (
     BulkDeleteEntriesIn,
     CreateCalendarIn,
     CreateEntryIn,
+    CreateMonitorIn,
+    CreateTriggerIn,
+    FireEntryIn,
     MoveEntryIn,
     SetStatusIn,
+    TickEntryIn,
     UpdateCalendarIn,
     UpdateEntryIn,
 )
@@ -109,6 +113,8 @@ async def create_entry(payload: CreateEntryIn):
             parent_id=payload.parent_id,
             title=payload.title,
             description=payload.description,
+            emoji=payload.emoji,
+            icon=payload.icon,
             start_at=payload.start_at,
             end_at=payload.end_at,
             all_day=payload.all_day,
@@ -125,11 +131,56 @@ async def create_entry(payload: CreateEntryIn):
             created_by=payload.created_by,
             ai_actionable=payload.ai_actionable,
             performed_by=payload.performed_by,
+            # v3
+            entry_type=payload.entry_type,
+            trigger_at=payload.trigger_at,
+            trigger_status=payload.trigger_status,
+            action=payload.action,
+            result=payload.result,
+            source_module=payload.source_module,
+            cost_estimate=payload.cost_estimate,
+            tick_interval=payload.tick_interval,
+            next_tick_at=payload.next_tick_at,
+            tick_count=payload.tick_count,
+            max_ticks=payload.max_ticks,
+            expires_at=payload.expires_at,
         )
         return {"ok": True, "entry": entry}
     except Exception as e:
         logger.error("Ошибка создания записи: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/entries/due")
+async def get_due_entries(
+    calendar_id: int | None = Query(None),
+    limit: int = Query(10, ge=1, le=100),
+):
+    """Записи, готовые к исполнению (trigger_at <= NOW, pending)."""
+    entries = await cal_svc.get_due_entries(calendar_id=calendar_id, limit=limit)
+    return {"ok": True, "entries": entries, "count": len(entries)}
+
+
+@router.post("/entries/expire")
+async def expire_entries():
+    """Пометить протухшие записи (expires_at <= NOW)."""
+    count = await cal_svc.expire_entries()
+    return {"ok": True, "expired_count": count}
+
+
+@router.get("/budget")
+async def get_budget(
+    calendar_id: int | None = Query(None),
+    period: str = Query("day", pattern="^(day|week|month)$"),
+    date: str | None = Query(None, description="ISO date, дефолт = сегодня"),
+    source_module: str | None = Query(None),
+):
+    """Сводка бюджета за период."""
+    result = await cal_svc.get_budget(
+        calendar_id=calendar_id, period=period,
+        date=date, source_module=source_module,
+    )
+    return {"ok": True, **result}
 
 
 @router.get("/entries")
@@ -142,6 +193,9 @@ async def list_entries(
     priority: int | None = Query(None, ge=1, le=5),
     ai_actionable: bool | None = Query(None),
     series_id: str | None = Query(None),
+    entry_type: str | None = Query(None, description="Тип записи: event, task, trigger, monitor, vote, routine"),
+    trigger_status: str | None = Query(None, description="Статус триггера"),
+    source_module: str | None = Query(None, description="Модуль-источник"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
@@ -152,6 +206,8 @@ async def list_entries(
         start=start, end=end,
         tags=tag_list, status=status, priority=priority,
         ai_actionable=ai_actionable, series_id=series_id,
+        entry_type=entry_type, trigger_status=trigger_status,
+        source_module=source_module,
         limit=limit, offset=offset,
     )
     return {"ok": True, "entries": entries, "count": len(entries)}
@@ -216,6 +272,39 @@ async def set_entry_status(entry_id: int, payload: SetStatusIn):
         performed_by=payload.performed_by,
     )
     return {"ok": True, "entry": await cal_svc.get_entry(entry_id)}
+
+
+@router.post("/entries/{entry_id}/fire")
+async def fire_entry(entry_id: int, payload: FireEntryIn):
+    """Записать результат исполнения триггера."""
+    entry = await cal_svc.get_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    await cal_svc.fire_entry(
+        entry_id,
+        result=payload.result,
+        trigger_status=payload.trigger_status,
+        performed_by=payload.performed_by,
+    )
+    return {"ok": True, "entry": await cal_svc.get_entry(entry_id)}
+
+
+@router.post("/entries/{entry_id}/tick")
+async def tick_entry(entry_id: int, payload: TickEntryIn):
+    """Продвинуть тик монитора."""
+    entry = await cal_svc.get_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    if entry.get("entry_type") != "monitor":
+        raise HTTPException(status_code=400, detail="Entry is not a monitor")
+
+    updated = await cal_svc.tick_entry(
+        entry_id,
+        result=payload.result,
+        performed_by=payload.performed_by,
+    )
+    return {"ok": True, "entry": updated}
 
 
 @router.delete("/entries/{entry_id}")

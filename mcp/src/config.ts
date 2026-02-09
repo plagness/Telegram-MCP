@@ -12,6 +12,7 @@ export const config = {
   apiBaseExplicit: explicitApiBase.length > 0,
   defaultApiBase,
   legacyApiBase,
+  webBase: process.env.TGWEB_URL || "https://tgweb:8000",
   mcpHttpToken: process.env.MCP_HTTP_TOKEN || "",
   logLevel: process.env.LOG_LEVEL || "info",
 };

@@ -13,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .config import get_settings
 from .db import close_pool, init_pool
-from .routers import health, pages, render
+from .routers import health, icons, pages, render
 
 settings = get_settings()
 
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="telegram-mcp web-ui",
-    version="2026.02.15",
+    version="2026.02.16.v4",
     lifespan=lifespan,
 )
 
@@ -53,6 +53,7 @@ if static_dir.exists():
 
 # Роутеры
 app.include_router(health.router)
+app.include_router(icons.router)
 app.include_router(pages.router)
 app.include_router(render.router)
 

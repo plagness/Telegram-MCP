@@ -258,7 +258,10 @@ curl -X POST http://localhost:8081/v1/web/pages \
 
 - **Месячная сетка** с цветными точками событий + переключение на список
 - **Полноэкранная детализация** события: эмодзи, бейджи (приоритет, статус, AI), время, описание, теги, информация о создателе
-- **Поиск и фильтры**: текстовый поиск, фильтр по статусу / приоритету / тегам / создателю (клиентская фильтрация по `data-*` атрибутам)
+- **Поиск и фильтры**: текстовый поиск, фильтр по статусу / приоритету / тегам / создателю / типу записи (клиентская фильтрация по `data-*` атрибутам)
+- **Типы записей (v3)**: событие, задача, триггер, монитор, голосование, рутина — каждый с иконкой и цветом
+- **Триггеры и мониторы**: отображение trigger_status (pending/success/failed), tick_count, cost_estimate, source_module
+- **Детализация v3**: секции «Тип + триггер», «Действие» (action JSON), «Результат» (result JSON)
 - **Эмодзи**: каждому событию можно назначить эмодзи (64 эмодзи в 8 категориях)
 - **Аватарки создателей**: AI-модели (Claude, GPT, Gemini, Llama) отображаются с цветными иконками, пользователи — с инициалами
 - **Аватарка чата**: загружается через Telegram Bot API `getFile` (кэш 1 час)
@@ -291,7 +294,7 @@ curl -X POST http://localhost:8081/v1/web/pages \
 | Таблица | Назначение |
 |---------|------------|
 | `calendars` | Календари (name, owner, metadata) |
-| `calendar_entries` | События (title, description, emoji, start_at, end_at, priority, status, tags, created_by, ai_actionable) |
+| `calendar_entries` | События (title, description, emoji, start_at, end_at, priority, status, tags, created_by, ai_actionable, entry_type, trigger_at, trigger_status, action, result, source_module, cost_estimate, tick_interval, next_tick_at, tick_count, max_ticks, expires_at) |
 | `calendar_history` | История изменений (action, changes, performed_by) |
 
 ### page -- Обычная страница

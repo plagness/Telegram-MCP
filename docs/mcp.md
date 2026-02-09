@@ -1,6 +1,6 @@
 # MCP-инструменты
 
-MCP-сервер предоставляет 71 инструмент для интеграции с LLM.
+MCP-сервер предоставляет 78 инструментов для интеграции с LLM.
 
 Работает по двум протоколам:
 - **stdio** — стандартный MCP-транспорт для Claude и других LLM
@@ -148,7 +148,7 @@ curl http://127.0.0.1:3335/tools \
 | `calendar.list_entries` | Список записей (с фильтрацией по дате, статусу, тегам) |
 | `calendar.get_entry` | Получить запись по ID |
 | `calendar.get_chain` | Получить цепочку связанных событий (parent/children) |
-| `calendar.update_entry` | Обновить запись (title, emoji, priority, tags, status) |
+| `calendar.update_entry` | Обновить запись (title, emoji, icon, priority, tags, status) |
 | `calendar.move_entry` | Переместить запись (изменить start_at/end_at) |
 | `calendar.set_status` | Установить статус (active, done, cancelled, archived) |
 | `calendar.delete_entry` | Удалить запись |
@@ -156,6 +156,18 @@ curl http://127.0.0.1:3335/tools \
 | `calendar.bulk_create` | Массовое создание записей (до 100) |
 | `calendar.bulk_delete` | Массовое удаление записей (до 100) |
 | `calendar.upcoming` | Предстоящие активные события |
+| `calendar.get_due` | Записи, готовые к исполнению (trigger_at <= сейчас, pending) |
+| `calendar.fire` | Записать результат исполнения триггера |
+| `calendar.tick` | Продвинуть тик монитора |
+| `calendar.budget` | Сводка бюджета за период (день/неделя/месяц) |
+| `calendar.create_trigger` | Создать одноразовый триггер |
+| `calendar.create_monitor` | Создать периодический монитор |
+
+### Иконки
+
+| Инструмент | Описание |
+|------------|----------|
+| `icons.resolve` | Проверить доступность SVG-иконки по имени (3300+ брендов, крипта, AI) |
 
 ### Web-UI
 

@@ -75,7 +75,7 @@
                 {% if cell.events %}
                 <div class="bee-cal-dots">
                     {% for e in cell.events[:4] %}
-                    <div class="bee-cal-dot" style="background:{{ e._color }}"></div>
+                    <div class="bee-cal-dot" style="background:{% if e.entry_type and e.entry_type != 'event' %}{{ e._entry_type_color }}{% else %}{{ e._color }}{% endif %}"></div>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -129,11 +129,18 @@
             <div class="bee-cal-fulldetail-emoji" id="fd-emoji"></div>
             <div class="bee-cal-fulldetail-title" id="fd-title"></div>
         </div>
+        <div id="fd-type-card"></div>
         <div class="bee-cal-fulldetail-badges" id="fd-badges"></div>
         <div class="bee-cal-fulldetail-time" id="fd-time"></div>
+        <div id="fd-trigger-at"></div>
+        <div id="fd-tick-info"></div>
         <div class="bee-cal-fulldetail-desc" id="fd-desc"></div>
         <div class="bee-cal-fulldetail-tags" id="fd-tags"></div>
+        <div id="fd-widgets"></div>
         <div class="bee-cal-fulldetail-creator" id="fd-creator"></div>
+        <div id="fd-cost-source"></div>
+        <div class="bee-cal-fulldetail-action hidden" id="fd-action"></div>
+        <div class="bee-cal-fulldetail-result hidden" id="fd-result"></div>
         <div class="bee-cal-fulldetail-meta" id="fd-meta"></div>
         <div class="bee-cal-fulldetail-actions hidden" id="fd-admin">
             <button class="bee-btn" id="fd-done-btn">&#10003; Выполнено</button>
@@ -147,6 +154,17 @@
     <div class="bee-cal-search-header">
         <input type="text" class="bee-input" id="search-text" placeholder="Поиск по названию или описанию...">
         <button class="bee-cal-search-close" id="search-close">&#10005;</button>
+    </div>
+
+    <div class="bee-cal-search-section">
+        <div class="bee-cal-search-section-title">Тип</div>
+        <div class="bee-cal-search-pills" id="search-entry-type">
+            <button class="bee-cal-search-pill bee-cal-search-pill--active" data-val="all">Все</button>
+            <button class="bee-cal-search-pill" data-val="event">&#128197; События</button>
+            <button class="bee-cal-search-pill" data-val="trigger">&#128276; Триггеры</button>
+            <button class="bee-cal-search-pill" data-val="monitor">&#128225; Мониторы</button>
+            <button class="bee-cal-search-pill" data-val="task">&#128221; Задачи</button>
+        </div>
     </div>
 
     <div class="bee-cal-search-section">
@@ -327,6 +345,16 @@
             </div>
 
             <div class="bee-field">
+                <label class="bee-label">Тип записи</label>
+                <select id="entry-type" class="bee-select">
+                    <option value="event">&#128197; Событие</option>
+                    <option value="task">&#128221; Задача</option>
+                    <option value="trigger">&#128276; Триггер</option>
+                    <option value="monitor">&#128225; Монитор</option>
+                </select>
+            </div>
+
+            <div class="bee-field">
                 <label class="bee-label">Заголовок <span class="required">*</span></label>
                 <input type="text" id="entry-title" class="bee-input" required maxlength="300">
             </div>
@@ -344,6 +372,35 @@
                 <div class="bee-field" style="flex:1">
                     <label class="bee-label">Конец</label>
                     <input type="datetime-local" id="entry-end" class="bee-input">
+                </div>
+            </div>
+
+            {# Условные поля для триггера #}
+            <div class="bee-cal-form-conditional" id="trigger-fields">
+                <div class="bee-field">
+                    <label class="bee-label">Срабатывание <span class="required">*</span></label>
+                    <input type="datetime-local" id="entry-trigger-at" class="bee-input">
+                </div>
+            </div>
+
+            {# Условные поля для монитора #}
+            <div class="bee-cal-form-conditional" id="monitor-fields">
+                <div style="display:flex;gap:8px">
+                    <div class="bee-field" style="flex:1">
+                        <label class="bee-label">Интервал тиков</label>
+                        <select id="entry-tick-interval" class="bee-select">
+                            <option value="5m">5 мин</option>
+                            <option value="10m">10 мин</option>
+                            <option value="30m">30 мин</option>
+                            <option value="1h" selected>1 час</option>
+                            <option value="6h">6 часов</option>
+                            <option value="1d">1 день</option>
+                        </select>
+                    </div>
+                    <div class="bee-field" style="flex:1">
+                        <label class="bee-label">Макс. тиков</label>
+                        <input type="number" id="entry-max-ticks" class="bee-input" min="1" max="1000" placeholder="10">
+                    </div>
                 </div>
             </div>
 
@@ -518,23 +575,63 @@
         if (!card) return;
         if (e.target.closest('[data-action]')) return;
         if (e.target.closest('.bee-cal-event-tag')) return;
+        if (e.target.closest('.bee-cal-event-ava')) return;
+        if (e.target.closest('.bee-cal-event-author-names')) return;
         openFullDetail(card);
         haptic('impact', 'light');
     });
 
+    // Маппинг цветов типов для fulldetail
+    var TYPE_COLORS = {
+        'event': '#FFC107', 'task': '#10B981', 'trigger': '#F59E0B',
+        'monitor': '#3B82F6', 'vote': '#8B5CF6', 'routine': '#6B7280'
+    };
+    var TYPE_BG = {
+        'event': 'rgba(255,193,7,0.08)', 'task': 'rgba(16,185,129,0.08)',
+        'trigger': 'rgba(245,158,11,0.08)', 'monitor': 'rgba(59,130,246,0.08)',
+        'vote': 'rgba(139,92,246,0.08)', 'routine': 'rgba(107,114,128,0.08)'
+    };
+
     function openFullDetail(card) {
         var d = card.dataset;
+        var entryType = d.entryType || 'event';
+        var typeColor = TYPE_COLORS[entryType] || '#FFC107';
+        var typeBg = TYPE_BG[entryType] || 'rgba(255,193,7,0.08)';
 
-        // Цветная полоска
-        document.getElementById('fd-bar').style.background = d.color;
+        // Цветная полоска — по типу
+        document.getElementById('fd-bar').style.background = (entryType !== 'event') ? typeColor : d.color;
 
         // Эмодзи + заголовок
         var emojiEl = document.getElementById('fd-emoji');
-        emojiEl.textContent = d.emoji || '';
-        emojiEl.style.display = d.emoji ? '' : 'none';
+        if (entryType !== 'event' && !d.emoji) {
+            emojiEl.textContent = d.entryTypeIcon || '';
+            emojiEl.style.display = d.entryTypeIcon ? '' : 'none';
+        } else {
+            emojiEl.textContent = d.emoji || '';
+            emojiEl.style.display = d.emoji ? '' : 'none';
+        }
         document.getElementById('fd-title').textContent = d.title;
 
-        // Бейджи (значения из серверных enum-ов — безопасны, но экранируем на всякий случай)
+        // Карточка типа (для не-event)
+        var typeCardEl = document.getElementById('fd-type-card');
+        if (entryType !== 'event') {
+            var statusBadge = '';
+            var ts = d.triggerStatus || 'pending';
+            if (ts) {
+                var statusClass = 'bee-cal-trigger-badge bee-cal-trigger-badge--' + escapeHtml(ts);
+                statusBadge = '<span class="' + statusClass + '">' + escapeHtml(d.triggerStatusIcon) + ' ' + escapeHtml(ts) + '</span>';
+            }
+            typeCardEl.innerHTML = '<div class="bee-cal-fulldetail-type-card" style="border-left-color:' + typeColor + ';background:' + typeBg + '">' +
+                '<div class="bee-cal-fulldetail-type-card-icon">' + escapeHtml(d.entryTypeIcon) + '</div>' +
+                '<div class="bee-cal-fulldetail-type-card-body">' +
+                '<div class="bee-cal-fulldetail-type-card-label">' + escapeHtml(d.entryTypeLabel) + '</div>' +
+                '<div class="bee-cal-fulldetail-type-card-status">' + statusBadge + '</div>' +
+                '</div></div>';
+        } else {
+            typeCardEl.innerHTML = '';
+        }
+
+        // Бейджи
         var badges = '';
         badges += '<span class="bee-badge" style="background:' + escapeHtml(d.priorityColor) + ';color:#fff;font-size:11px">' + escapeHtml(d.priorityLabel) + '</span>';
         if (d.status === 'done') badges += ' <span class="bee-badge bee-badge--success" style="font-size:11px">Выполнено</span>';
@@ -556,12 +653,40 @@
         document.getElementById('fd-time').innerHTML = timeStr;
         document.getElementById('fd-time').style.display = timeStr ? '' : 'none';
 
+        // Trigger-at (срабатывание) + urgency
+        var trigAtEl = document.getElementById('fd-trigger-at');
+        if (d.triggerAtFull) {
+            var urgentHtml = '';
+            if (d.urgent === 'true') {
+                urgentHtml = '<div style="color:#F59E0B;font-size:13px;font-weight:600;margin-bottom:4px">&#9889; Сработает скоро!</div>';
+            }
+            trigAtEl.innerHTML = urgentHtml + '<div class="bee-cal-fulldetail-trigger-at">&#9200; Срабатывание: ' + escapeHtml(d.triggerAtFull) + '</div>';
+        } else {
+            trigAtEl.innerHTML = '';
+        }
+
+        // Tick info (мониторы)
+        var tickInfoEl = document.getElementById('fd-tick-info');
+        if (d.tickInfo) {
+            var tickHtml = '<div class="bee-cal-fulldetail-tick-info">&#128202; ' + escapeHtml(d.tickInfo);
+            var tickCount = parseInt(d.tickCount) || 0;
+            var maxTicks = parseInt(d.maxTicks) || 0;
+            if (maxTicks > 0) {
+                var pct = Math.min(100, Math.round(tickCount / maxTicks * 100));
+                tickHtml += '<div class="bee-cal-fulldetail-tick-progress"><div class="bee-progress"><div class="bee-progress-fill" style="width:' + pct + '%"></div></div></div>';
+            }
+            tickHtml += '</div>';
+            tickInfoEl.innerHTML = tickHtml;
+        } else {
+            tickInfoEl.innerHTML = '';
+        }
+
         // Описание
         var descEl = document.getElementById('fd-desc');
         descEl.textContent = d.desc || '';
         descEl.style.display = d.desc ? '' : 'none';
 
-        // Теги (пользовательские данные — экранируем)
+        // Теги
         var tagsHtml = '';
         var tags = d.tags ? d.tags.split(',') : [];
         for (var i = 0; i < tags.length; i++) {
@@ -570,23 +695,131 @@
         document.getElementById('fd-tags').innerHTML = tagsHtml;
         document.getElementById('fd-tags').style.display = tagsHtml ? '' : 'none';
 
-        // Создатель (имя может содержать пользовательский текст — экранируем)
+        // Виджеты (динамические данные)
+        var widgetsEl = document.getElementById('fd-widgets');
+        var widgetsJson = d.widgetsJson || '';
+        if (widgetsJson) {
+            try {
+                var widgetsList = JSON.parse(widgetsJson);
+                if (widgetsList && widgetsList.length > 0) {
+                    var wHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+                    for (var wi = 0; wi < widgetsList.length; wi++) {
+                        var w = widgetsList[wi];
+                        var wClass = 'bee-cal-widget bee-cal-widget--' + (w.type || 'rate');
+                        if (w.change && w.change > 0) wClass += ' bee-cal-widget--up';
+                        else if (w.change && w.change < 0) wClass += ' bee-cal-widget--down';
+                        wHtml += '<span class="' + wClass + '" style="font-size:13px;padding:4px 10px">';
+                        // Simple Icons или emoji fallback
+                        if (w.has_icon && w.icon_url) {
+                            wHtml += '<img src="' + escapeHtml(w.icon_url) + '" alt="" width="14" height="14" class="bee-cal-widget-icon" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'\'"><span style="display:none">' + escapeHtml(w.icon || '') + '</span> ';
+                        } else {
+                            wHtml += escapeHtml(w.icon || '') + ' ';
+                        }
+                        wHtml += escapeHtml(w.label || '') + ': <b>' + escapeHtml(w.value || '') + '</b>';
+                        if (w.change) {
+                            var sign = w.change > 0 ? '+' : '';
+                            wHtml += ' <span class="bee-cal-widget-change">' + sign + w.change.toFixed(1) + '%</span>';
+                        }
+                        wHtml += '</span>';
+                    }
+                    wHtml += '</div>';
+                    widgetsEl.innerHTML = wHtml;
+                } else {
+                    widgetsEl.innerHTML = '';
+                }
+            } catch (ex) {
+                widgetsEl.innerHTML = '';
+            }
+        } else {
+            widgetsEl.innerHTML = '';
+        }
+
+        // Создатель + participant
         var creatorHtml = '';
         if (d.creatorType && d.creatorType !== 'unknown') {
             var typeLabel = d.creatorType === 'ai' ? 'Нейросеть' : 'Пользователь';
             var cName = escapeHtml(d.creatorName || d.createdBy || 'Неизвестно');
-            creatorHtml = '<div class="bee-cal-creator-ava" style="background:' + escapeHtml(d.creatorColor) + '">' + escapeHtml(d.creatorEmoji) + '</div>' +
-                '<div><div class="bee-cal-creator-name">' + cName + '</div>' +
+            var pName = d.participantName || '';
+            var namesDisplay = cName;
+            if (pName) namesDisplay += ' и ' + escapeHtml(pName);
+            // Аватарки (stacked в fulldetail) с Simple Icons
+            var creatorHasIcon = d.creatorHasIcon === 'true';
+            var creatorIconUrl = d.creatorIconUrl || '';
+            var creatorAvaContent;
+            if (creatorHasIcon && creatorIconUrl) {
+                creatorAvaContent = '<img src="' + escapeHtml(creatorIconUrl) + '" alt="" width="16" height="16" loading="lazy" style="display:block" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'\'"><span style="display:none">' + escapeHtml(d.creatorEmoji) + '</span>';
+            } else {
+                creatorAvaContent = escapeHtml(d.creatorEmoji);
+            }
+            var avasHtml = '<div class="bee-cal-event-avatars" style="margin-right:4px">' +
+                '<div class="bee-cal-event-ava" style="background:' + escapeHtml(d.creatorColor) + ';width:28px;height:28px;font-size:14px">' + creatorAvaContent + '</div>';
+            if (pName) {
+                var pHasIcon = d.participantHasIcon === 'true';
+                var pIconUrl = d.participantIconUrl || '';
+                var pAvaContent;
+                if (pHasIcon && pIconUrl) {
+                    pAvaContent = '<img src="' + escapeHtml(pIconUrl) + '" alt="" width="16" height="16" loading="lazy" style="display:block" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'\'"><span style="display:none">' + escapeHtml(d.participantEmoji) + '</span>';
+                } else {
+                    pAvaContent = escapeHtml(d.participantEmoji);
+                }
+                avasHtml += '<div class="bee-cal-event-ava" style="background:' + escapeHtml(d.participantColor) + ';width:28px;height:28px;font-size:14px">' + pAvaContent + '</div>';
+            }
+            avasHtml += '</div>';
+            creatorHtml = avasHtml +
+                '<div><div class="bee-cal-creator-name">' + namesDisplay + '</div>' +
                 '<div class="bee-cal-creator-type">' + typeLabel + '</div></div>';
         }
         var creatorEl = document.getElementById('fd-creator');
         creatorEl.innerHTML = creatorHtml;
         creatorEl.style.display = creatorHtml ? '' : 'none';
 
-        // Мета (используем textContent — безопасно от XSS)
+        // Cost + Source
+        var costSourceEl = document.getElementById('fd-cost-source');
+        var csHtml = '';
+        if (d.cost || d.sourceLabel) {
+            csHtml = '<div class="bee-cal-fulldetail-cost-row">';
+            if (d.cost) csHtml += '<span class="bee-cal-cost-badge">' + escapeHtml(d.cost) + '</span>';
+            if (d.sourceLabel) csHtml += '<span class="bee-cal-source-badge">' + escapeHtml(d.sourceLabel) + '</span>';
+            csHtml += '</div>';
+        }
+        costSourceEl.innerHTML = csHtml;
+
+        // Action JSON
+        var actionEl = document.getElementById('fd-action');
+        var actionJson = d.actionJson || '';
+        if (actionJson && actionJson !== '{}') {
+            actionEl.innerHTML = '<div class="bee-cal-action-block-title">&#9881;&#65039; Действие</div>' +
+                '<div class="bee-cal-action-block">' + escapeHtml(actionJson) + '</div>';
+            actionEl.classList.remove('hidden');
+        } else {
+            actionEl.classList.add('hidden');
+        }
+
+        // Result JSON
+        var resultEl = document.getElementById('fd-result');
+        var resultJson = d.resultJson || '';
+        if (resultJson && resultJson !== 'null') {
+            var resultStatus = '';
+            try {
+                var rObj = JSON.parse(resultJson);
+                resultStatus = rObj && rObj.status ? rObj.status : '';
+            } catch (ex) {}
+            var rBlockClass = 'bee-cal-result-block';
+            if (resultStatus === 'success') rBlockClass += ' bee-cal-result-block--success';
+            else if (resultStatus === 'failed') rBlockClass += ' bee-cal-result-block--failed';
+            resultEl.innerHTML = '<div class="bee-cal-result-block-title">&#128202; Результат</div>' +
+                '<div class="' + rBlockClass + '">' + escapeHtml(resultJson) + '</div>';
+            resultEl.classList.remove('hidden');
+        } else {
+            resultEl.classList.add('hidden');
+        }
+
+        // Мета
         var meta = [];
         if (d.entryId) meta.push('ID: ' + d.entryId);
         if (d.createdBy) meta.push('created_by: ' + d.createdBy);
+        if (d.sourceModule) meta.push('source: ' + d.sourceModule);
+        if (entryType !== 'event') meta.push('type: ' + entryType);
         document.getElementById('fd-meta').textContent = meta.join(' \u00B7 ');
 
         // Админ-кнопки
@@ -613,7 +846,7 @@
     var searchText = document.getElementById('search-text');
     var searchCount = document.getElementById('search-count');
 
-    var filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all' };
+    var filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all', entryType: 'all', creatorExact: '' };
 
     if (searchOpen) searchOpen.onclick = function () {
         searchOverlay.classList.remove('hidden');
@@ -624,6 +857,8 @@
         searchOverlay.classList.add('hidden');
     };
 
+    // Пилюли типа записи
+    setupPills('search-entry-type', function (val) { filters.entryType = val; });
     // Пилюли статуса
     setupPills('search-status', function (val) { filters.status = val; });
     // Пилюли приоритета
@@ -670,7 +905,7 @@
     // Сбросить
     var resetBtn = document.getElementById('search-reset');
     if (resetBtn) resetBtn.onclick = function () {
-        filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all' };
+        filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all', entryType: 'all', creatorExact: '' };
         if (searchText) searchText.value = '';
         // Сбрасываем пилюли
         var allPills = searchOverlay.querySelectorAll('.bee-cal-search-pill');
@@ -687,11 +922,13 @@
     function applyFilters() {
         var events = document.querySelectorAll('.bee-cal-event[data-entry-id]');
         var activeCount = 0;
+        if (filters.entryType !== 'all') activeCount++;
         if (filters.status !== 'all') activeCount++;
         if (filters.priority !== 'all') activeCount++;
         if (filters.tags.length > 0) activeCount++;
         if (filters.text) activeCount++;
         if (filters.creator !== 'all') activeCount++;
+        if (filters.creatorExact) activeCount++;
 
         // Показываем/скрываем счётчик
         if (searchCount) {
@@ -707,6 +944,10 @@
             var ev = events[i];
             var show = true;
 
+            // Тип записи
+            if (show && filters.entryType !== 'all') {
+                if ((ev.getAttribute('data-entry-type') || 'event') !== filters.entryType) show = false;
+            }
             // Текст
             if (filters.text) {
                 var title = (ev.getAttribute('data-title') || '').toLowerCase();
@@ -730,15 +971,40 @@
                 }
                 if (!tagMatch) show = false;
             }
-            // Создатель
+            // Создатель (тип)
             if (show && filters.creator !== 'all') {
                 var cType = ev.getAttribute('data-creator-type') || '';
                 if (cType !== filters.creator) show = false;
+            }
+            // Конкретный создатель (exact match)
+            if (show && filters.creatorExact) {
+                if ((ev.getAttribute('data-created-by') || '') !== filters.creatorExact) show = false;
             }
 
             ev.style.display = show ? '' : 'none';
         }
     }
+
+    // ── Клик по аватарке → фильтрация по автору ──
+    document.addEventListener('click', function (e) {
+        var ava = e.target.closest('.bee-cal-event-ava, .bee-cal-event-author-names');
+        if (!ava) return;
+        e.stopPropagation();
+        var card = ava.closest('.bee-cal-event');
+        if (!card) return;
+        var createdBy = card.getAttribute('data-created-by');
+        if (!createdBy) return;
+
+        if (fulldetail && !fulldetail.classList.contains('hidden')) {
+            fulldetail.classList.add('hidden');
+        }
+
+        filters = { text: '', status: 'all', priority: 'all', tags: [], creator: 'all', entryType: 'all', creatorExact: createdBy };
+        applyFilters();
+        var name = card.getAttribute('data-creator-name') || createdBy;
+        showToast('Фильтр: ' + name, 'success');
+        haptic('selection');
+    });
 
     // ── Клик по тегу → фильтрация ──────────────
     document.addEventListener('click', function (e) {
@@ -757,6 +1023,8 @@
         filters.status = 'all';
         filters.priority = 'all';
         filters.creator = 'all';
+        filters.entryType = 'all';
+        filters.creatorExact = '';
         applyFilters();
         showToast('Фильтр: ' + tag, 'success');
         haptic('selection');
@@ -811,6 +1079,27 @@
     var fab = document.getElementById('fab-add');
     var overlay = document.getElementById('modal-overlay');
     var form = document.getElementById('entry-form');
+    var entryTypeSelect = document.getElementById('entry-type');
+    var triggerFields = document.getElementById('trigger-fields');
+    var monitorFields = document.getElementById('monitor-fields');
+
+    // Условные поля: показ/скрытие по типу записи
+    function updateConditionalFields() {
+        var et = entryTypeSelect ? entryTypeSelect.value : 'event';
+        if (triggerFields) {
+            triggerFields.classList.toggle('bee-cal-form-conditional--visible', et === 'trigger');
+        }
+        if (monitorFields) {
+            monitorFields.classList.toggle('bee-cal-form-conditional--visible', et === 'monitor');
+        }
+    }
+
+    if (entryTypeSelect) {
+        entryTypeSelect.addEventListener('change', function () {
+            updateConditionalFields();
+            haptic('selection');
+        });
+    }
 
     if (fab) fab.onclick = function () {
         resetForm();
@@ -832,6 +1121,7 @@
         var entryId = document.getElementById('entry-id').value;
         var tagsRaw = document.getElementById('entry-tags').value;
         var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
+        var et = entryTypeSelect ? entryTypeSelect.value : 'event';
 
         var body = {
             title: document.getElementById('entry-title').value,
@@ -844,8 +1134,24 @@
             all_day: document.getElementById('entry-allday').checked,
             ai_actionable: document.getElementById('entry-ai').checked,
             tags: tags,
+            entry_type: et,
             init_data: initData,
         };
+
+        // Условные поля триггера
+        if (et === 'trigger') {
+            var trigAt = document.getElementById('entry-trigger-at').value;
+            if (trigAt) body.trigger_at = new Date(trigAt).toISOString();
+            body.action = { type: 'noop' };
+        }
+
+        // Условные поля монитора
+        if (et === 'monitor') {
+            body.tick_interval = document.getElementById('entry-tick-interval').value;
+            var maxT = document.getElementById('entry-max-ticks').value;
+            if (maxT) body.max_ticks = parseInt(maxT);
+            body.action = { type: 'noop' };
+        }
 
         var method, path;
         if (entryId) {
@@ -884,6 +1190,11 @@
         document.getElementById('entry-status').value = 'active';
         document.getElementById('entry-allday').checked = false;
         document.getElementById('entry-ai').checked = true;
+        if (entryTypeSelect) entryTypeSelect.value = 'event';
+        if (document.getElementById('entry-trigger-at')) document.getElementById('entry-trigger-at').value = '';
+        if (document.getElementById('entry-tick-interval')) document.getElementById('entry-tick-interval').value = '1h';
+        if (document.getElementById('entry-max-ticks')) document.getElementById('entry-max-ticks').value = '';
+        updateConditionalFields();
         var now = new Date();
         document.getElementById('entry-start').value = toLocalISO(now);
         document.getElementById('entry-end').value = '';

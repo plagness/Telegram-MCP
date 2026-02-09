@@ -1,5 +1,5 @@
-{# Карточка события (include для calendar.html) #}
-<div class="bee-cal-event bee-cal-event--clickable{% if not e.ai_actionable %} bee-cal-ai-off{% endif %}{% if e.status == 'done' %} bee-cal-event--done{% endif %}{% if e.status == 'cancelled' %} bee-cal-event--cancelled{% endif %}"
+{# Карточка события v4 — 3-tier layout + Simple Icons (include для calendar.html) #}
+<div class="bee-cal-event bee-cal-event--clickable{% if e.entry_type and e.entry_type != 'event' %} bee-cal-event--{{ e.entry_type }}{% endif %}{% if not e.ai_actionable %} bee-cal-ai-off{% endif %}{% if e.status == 'done' %} bee-cal-event--done{% endif %}{% if e.status == 'cancelled' %} bee-cal-event--cancelled{% endif %}{% if e._urgent %} bee-cal-event--urgent{% endif %}"
      data-entry-id="{{ e.id }}"
      data-tags="{{ e._tags_lower }}"
      data-title="{{ e.title }}"
@@ -17,17 +17,114 @@
      data-creator-name="{{ e._creator.name }}"
      data-creator-emoji="{{ e._creator.emoji }}"
      data-creator-color="{{ e._creator.color }}"
+     data-creator-has-icon="{{ 'true' if e._creator.has_icon else 'false' }}"
+     data-creator-icon-url="{{ e._creator.icon_url }}"
+     data-participant-type="{{ e._participant.type if e._participant else '' }}"
+     data-participant-name="{{ e._participant.name if e._participant else '' }}"
+     data-participant-emoji="{{ e._participant.emoji if e._participant else '' }}"
+     data-participant-color="{{ e._participant.color if e._participant else '' }}"
+     data-participant-has-icon="{{ 'true' if e._participant and e._participant.has_icon else 'false' }}"
+     data-participant-icon-url="{{ e._participant.icon_url if e._participant and e._participant.icon_url else '' }}"
      data-emoji="{{ e.emoji or '' }}"
+     data-icon="{{ e.icon or '' }}"
+     data-icon-has="{{ 'true' if e._icon else 'false' }}"
+     data-icon-url="{{ e._icon.icon_url if e._icon else '' }}"
+     data-icon-color="{{ e._icon.icon_color if e._icon else '' }}"
      data-start="{{ e.start_at or '' }}"
-     data-end="{{ e.end_at or '' }}">
+     data-end="{{ e.end_at or '' }}"
+     data-entry-type="{{ e.entry_type or 'event' }}"
+     data-entry-type-color="{{ e._entry_type_color }}"
+     data-trigger-status="{{ e.trigger_status or 'pending' }}"
+     data-source-module="{{ e.source_module or '' }}"
+     data-cost="{{ e._cost_display }}"
+     data-entry-type-icon="{{ e._entry_type_icon }}"
+     data-entry-type-label="{{ e._entry_type_label }}"
+     data-trigger-status-icon="{{ e._trigger_status_icon }}"
+     data-source-label="{{ e._source_label }}"
+     data-action-json="{{ e._action_json | e }}"
+     data-result-json="{{ e._result_json | e }}"
+     data-trigger-at="{{ e.trigger_at or '' }}"
+     data-trigger-at-full="{{ e._trigger_at_full }}"
+     data-tick-info="{{ e._tick_info }}"
+     data-tick-count="{{ e.tick_count or 0 }}"
+     data-max-ticks="{{ e.max_ticks or '' }}"
+     data-tick-interval="{{ e.tick_interval or '' }}"
+     data-next-tick-at="{{ e.next_tick_at or '' }}"
+     data-widgets-json="{{ e._widgets_json | e }}"
+     data-urgent="{{ 'true' if e._urgent else 'false' }}">
+
+    {# Левая полоска приоритета/типа #}
+    {% if e.entry_type and e.entry_type != 'event' %}
+    <div class="bee-cal-event-priority" style="background:{{ e._entry_type_color }}"></div>
+    {% else %}
     <div class="bee-cal-event-priority" style="background:{{ e._color }}"></div>
-    {% if e.emoji %}
-    <div class="bee-cal-event-emoji">{{ e.emoji }}</div>
     {% endif %}
+
     <div class="bee-cal-event-body">
-        <div class="bee-cal-event-meta">
-            {% if e._time %}
-            <span class="bee-cal-event-time">{{ e._time }}</span>
+        {# ── TIER 1: Human info ── #}
+        <div class="bee-cal-event-tier1">
+            {# Title row: icon/emoji + title + time #}
+            <div class="bee-cal-event-title-row">
+                {% if e._icon %}
+                <span class="bee-cal-event-icon-inline" style="background:{{ e._icon.icon_color }}">
+                    <img src="{{ e._icon.icon_url }}" alt="" width="14" height="14" loading="lazy"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                    <span style="display:none">{{ e.emoji or e._entry_type_icon or '' }}</span>
+                </span>
+                {% elif e.emoji %}
+                <span class="bee-cal-event-emoji-inline">{{ e.emoji }}</span>
+                {% elif e.entry_type and e.entry_type != 'event' %}
+                <span class="bee-cal-event-emoji-inline">{{ e._entry_type_icon }}</span>
+                {% endif %}
+                <span class="bee-cal-event-title{% if e.status == 'done' %} bee-cal-event-title--done{% endif %}">{{ e.title }}</span>
+                {% if e._time %}
+                <span class="bee-cal-event-time">{{ e._time }}</span>
+                {% endif %}
+            </div>
+
+            {# Description #}
+            {% if e.description %}
+            <div class="bee-cal-event-desc">{{ e.description }}</div>
+            {% endif %}
+
+            {# Authors row: stacked avatars + names #}
+            {% if e._creator.type != 'unknown' or e._has_participant %}
+            <div class="bee-cal-event-authors">
+                <div class="bee-cal-event-avatars">
+                    <div class="bee-cal-event-ava" style="background:{{ e._creator.color }}" title="{{ e._creator.name or e.created_by or '' }}">
+                        {% if e._creator.has_icon %}
+                        <img src="{{ e._creator.icon_url }}" alt="" width="14" height="14" loading="lazy"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                        <span style="display:none">{{ e._creator.emoji }}</span>
+                        {% else %}
+                        {{ e._creator.emoji }}
+                        {% endif %}
+                    </div>
+                    {% if e._has_participant %}
+                    <div class="bee-cal-event-ava" style="background:{{ e._participant.color }}" title="{{ e._participant.name }}">
+                        {% if e._participant.has_icon %}
+                        <img src="{{ e._participant.icon_url }}" alt="" width="14" height="14" loading="lazy"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                        <span style="display:none">{{ e._participant.emoji }}</span>
+                        {% else %}
+                        {{ e._participant.emoji }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <span class="bee-cal-event-author-names">{{ e._creator.name or e.created_by or '' }}{% if e._has_participant and e._participant.name %} и {{ e._participant.name }}{% endif %}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── TIER 2: Categories (tags, priority, status) ── #}
+        {% if e.tags or e.priority >= 4 or e.status in ('done', 'cancelled') %}
+        <div class="bee-cal-event-tier2">
+            {% if e.tags %}
+            {% for tag in e.tags %}
+            {% set tc = tag_colors.get(tag.lower(), 'var(--tg-hint)') if tag_colors else 'var(--tg-hint)' %}
+            <span class="bee-badge bee-badge--outline bee-cal-event-tag" data-tag="{{ tag | lower }}" style="border-color:{{ tc }};color:{{ tc }}">{{ tag }}</span>
+            {% endfor %}
             {% endif %}
             {% if e.priority >= 4 %}
             <span class="bee-badge" style="font-size:10px;padding:1px 6px;background:{{ e._priority_color }};color:#fff">{{ e._priority_label }}</span>
@@ -38,23 +135,47 @@
             <span class="bee-badge bee-badge--error" style="font-size:10px;padding:1px 6px">&#10005;</span>
             {% endif %}
         </div>
-        <div class="bee-cal-event-title{% if e.status == 'done' %} bee-cal-event-title--done{% endif %}">{{ e.title }}</div>
-        {% if e.description %}
-        <div class="bee-cal-event-desc">{{ e.description }}</div>
         {% endif %}
-        {% if e.tags %}
-        <div class="bee-cal-event-tags">
-            {% for tag in e.tags %}
-            {% set tc = tag_colors.get(tag.lower(), 'var(--tg-hint)') if tag_colors else 'var(--tg-hint)' %}
-            <span class="bee-badge bee-badge--outline bee-cal-event-tag" data-tag="{{ tag | lower }}" style="border-color:{{ tc }};color:{{ tc }}">{{ tag }}</span>
+
+        {# ── WIDGETS: Dynamic data chips ── #}
+        {% if e._widgets %}
+        <div class="bee-cal-event-widgets">
+            {% for w in e._widgets %}
+            <span class="bee-cal-widget bee-cal-widget--{{ w.type }}{% if w.change and w.change > 0 %} bee-cal-widget--up{% elif w.change and w.change < 0 %} bee-cal-widget--down{% endif %}">
+                {% if w.has_icon %}
+                <img src="{{ w.icon_url }}" alt="" width="12" height="12" class="bee-cal-widget-icon" loading="lazy"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                <span style="display:none">{{ w.icon }}</span>
+                {% else %}{{ w.icon }}{% endif %}
+                {{ w.label }}: <b>{{ w.value }}</b>{% if w.change %} <span class="bee-cal-widget-change">{{ "+" if w.change > 0 else "" }}{{ "%.1f"|format(w.change) }}%</span>{% endif %}
+            </span>
             {% endfor %}
         </div>
         {% endif %}
-        {% if not e.ai_actionable %}
-        <span class="bee-cal-ai-badge">AI OFF</span>
+
+        {# ── TIER 3: Dev metadata ── #}
+        {% if e.entry_type in ('trigger', 'monitor') or e._cost_display or e.source_module or e._tick_info or not e.ai_actionable %}
+        <div class="bee-cal-event-tier3">
+            {% if e.entry_type in ('trigger', 'monitor') %}
+            <span class="bee-cal-trigger-badge bee-cal-trigger-badge--{{ e.trigger_status or 'pending' }}">{{ e._trigger_status_icon }} {{ e._entry_type_label }}</span>
+            {% endif %}
+            {% if e._cost_display %}
+            <span class="bee-cal-cost-badge">{{ e._cost_display }}</span>
+            {% endif %}
+            {% if e.source_module %}
+            <span class="bee-cal-source-badge">{{ e._source_label }}</span>
+            {% endif %}
+            {% if e._tick_info %}
+            <span class="bee-cal-tick-info">{{ e._tick_info }}</span>
+            {% endif %}
+            {% if not e.ai_actionable %}
+            <span class="bee-cal-ai-badge">AI OFF</span>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
-    <div class="bee-cal-event-creator-ava" style="background:{{ e._creator.color }}" title="{{ e._creator.name or e.created_by or '' }}">{{ e._creator.emoji }}</div>
+
+    {# Admin actions #}
     {% if is_admin %}
     <div class="bee-cal-event-actions">
         {% if e.status != 'done' %}

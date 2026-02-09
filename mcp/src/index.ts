@@ -28,6 +28,7 @@ import * as predictionsModule from "./tools/predictions.js";
 import * as balanceModule from "./tools/balance.js";
 import * as webuiModule from "./tools/webui.js";
 import * as calendarModule from "./tools/calendar.js";
+import * as iconsModule from "./tools/icons.js";
 
 const app = express();
 app.use(cors());
@@ -111,6 +112,30 @@ async function apiRequest(path: string, options: RequestInit = {}) {
   }
 }
 
+// --- Запросы к tgweb (icons, render) ---
+async function webApiRequest(path: string, options: RequestInit = {}) {
+  const headers = {
+    "content-type": "application/json",
+    ...(options.headers || {}),
+  };
+  const url = `${config.webBase}${path}`;
+  const resp = await fetch(url, { ...options, headers });
+  const text = await resp.text();
+  let data: any = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+  }
+  if (!resp.ok) {
+    const error = data?.detail || data?.error || `HTTP ${resp.status}`;
+    throw new Error(error);
+  }
+  return data;
+}
+
 // --- Регистрация инструментов из модулей ---
 const modules = [
   messagesModule,
@@ -132,6 +157,11 @@ for (const mod of modules) {
   for (const tool of mod.register(apiRequest)) {
     addTool(tool);
   }
+}
+
+// Модули, работающие с tgweb
+for (const tool of iconsModule.register(webApiRequest)) {
+  addTool(tool);
 }
 
 // --- HTTP-эндпоинты ---

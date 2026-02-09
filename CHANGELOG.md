@@ -6,6 +6,82 @@
 
 ---
 
+## [2026.02.16] - 2026-02-09
+
+### Добавлено
+
+#### 📅 Календарь v3 — Триггеры, Действия, Бюджет
+
+Календарь становится бэкендом расписания для будущего Planner-модуля NeuronSwarm. Записи теперь поддерживают триггеры, мониторы, действия и отслеживание стоимости.
+
+**База данных (`db/init/11_calendar.sql`):**
+- 12 новых колонок: `entry_type`, `trigger_at`, `trigger_status`, `action` (JSONB), `result` (JSONB), `source_module`, `cost_estimate`, `tick_interval`, `next_tick_at`, `tick_count`, `max_ticks`, `expires_at`
+- Колонка `icon TEXT` — Simple Icons slug для SVG-иконки записи
+- 3 CHECK-ограничения: entry_type (event/task/trigger/monitor/vote/routine), trigger_status (7 состояний), tick_interval (формат "Nm/h/d")
+- 5 индексов: due entries, next tick, type, source, expires
+
+**API:**
+- Типы записей: event, task, trigger, monitor, vote, routine
+- Жизненный цикл триггеров: pending → scheduled → fired → success/failed/skipped/expired
+- Action JSONB: mcp_call, webhook, notify, create_entry, vote, noop — с цепочками on_success/on_failure
+- Result JSONB: status, duration_ms, actual_cost, output, error, next_action
+- 5 новых эндпоинтов: `GET /entries/due`, `POST /entries/{id}/fire`, `POST /entries/{id}/tick`, `GET /budget`, `POST /entries/expire`
+- 3 новых фильтра в `GET /entries`: entry_type, trigger_status, source_module
+- Бюджет: SUM cost_estimate с GROUP BY source_module за день/неделю/месяц
+- 4 новые Pydantic-модели: `FireEntryIn`, `TickEntryIn`, `CreateTriggerIn`, `CreateMonitorIn`
+- Поля `emoji` и `icon` во всех entry-моделях
+
+**MCP (+7 инструментов, теперь 78 всего):**
+- `calendar.get_due` — записи, готовые к исполнению
+- `calendar.fire` — записать результат триггера
+- `calendar.tick` — продвинуть тик монитора
+- `calendar.budget` — сводка бюджета за период
+- `calendar.create_trigger` — шорткат создания триггера
+- `calendar.create_monitor` — шорткат создания монитора
+- `icons.resolve` — проверка доступности SVG-иконки по имени (3300+ брендовых иконок)
+- Поля `emoji` и `icon` в calendar.create_entry, update_entry, create_trigger, create_monitor, bulk_create
+
+#### 🎨 Simple Icons — система SVG-иконок
+
+Локальная система иконок на базе [Simple Icons](https://simpleicons.org/) (3393 брендовых SVG-иконки). Доступна через MCP, API, SDK и Web-UI.
+
+**Ядро (`web-ui/app/icons.py`):**
+- Python-резолвер с алиасами (btc→bitcoin, claude→claude) и keyword matching
+- Коррекция тёмных цветов для UI (luminance-based)
+- 3393 локальных SVG-файла (`/static/icons/{slug}.svg`)
+
+**API (`web-ui/app/routers/icons.py`):**
+- `GET /api/icons/resolve?name=claude` — резолв имени в SVG-иконку с hex-цветом
+- `GET /api/icons/redirect?name=btc` — 302 редирект на SVG-файл
+- `GET /api/icons/info` — статистика и список алиасов
+
+**MCP → tgweb (`mcp/src/tools/icons.ts`):**
+- `icons.resolve` — LLM может проверить доступность иконки перед использованием
+- Отдельный `webApiRequest` для обращения к tgweb (HTTPS)
+
+**Web-UI:**
+- Entry-level icon: поле `icon` → SVG в заголовке записи (приоритет над emoji)
+- Кастомные виджеты через `metadata.widgets: [{label, value, icon}]`
+- CSS: `.bee-cal-event-icon-inline` — цветной фон + белая SVG-иконка
+
+**SDK (`sdk/telegram_api_client/client.py`):**
+- Новые методы: `create_calendar_entry()`, `update_calendar_entry()`, `list_calendar_entries()`, `get_calendar_entry()`, `delete_calendar_entry()`
+- Поддержка `icon` и `emoji` через `**kwargs`
+
+### Изменено
+- VERSION: `2026.02.15` → `2026.02.16`
+- MCP tools: 71 → 78
+- compose.yml: `TGWEB_URL` и `NODE_TLS_REJECT_UNAUTHORIZED` для tgmcp
+- MCP config: `webBase` для обращения к tgweb
+
+### Документация
+- `docs/icons.md` — **новый**: архитектура, Python/API/MCP/SDK использование, алиасы, обновление
+- `docs/mcp.md` — 7 новых инструментов, секция «Иконки»
+- `docs/web-ui.md` — типы записей, триггеры, поля calendar_entries
+- `README.md` — Calendar v3 + Simple Icons, бейдж 78 инструментов
+
+---
+
 ## [2026.02.15] - 2026-02-09
 
 ### Добавлено

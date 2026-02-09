@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "description": "Скрипты извлечения данных Simple Icons для web-ui",
+  "scripts": {
+    "extract": "node extract-icons.js"
+  },
+  "dependencies": {
+    "simple-icons": "^16.0.0"
+  }
+}

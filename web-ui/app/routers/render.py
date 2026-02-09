@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar as cal_mod
+import json
 import logging
 import time
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from ..auth import validate_init_data
 from ..config import get_settings
 from ..db import execute_returning, fetch_one, fetch_all
+from ..icons import resolve_icon, adjusted_color, get_display_name, get_fallback_emoji
 from ..services import links as links_svc
 from ..services import pages as pages_svc
 
@@ -296,29 +298,46 @@ def _resolve_creator(created_by: str | None) -> dict[str, Any]:
 
     Формат created_by:
     - "admin:{user_id}" → пользователь
-    - "ai:{model}" → нейросеть
+    - "ai:{model}" → нейросеть (Simple Icons если доступна)
     - None → неизвестно
+
+    Возвращает дополнительные поля если найдена иконка:
+    - has_icon: bool — есть ли SVG-иконка из Simple Icons
+    - icon_url: str — CDN URL белой SVG-иконки
+    - icon_slug: str — slug для data-атрибутов
     """
+    _no_icon = {"has_icon": False, "icon_url": "", "icon_slug": ""}
+
     if not created_by:
-        return {"type": "unknown", "name": "", "emoji": "👤", "color": "#9E9E9E"}
+        return {"type": "unknown", "name": "", "emoji": "👤", "color": "#9E9E9E", **_no_icon}
 
     if created_by.startswith("ai:"):
-        model = created_by[3:].lower()
-        if "claude" in model:
-            return {"type": "ai", "name": "Claude", "emoji": "🤖", "color": "#7C3AED"}
-        if "gpt" in model:
-            return {"type": "ai", "name": "GPT", "emoji": "🧠", "color": "#10A37F"}
-        if "gemini" in model:
-            return {"type": "ai", "name": "Gemini", "emoji": "✨", "color": "#4285F4"}
-        if "ollama" in model or "llama" in model:
-            return {"type": "ai", "name": "Llama", "emoji": "🦙", "color": "#0084FF"}
-        return {"type": "ai", "name": model.split("/")[-1].capitalize(), "emoji": "🤖", "color": "#6B7280"}
+        model = created_by[3:]
+        icon = resolve_icon(model)
+        if icon:
+            return {
+                "type": "ai",
+                "name": get_display_name(model),
+                "emoji": get_fallback_emoji(model),
+                "color": "#" + adjusted_color(icon["hex"]),
+                "has_icon": True,
+                "icon_url": icon["icon_url"],
+                "icon_slug": icon["slug"],
+            }
+        # Нет иконки в Simple Icons — emoji fallback
+        return {
+            "type": "ai",
+            "name": get_display_name(model),
+            "emoji": get_fallback_emoji(model),
+            "color": "#6B7280",
+            **_no_icon,
+        }
 
     if created_by.startswith("admin:"):
         uid = created_by[6:]
-        return {"type": "user", "name": "", "user_id": uid, "emoji": "👤", "color": "#4A90D9"}
+        return {"type": "user", "name": "", "user_id": uid, "emoji": "👤", "color": "#4A90D9", **_no_icon}
 
-    return {"type": "unknown", "name": created_by, "emoji": "👤", "color": "#9E9E9E"}
+    return {"type": "unknown", "name": created_by, "emoji": "👤", "color": "#9E9E9E", **_no_icon}
 
 
 async def _resolve_tg_file_url(file_id: str) -> str:
@@ -350,6 +369,139 @@ async def _resolve_tg_file_url(file_id: str) -> str:
     return ""
 
 
+_ENTRY_TYPE_ICONS: dict[str, str] = {
+    "event": "\U0001f4c5",      # 📅
+    "task": "\U0001f4dd",        # 📝
+    "trigger": "\U0001f514",     # 🔔
+    "monitor": "\U0001f4e1",     # 📡
+    "vote": "\U0001f5f3",        # 🗳
+    "routine": "\U0001f504",     # 🔄
+}
+
+_ENTRY_TYPE_LABELS: dict[str, str] = {
+    "event": "Событие",
+    "task": "Задача",
+    "trigger": "Триггер",
+    "monitor": "Монитор",
+    "vote": "Голосование",
+    "routine": "Рутина",
+}
+
+_TRIGGER_STATUS_ICONS: dict[str, str] = {
+    "pending": "\u23f3",         # ⏳
+    "scheduled": "\U0001f4cb",   # 📋
+    "fired": "\u25b6",           # ▶
+    "success": "\u2705",         # ✅
+    "failed": "\u274c",          # ❌
+    "skipped": "\u23ed",         # ⏭
+    "expired": "\U0001f4a4",     # 💤
+}
+
+_SOURCE_LABELS: dict[str, str] = {
+    "planner": "Планер",
+    "arena": "Арена",
+    "channel": "Каналы",
+    "bcs": "Биржа",
+    "trade": "Трейдинг",
+    "user": "Пользователь",
+    "video": "Видео",
+    "metrics": "Метрики",
+}
+
+_ENTRY_TYPE_COLORS: dict[str, str] = {
+    "event": "#FFC107",
+    "task": "#10B981",
+    "trigger": "#F59E0B",
+    "monitor": "#3B82F6",
+    "vote": "#8B5CF6",
+    "routine": "#6B7280",
+}
+
+
+def _build_widgets(entry: dict) -> list[dict]:
+    """Собирает динамические виджеты из metadata/result/tags для карточки.
+
+    Виджеты с брендовыми иконками (BTC, ETH) используют Simple Icons CDN.
+    Остальные (ставка ЦБ, USD/RUB, результат) — emoji.
+    """
+    widgets: list[dict] = []
+    meta = entry.get("metadata") or {}
+    result = entry.get("result") or {}
+    tags_lower = [t.lower() for t in (entry.get("tags") or [])]
+    _no_icon = {"has_icon": False, "icon_url": ""}
+
+    # Цена BTC (с Simple Icons)
+    btc = meta.get("btc_price")
+    if btc and any(t in tags_lower for t in ("крипта", "btc", "crypto", "биткоин", "bitcoin")):
+        change = meta.get("btc_change_24h")
+        btc_icon = resolve_icon("bitcoin")
+        widgets.append({
+            "type": "price", "label": "BTC",
+            "value": f"${btc:,.0f}", "change": change, "icon": "\u20bf",
+            "has_icon": bool(btc_icon),
+            "icon_url": btc_icon["icon_url"] if btc_icon else "",
+        })
+
+    # Ключевая ставка ЦБ (нет бренда — emoji)
+    kr = meta.get("key_rate_pct")
+    if kr and any(t in tags_lower for t in ("цб", "цб рф", "ставка", "ключевая ставка", "cbr")):
+        widgets.append({
+            "type": "rate", "label": "Ставка ЦБ",
+            "value": f"{kr}%", "change": None, "icon": "\U0001f3e6", **_no_icon,
+        })
+
+    # Курс USD/RUB (нет бренда — emoji)
+    rub = meta.get("rub_usd")
+    if rub and any(t in tags_lower for t in ("доллар", "usd", "валюта", "рубль", "forex")):
+        widgets.append({
+            "type": "rate", "label": "USD/RUB",
+            "value": f"\u20bd{rub:.2f}", "change": meta.get("rub_usd_change"),
+            "icon": "\U0001f4b1", **_no_icon,
+        })
+
+    # Тикер из BCS (пробуем Simple Icons по тикеру)
+    ticker = meta.get("ticker")
+    price = meta.get("price")
+    if ticker and price and entry.get("source_module") == "bcs":
+        ticker_icon = resolve_icon(ticker)
+        widgets.append({
+            "type": "price", "label": ticker,
+            "value": f"{price:,.2f}", "change": meta.get("price_change_pct"),
+            "icon": "\U0001f4c8",
+            "has_icon": bool(ticker_icon),
+            "icon_url": ticker_icon["icon_url"] if ticker_icon else "",
+        })
+
+    # Результат триггера (emoji)
+    if result and result.get("status"):
+        rs = result["status"]
+        icon = "\u2705" if rs == "success" else "\u274c" if rs == "failed" else "\u23f3"
+        widgets.append({
+            "type": "result", "label": "Результат",
+            "value": rs, "change": None, "icon": icon, **_no_icon,
+        })
+
+    # Кастомные виджеты из metadata.widgets
+    custom_widgets = meta.get("widgets")
+    if isinstance(custom_widgets, list):
+        for cw in custom_widgets[:10]:
+            if not isinstance(cw, dict) or not cw.get("label") or not cw.get("value"):
+                continue
+            cw_icon_name = cw.get("icon")
+            cw_icon = resolve_icon(cw_icon_name) if cw_icon_name else None
+            widgets.append({
+                "type": cw.get("type", "custom"),
+                "label": str(cw["label"]),
+                "value": str(cw["value"]),
+                "change": cw.get("change"),
+                "icon": cw.get("emoji", ""),
+                "has_icon": bool(cw_icon),
+                "icon_url": cw_icon["icon_url"] if cw_icon else "",
+            })
+
+    return widgets
+
+
 def _enrich_entry(entry: dict) -> dict:
     """Добавляет вычисленные поля для шаблона."""
     entry["_color"] = _auto_color(entry)
@@ -370,6 +522,86 @@ def _enrich_entry(entry: dict) -> dict:
     entry["_tags_lower"] = ",".join(t.lower() for t in (entry.get("tags") or []))
     # Резолв создателя
     entry["_creator"] = _resolve_creator(entry.get("created_by"))
+    # v3: тип записи, статус триггера, источник, стоимость
+    et = entry.get("entry_type", "event")
+    entry["_entry_type_icon"] = _ENTRY_TYPE_ICONS.get(et, "")
+    entry["_entry_type_label"] = _ENTRY_TYPE_LABELS.get(et, et)
+    ts = entry.get("trigger_status", "pending")
+    entry["_trigger_status_icon"] = _TRIGGER_STATUS_ICONS.get(ts, "")
+    sm = entry.get("source_module") or ""
+    entry["_source_label"] = _SOURCE_LABELS.get(sm, sm)
+    ce = float(entry.get("cost_estimate") or 0)
+    entry["_cost_display"] = f"${ce:.2f}" if ce > 0 else ""
+    # v3: цвет типа
+    entry["_entry_type_color"] = _ENTRY_TYPE_COLORS.get(et, "#FFC107")
+    # v3: action/result JSON для fulldetail
+    action = entry.get("action") or {}
+    entry["_action_json"] = json.dumps(action, ensure_ascii=False, indent=2) if action else ""
+    result = entry.get("result")
+    entry["_result_json"] = json.dumps(result, ensure_ascii=False, indent=2) if result else ""
+    # v3: trigger_at форматированная
+    trigger_at = entry.get("trigger_at") or ""
+    if trigger_at:
+        entry["_trigger_at_display"] = _format_time(trigger_at)
+        try:
+            dt = datetime.fromisoformat(trigger_at.replace("Z", "+00:00"))
+            entry["_trigger_at_full"] = dt.strftime("%d.%m.%Y %H:%M")
+        except Exception:
+            entry["_trigger_at_full"] = trigger_at[:16].replace("T", " ")
+    else:
+        entry["_trigger_at_display"] = ""
+        entry["_trigger_at_full"] = ""
+    # v3: tick info для мониторов
+    tick_count = entry.get("tick_count", 0)
+    max_ticks = entry.get("max_ticks")
+    tick_interval = entry.get("tick_interval") or ""
+    next_tick = entry.get("next_tick_at") or ""
+    if et == "monitor" and tick_interval:
+        parts = [f"тик {tick_count}"]
+        if max_ticks:
+            parts[0] += f"/{max_ticks}"
+        parts.append(f"инт. {tick_interval}")
+        if next_tick:
+            parts.append(f"след. {_format_time(next_tick)}")
+        entry["_tick_info"] = " · ".join(parts)
+    else:
+        entry["_tick_info"] = ""
+    # v4: entry-level icon (Simple Icons)
+    icon_name = entry.get("icon")
+    if icon_name:
+        icon_data = resolve_icon(icon_name)
+        if icon_data:
+            entry["_icon"] = {
+                "has_icon": True,
+                "icon_url": icon_data["icon_url"],
+                "icon_slug": icon_data["slug"],
+                "icon_color": "#" + adjusted_color(icon_data["hex"]),
+            }
+        else:
+            entry["_icon"] = None
+    else:
+        entry["_icon"] = None
+    # v3.1: participant из metadata
+    meta = entry.get("metadata") or {}
+    participant_raw = meta.get("participant")
+    if participant_raw:
+        entry["_participant"] = _resolve_creator(participant_raw)
+        entry["_has_participant"] = True
+    else:
+        entry["_participant"] = None
+        entry["_has_participant"] = False
+    # v3.1: динамические виджеты
+    entry["_widgets"] = _build_widgets(entry)
+    entry["_widgets_json"] = json.dumps(entry["_widgets"], ensure_ascii=False) if entry["_widgets"] else ""
+    # v3.1: urgency (триггер сработает в ближайший час)
+    entry["_urgent"] = False
+    if trigger_at and entry.get("trigger_status") == "pending":
+        try:
+            ta = datetime.fromisoformat(trigger_at.replace("Z", "+00:00"))
+            delta = (ta - datetime.now(timezone.utc)).total_seconds()
+            entry["_urgent"] = 0 < delta < 3600
+        except Exception:
+            pass
     return entry
 
 

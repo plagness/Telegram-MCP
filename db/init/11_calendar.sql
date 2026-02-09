@@ -97,3 +97,92 @@ END $$;
 
 -- Эмодзи для визуального обозначения события
 ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS emoji TEXT;
+
+-- Simple Icons slug для SVG-иконки записи (резолвится в web-ui)
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS icon TEXT;
+
+-- ─── Calendar v3: триггеры, действия, бюджет ───────────────────────────
+
+-- Тип записи: event, task, trigger, monitor, vote, routine
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_type TEXT NOT NULL DEFAULT 'event';
+
+-- Когда сработать (NULL = обычное событие без триггера)
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS trigger_at TIMESTAMPTZ;
+
+-- Жизненный цикл триггера
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS trigger_status TEXT NOT NULL DEFAULT 'pending';
+
+-- Определение действия (что исполнить при срабатывании)
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS action JSONB NOT NULL DEFAULT '{}';
+
+-- Результат после исполнения
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS result JSONB;
+
+-- Модуль-источник: planner, arena, channel, bcs, trade, user
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS source_module TEXT;
+
+-- Оценка стоимости в USD
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS cost_estimate NUMERIC(10,6) NOT NULL DEFAULT 0;
+
+-- Интервал тиков для мониторов: "5m", "1h", "6h", "1d"
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS tick_interval TEXT;
+
+-- Время следующего тика
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS next_tick_at TIMESTAMPTZ;
+
+-- Счётчик тиков
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS tick_count INTEGER NOT NULL DEFAULT 0;
+
+-- Максимум тиков (NULL = безлимитно)
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS max_ticks INTEGER;
+
+-- Время истечения (auto → expired)
+ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+
+-- CHECK-ограничения (v3)
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_cal_entry_type'
+    ) THEN
+        ALTER TABLE calendar_entries ADD CONSTRAINT chk_cal_entry_type
+            CHECK (entry_type IN ('event', 'task', 'trigger', 'monitor', 'vote', 'routine'));
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_cal_trigger_status'
+    ) THEN
+        ALTER TABLE calendar_entries ADD CONSTRAINT chk_cal_trigger_status
+            CHECK (trigger_status IN ('pending', 'scheduled', 'fired', 'success', 'failed', 'skipped', 'expired'));
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_cal_tick_interval'
+    ) THEN
+        ALTER TABLE calendar_entries ADD CONSTRAINT chk_cal_tick_interval
+            CHECK (tick_interval IS NULL OR tick_interval ~ '^[0-9]+(m|h|d)$');
+    END IF;
+END $$;
+
+-- Индексы для Planner: быстрый поиск готовых к исполнению
+CREATE INDEX IF NOT EXISTS idx_cal_entries_due
+    ON calendar_entries (trigger_at, trigger_status)
+    WHERE trigger_at IS NOT NULL AND trigger_status = 'pending';
+
+CREATE INDEX IF NOT EXISTS idx_cal_entries_next_tick
+    ON calendar_entries (next_tick_at)
+    WHERE next_tick_at IS NOT NULL AND trigger_status IN ('pending', 'scheduled');
+
+CREATE INDEX IF NOT EXISTS idx_cal_entries_type
+    ON calendar_entries (calendar_id, entry_type);
+
+CREATE INDEX IF NOT EXISTS idx_cal_entries_source
+    ON calendar_entries (source_module)
+    WHERE source_module IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_cal_entries_expires
+    ON calendar_entries (expires_at)
+    WHERE expires_at IS NOT NULL AND status = 'active';

@@ -72,6 +72,9 @@ class TelegramAPI:
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return await self._request("GET", path, params=params)
 
+    async def _put(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self._request("PUT", path, json=payload or {})
+
     async def _delete(self, path: str) -> dict[str, Any]:
         return await self._request("DELETE", path)
 
@@ -1334,6 +1337,100 @@ class TelegramAPI:
             creator_id=creator_id,
             expires_at=expires_at,
         )
+
+    # === Календарь ===
+
+    async def create_calendar_entry(
+        self,
+        calendar_id: int,
+        title: str,
+        start_at: str,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Создать запись в календаре.
+
+        Args:
+            calendar_id: ID календаря
+            title: Заголовок
+            start_at: Дата/время начала (ISO 8601)
+            **kwargs: Доп. поля: description, end_at, emoji, icon, tags,
+                      entry_type, trigger_at, action, metadata и др.
+
+        Returns:
+            Данные созданной записи
+        """
+        payload: dict[str, Any] = {
+            "calendar_id": calendar_id,
+            "title": title,
+            "start_at": start_at,
+            **kwargs,
+        }
+        data = await self._post("/v1/calendar/entries", payload)
+        return data.get("entry", data)
+
+    async def update_calendar_entry(
+        self,
+        entry_id: int,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Обновить запись календаря.
+
+        Args:
+            entry_id: ID записи
+            **kwargs: Обновляемые поля (title, description, icon, status и др.)
+
+        Returns:
+            Обновлённая запись
+        """
+        data = await self._put(f"/v1/calendar/entries/{entry_id}", kwargs)
+        return data.get("entry", data)
+
+    async def list_calendar_entries(
+        self,
+        calendar_id: int,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        """Список записей календаря.
+
+        Args:
+            calendar_id: ID календаря
+            start: Начало диапазона (ISO date)
+            end: Конец диапазона (ISO date)
+            **kwargs: Доп. фильтры: tags, status, entry_type и др.
+
+        Returns:
+            Список записей
+        """
+        params: dict[str, Any] = {
+            "calendar_id": calendar_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        if start:
+            params["start"] = start
+        if end:
+            params["end"] = end
+        params.update(kwargs)
+        data = await self._get("/v1/calendar/entries", params)
+        return data.get("entries", [])
+
+    async def get_calendar_entry(self, entry_id: int) -> dict[str, Any]:
+        """Получить запись по ID."""
+        data = await self._get(f"/v1/calendar/entries/{entry_id}")
+        return data.get("entry", data)
+
+    async def delete_calendar_entry(
+        self,
+        entry_id: int,
+        performed_by: str | None = None,
+    ) -> dict[str, Any]:
+        """Удалить запись календаря."""
+        params = {"performed_by": performed_by} if performed_by else None
+        return await self._request("DELETE", f"/v1/calendar/entries/{entry_id}", params=params)
 
     # === CommandHandler Pattern ===
 

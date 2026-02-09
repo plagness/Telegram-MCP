@@ -1,11 +1,13 @@
 """Сервисный слой для модуля «Календарь».
 
 Содержит CRUD для календарей и записей, историю изменений,
-цепочки связанных записей и вспомогательные функции.
+цепочки связанных записей, триггеры/мониторы и бюджет.
 """
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from psycopg.types.json import Json
@@ -191,6 +193,7 @@ async def create_entry(
     title: str,
     description: str | None = None,
     emoji: str | None = None,
+    icon: str | None = None,
     start_at: str,
     end_at: str | None = None,
     all_day: bool = False,
@@ -208,6 +211,19 @@ async def create_entry(
     created_by: str | None = None,
     ai_actionable: bool = True,
     performed_by: str | None = None,
+    # v3: триггеры, действия, бюджет
+    entry_type: str = "event",
+    trigger_at: str | None = None,
+    trigger_status: str = "pending",
+    action: dict[str, Any] | None = None,
+    result: dict[str, Any] | None = None,
+    source_module: str | None = None,
+    cost_estimate: float = 0.0,
+    tick_interval: str | None = None,
+    next_tick_at: str | None = None,
+    tick_count: int = 0,
+    max_ticks: int | None = None,
+    expires_at: str | None = None,
 ) -> dict:
     """Создание записи в календаре + запись в историю."""
     resolved_color = color or _auto_color(tags, priority)
@@ -215,13 +231,17 @@ async def create_entry(
     row = await execute_returning(
         """
         INSERT INTO calendar_entries
-            (calendar_id, parent_id, title, description, emoji,
+            (calendar_id, parent_id, title, description, emoji, icon,
              start_at, end_at, all_day, status, priority, color,
              tags, attachments, metadata,
              series_id, repeat, repeat_until, position,
-             created_by, ai_actionable)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             created_by, ai_actionable,
+             entry_type, trigger_at, trigger_status, action, result,
+             source_module, cost_estimate,
+             tick_interval, next_tick_at, tick_count, max_ticks, expires_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING *
         """,
         [
@@ -230,6 +250,7 @@ async def create_entry(
             title,
             description,
             emoji,
+            icon,
             start_at,
             end_at,
             all_day,
@@ -245,6 +266,18 @@ async def create_entry(
             position,
             created_by,
             ai_actionable,
+            entry_type,
+            trigger_at,
+            trigger_status,
+            Json(action or {}),
+            Json(result) if result else None,
+            source_module,
+            cost_estimate,
+            tick_interval,
+            next_tick_at,
+            tick_count,
+            max_ticks,
+            expires_at,
         ],
     )
 
@@ -271,6 +304,9 @@ async def list_entries(
     parent_id: int | _SENTINEL.__class__ = _SENTINEL,
     ai_actionable: bool | None = None,
     series_id: str | None = None,
+    entry_type: str | None = None,
+    trigger_status: str | None = None,
+    source_module: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[dict]:
@@ -309,6 +345,15 @@ async def list_entries(
     if series_id is not None:
         where.append("series_id = %s")
         values.append(series_id)
+    if entry_type is not None:
+        where.append("entry_type = %s")
+        values.append(entry_type)
+    if trigger_status is not None:
+        where.append("trigger_status = %s")
+        values.append(trigger_status)
+    if source_module is not None:
+        where.append("source_module = %s")
+        values.append(source_module)
 
     where_sql = " AND ".join(where)
     sql = (
@@ -372,6 +417,7 @@ async def update_entry(
         "title": "title",
         "description": "description",
         "emoji": "emoji",
+        "icon": "icon",
         "start_at": "start_at",
         "end_at": "end_at",
         "all_day": "all_day",
@@ -388,6 +434,19 @@ async def update_entry(
         "parent_id": "parent_id",
         "created_by": "created_by",
         "ai_actionable": "ai_actionable",
+        # v3
+        "entry_type": "entry_type",
+        "trigger_at": "trigger_at",
+        "trigger_status": "trigger_status",
+        "action": "action",
+        "result": "result",
+        "source_module": "source_module",
+        "cost_estimate": "cost_estimate",
+        "tick_interval": "tick_interval",
+        "next_tick_at": "next_tick_at",
+        "tick_count": "tick_count",
+        "max_ticks": "max_ticks",
+        "expires_at": "expires_at",
     }
 
     for key, column in field_map.items():
@@ -406,9 +465,12 @@ async def update_entry(
         if key == "attachments":
             updates.append(f"{column} = %s")
             values.append(Json(new_val or []))
-        elif key == "metadata":
+        elif key in ("metadata", "action"):
             updates.append(f"{column} = %s")
             values.append(Json(new_val or {}))
+        elif key == "result":
+            updates.append(f"{column} = %s")
+            values.append(Json(new_val) if new_val else None)
         elif key == "tags":
             updates.append(f"{column} = %s")
             values.append(new_val or [])
@@ -563,3 +625,235 @@ async def get_upcoming(
         """,
         [calendar_id, limit],
     )
+
+
+# ---------------------------------------------------------------------------
+# v3: Триггеры, тики, бюджет
+# ---------------------------------------------------------------------------
+
+_TICK_UNITS: dict[str, str] = {"m": "minutes", "h": "hours", "d": "days"}
+
+
+def _compute_next_tick(interval: str, from_time: datetime | None = None) -> datetime:
+    """Вычислить время следующего тика на основе интервала (5m, 1h, 6h, 1d)."""
+    match = re.match(r"^(\d+)(m|h|d)$", interval)
+    if not match:
+        raise ValueError(f"Invalid tick_interval: {interval}")
+    n, unit = int(match.group(1)), match.group(2)
+    base = from_time or datetime.now(timezone.utc)
+    return base + timedelta(**{_TICK_UNITS[unit]: n})
+
+
+async def get_due_entries(
+    *,
+    calendar_id: int | None = None,
+    limit: int = 10,
+) -> list[dict]:
+    """Записи, готовые к исполнению (trigger_at <= NOW, pending, active).
+
+    Для мониторов также проверяем next_tick_at.
+    Сортировка: приоритет DESC, trigger_at ASC.
+    """
+    where: list[str] = [
+        "status = 'active'",
+        "trigger_status = 'pending'",
+        """(
+            (entry_type != 'monitor' AND trigger_at IS NOT NULL AND trigger_at <= NOW())
+            OR
+            (entry_type = 'monitor' AND next_tick_at IS NOT NULL AND next_tick_at <= NOW())
+        )""",
+    ]
+    values: list[Any] = []
+
+    if calendar_id is not None:
+        where.append("calendar_id = %s")
+        values.append(calendar_id)
+
+    where_sql = " AND ".join(where)
+    sql = (
+        f"SELECT * FROM calendar_entries WHERE {where_sql} "
+        f"ORDER BY priority DESC, trigger_at ASC NULLS LAST "
+        f"LIMIT %s"
+    )
+    values.append(limit)
+
+    return await fetch_all(sql, values)
+
+
+async def fire_entry(
+    entry_id: int,
+    *,
+    result: dict[str, Any],
+    trigger_status: str = "success",
+    performed_by: str | None = None,
+) -> None:
+    """Записать результат исполнения триггера."""
+    old = await get_entry(entry_id)
+    if not old:
+        return
+
+    changes = {
+        "trigger_status": {"old": old.get("trigger_status"), "new": trigger_status},
+        "result": {"old": None, "new": "(result recorded)"},
+    }
+
+    await execute(
+        """
+        UPDATE calendar_entries
+        SET trigger_status = %s, result = %s
+        WHERE id = %s
+        """,
+        [trigger_status, Json(result), entry_id],
+    )
+
+    await _record_history(entry_id, "fired", changes=changes, performed_by=performed_by)
+
+
+async def tick_entry(
+    entry_id: int,
+    *,
+    result: dict[str, Any] | None = None,
+    performed_by: str | None = None,
+) -> dict | None:
+    """Продвинуть тик монитора: tick_count += 1, пересчитать next_tick_at.
+
+    Если max_ticks достигнут → trigger_status = 'success'.
+    Возвращает обновлённую запись.
+    """
+    old = await get_entry(entry_id)
+    if not old:
+        return None
+
+    new_count = (old.get("tick_count") or 0) + 1
+    max_ticks = old.get("max_ticks")
+    interval = old.get("tick_interval")
+
+    # Проверяем лимит тиков
+    if max_ticks and new_count >= max_ticks:
+        new_status = "success"
+        new_next = None
+    elif interval:
+        new_status = old.get("trigger_status", "pending")
+        new_next = _compute_next_tick(interval)
+    else:
+        new_status = old.get("trigger_status", "pending")
+        new_next = None
+
+    changes = {
+        "tick_count": {"old": old.get("tick_count", 0), "new": new_count},
+        "next_tick_at": {"old": str(old.get("next_tick_at")), "new": str(new_next)},
+        "trigger_status": {"old": old.get("trigger_status"), "new": new_status},
+    }
+
+    await execute(
+        """
+        UPDATE calendar_entries
+        SET tick_count = %s, next_tick_at = %s, trigger_status = %s, result = %s
+        WHERE id = %s
+        """,
+        [new_count, new_next, new_status, Json(result) if result else None, entry_id],
+    )
+
+    await _record_history(entry_id, "ticked", changes=changes, performed_by=performed_by)
+    return await get_entry(entry_id)
+
+
+async def get_budget(
+    *,
+    calendar_id: int | None = None,
+    period: str = "day",
+    date: str | None = None,
+    source_module: str | None = None,
+) -> dict[str, Any]:
+    """Сводка бюджета: сумма стоимостей записей за период.
+
+    period: day, week, month.
+    Возвращает: total_cost, entry_count, by_module, limit, remaining.
+    """
+    # Лимиты бюджета
+    limits = {"day": 1.0, "week": 7.0, "month": 20.0}
+    budget_limit = limits.get(period, 1.0)
+
+    # Вычисляем границы периода
+    if date:
+        base = datetime.fromisoformat(date)
+    else:
+        base = datetime.now(timezone.utc)
+
+    if period == "day":
+        start = base.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+    elif period == "week":
+        start = base - timedelta(days=base.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=7)
+    else:  # month
+        start = base.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if base.month == 12:
+            end = start.replace(year=base.year + 1, month=1)
+        else:
+            end = start.replace(month=base.month + 1)
+
+    where: list[str] = ["created_at >= %s", "created_at < %s"]
+    values: list[Any] = [start.isoformat(), end.isoformat()]
+
+    if calendar_id is not None:
+        where.append("calendar_id = %s")
+        values.append(calendar_id)
+    if source_module is not None:
+        where.append("source_module = %s")
+        values.append(source_module)
+
+    where_sql = " AND ".join(where)
+
+    # Общая сумма
+    row = await fetch_one(
+        f"SELECT COALESCE(SUM(cost_estimate), 0) AS total, COUNT(*) AS cnt "
+        f"FROM calendar_entries WHERE {where_sql}",
+        values,
+    )
+
+    total_cost = float(row["total"]) if row else 0.0
+    entry_count = int(row["cnt"]) if row else 0
+
+    # По модулям
+    by_module_rows = await fetch_all(
+        f"SELECT source_module, COALESCE(SUM(cost_estimate), 0) AS total "
+        f"FROM calendar_entries WHERE {where_sql} "
+        f"GROUP BY source_module",
+        values,
+    )
+
+    by_module = {
+        (r["source_module"] or "unknown"): float(r["total"])
+        for r in by_module_rows
+    }
+
+    return {
+        "total_cost": round(total_cost, 6),
+        "entry_count": entry_count,
+        "by_module": by_module,
+        "period": period,
+        "limit": budget_limit,
+        "remaining": round(budget_limit - total_cost, 6),
+    }
+
+
+async def expire_entries() -> int:
+    """Пометить протухшие записи: expires_at <= NOW() и status=active.
+
+    Возвращает количество обновлённых записей.
+    """
+    rows = await fetch_all(
+        """
+        UPDATE calendar_entries
+        SET trigger_status = 'expired', status = 'archived'
+        WHERE expires_at IS NOT NULL AND expires_at <= NOW()
+          AND status = 'active'
+        RETURNING id
+        """,
+        [],
+    )
+    for row in rows:
+        await _record_history(row["id"], "expired", performed_by="system")
+    return len(rows)

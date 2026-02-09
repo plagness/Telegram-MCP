@@ -608,6 +608,7 @@ class CreateEntryIn(BaseModel):
     title: str = Field(..., max_length=300)
     description: str | None = None
     emoji: str | None = None
+    icon: str | None = None
     start_at: str
     end_at: str | None = None
     all_day: bool = False
@@ -624,6 +625,19 @@ class CreateEntryIn(BaseModel):
     created_by: str | None = None
     ai_actionable: bool = True
     performed_by: str | None = None
+    # v3: триггеры, действия, бюджет
+    entry_type: str = Field("event", pattern=r"^(event|task|trigger|monitor|vote|routine)$")
+    trigger_at: str | None = None
+    trigger_status: str = Field("pending", pattern=r"^(pending|scheduled|fired|success|failed|skipped|expired)$")
+    action: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] | None = None
+    source_module: str | None = None
+    cost_estimate: float = 0.0
+    tick_interval: str | None = Field(None, pattern=r"^[0-9]+(m|h|d)$")
+    next_tick_at: str | None = None
+    tick_count: int = 0
+    max_ticks: int | None = None
+    expires_at: str | None = None
 
 
 class UpdateEntryIn(BaseModel):
@@ -632,6 +646,7 @@ class UpdateEntryIn(BaseModel):
     title: str | None = Field(None, max_length=300)
     description: str | None = None
     emoji: str | None = None
+    icon: str | None = None
     start_at: str | None = None
     end_at: str | None = None
     all_day: bool | None = None
@@ -647,6 +662,19 @@ class UpdateEntryIn(BaseModel):
     position: int | None = None
     ai_actionable: bool | None = None
     performed_by: str | None = None
+    # v3: триггеры, действия, бюджет
+    entry_type: str | None = Field(None, pattern=r"^(event|task|trigger|monitor|vote|routine)$")
+    trigger_at: str | None = None
+    trigger_status: str | None = Field(None, pattern=r"^(pending|scheduled|fired|success|failed|skipped|expired)$")
+    action: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+    source_module: str | None = None
+    cost_estimate: float | None = None
+    tick_interval: str | None = Field(None, pattern=r"^[0-9]+(m|h|d)$")
+    next_tick_at: str | None = None
+    tick_count: int | None = None
+    max_ticks: int | None = None
+    expires_at: str | None = None
 
 
 class MoveEntryIn(BaseModel):
@@ -668,6 +696,7 @@ class BulkEntryIn(BaseModel):
     title: str = Field(..., max_length=300)
     description: str | None = None
     emoji: str | None = None
+    icon: str | None = None
     start_at: str
     end_at: str | None = None
     all_day: bool = False
@@ -684,6 +713,19 @@ class BulkEntryIn(BaseModel):
     created_by: str | None = None
     ai_actionable: bool = True
     performed_by: str | None = None
+    # v3: триггеры, действия, бюджет
+    entry_type: str = Field("event", pattern=r"^(event|task|trigger|monitor|vote|routine)$")
+    trigger_at: str | None = None
+    trigger_status: str = Field("pending", pattern=r"^(pending|scheduled|fired|success|failed|skipped|expired)$")
+    action: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] | None = None
+    source_module: str | None = None
+    cost_estimate: float = 0.0
+    tick_interval: str | None = Field(None, pattern=r"^[0-9]+(m|h|d)$")
+    next_tick_at: str | None = None
+    tick_count: int = 0
+    max_ticks: int | None = None
+    expires_at: str | None = None
 
 
 class BulkCreateEntriesIn(BaseModel):
@@ -696,3 +738,56 @@ class BulkDeleteEntriesIn(BaseModel):
     """Массовое удаление записей."""
     ids: list[int] = Field(..., min_length=1, max_length=100)
     performed_by: str | None = None
+
+
+class FireEntryIn(BaseModel):
+    """Результат исполнения триггера."""
+    result: dict[str, Any]
+    trigger_status: str = Field("success", pattern=r"^(success|failed)$")
+    performed_by: str | None = None
+
+
+class TickEntryIn(BaseModel):
+    """Продвижение тика монитора."""
+    result: dict[str, Any] | None = None
+    performed_by: str | None = None
+
+
+class CreateTriggerIn(BaseModel):
+    """Шорткат: создание одноразового триггера."""
+    calendar_id: int
+    title: str = Field(..., max_length=300)
+    trigger_at: str
+    action: dict[str, Any]
+    description: str | None = None
+    emoji: str | None = None
+    priority: int = Field(3, ge=1, le=5)
+    tags: list[str] = Field(default_factory=list)
+    cost_estimate: float = 0.0
+    source_module: str | None = None
+    expires_at: str | None = None
+    created_by: str | None = None
+    performed_by: str | None = None
+    parent_id: int | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateMonitorIn(BaseModel):
+    """Шорткат: создание монитора с интервалом тиков."""
+    calendar_id: int
+    title: str = Field(..., max_length=300)
+    start_at: str
+    tick_interval: str = Field(..., pattern=r"^[0-9]+(m|h|d)$")
+    action: dict[str, Any]
+    description: str | None = None
+    emoji: str | None = None
+    priority: int = Field(3, ge=1, le=5)
+    tags: list[str] = Field(default_factory=list)
+    cost_estimate: float = 0.0
+    source_module: str | None = None
+    max_ticks: int | None = None
+    expires_at: str | None = None
+    created_by: str | None = None
+    performed_by: str | None = None
+    parent_id: int | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
