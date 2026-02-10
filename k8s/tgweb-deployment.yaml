@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgweb
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgweb
+    ns.module: telegram
+    ns.component: web-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tgweb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tgweb
+        ns.module: telegram
+        ns.component: web-ui
+    spec:
+      containers:
+        - name: tgweb
+          image: telegram-mcp-tgweb:latest
+          imagePullPolicy: Never
+          command:
+            - uvicorn
+            - app.main:app
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+            - --ssl-certfile
+            - /certs/fullchain.pem
+            - --ssl-keyfile
+            - /certs/privkey.pem
+          ports:
+            - containerPort: 8000
+              name: https
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: DB_NAME
+            - name: DB_DSN
+              value: postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)
+            - name: TGAPI_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: TGAPI_URL
+            - name: LLM_CORE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: LLM_CORE_URL
+            - name: PUBLIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: PUBLIC_URL
+            - name: BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: TELEGRAM_BOT_TOKEN
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: certs
+          hostPath:
+            path: /opt/certs/letsencrypt
+            type: Directory

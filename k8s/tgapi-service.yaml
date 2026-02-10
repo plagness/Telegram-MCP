@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tgapi
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgapi
+    ns.module: telegram
+    ns.component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app.kubernetes.io/name: tgapi
+---
+# NodePort для доступа с хоста (совместимость с Docker compose: localhost:8081)
+apiVersion: v1
+kind: Service
+metadata:
+  name: tgapi-external
+  namespace: ns-telegram
+spec:
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30081
+      name: http
+  selector:
+    app.kubernetes.io/name: tgapi

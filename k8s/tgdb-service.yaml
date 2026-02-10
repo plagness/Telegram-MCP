@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tgdb
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgdb
+    ns.module: telegram
+    ns.component: db
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app.kubernetes.io/name: tgdb
+---
+# NodePort для доступа с хоста (совместимость с Docker compose: localhost:5436)
+apiVersion: v1
+kind: Service
+metadata:
+  name: tgdb-external
+  namespace: ns-telegram
+spec:
+  type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
+      nodePort: 30436
+      name: postgres
+  selector:
+    app.kubernetes.io/name: tgdb

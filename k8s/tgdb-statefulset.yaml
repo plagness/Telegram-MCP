@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tgdb
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgdb
+    ns.module: telegram
+    ns.component: db
+spec:
+  serviceName: tgdb
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tgdb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tgdb
+        ns.module: telegram
+        ns.component: db
+    spec:
+      containers:
+        - name: tgdb
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: DB_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: DB_NAME
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "telegram"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "telegram"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tgdb-data
+        - name: init-scripts
+          hostPath:
+            path: /opt/neuronswarm/telegram-mcp/db/init
+            type: Directory

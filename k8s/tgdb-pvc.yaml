@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tgdb-data
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgdb
+    ns.module: telegram
+    ns.component: db
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ns-db-local
+  resources:
+    requests:
+      storage: 10Gi

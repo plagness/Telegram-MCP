@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgmcp
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgmcp
+    ns.module: telegram
+    ns.component: mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tgmcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tgmcp
+        ns.module: telegram
+        ns.component: mcp
+    spec:
+      containers:
+        - name: tgmcp
+          image: telegram-mcp-tgmcp:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3335
+              name: http
+          env:
+            - name: TELEGRAM_API_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: TELEGRAM_API_BASE
+            - name: TELEGRAM_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: TELEGRAM_API_URL
+            - name: TGWEB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: TGWEB_URL
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: NODE_TLS_REJECT_UNAUTHORIZED
+            - name: MCP_HTTP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-secrets
+                  key: MCP_HTTP_TOKEN
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3335
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3335
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+              cpu: 300m
