@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from ..auth import validate_init_data
 from ..config import get_settings
@@ -984,5 +984,40 @@ async def calendar_delete_entry_proxy(slug: str, entry_id: int, request: Request
                 params={"performed_by": f"admin:{user_id}"},
             )
             return r.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+# ── Telegram Webhook Proxy ──────────────────────────────────────
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook_proxy(request: Request):
+    """Proxy Telegram webhook → tgapi /telegram/webhook."""
+    body = await request.body()
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                f"{settings.tgapi_url}/telegram/webhook",
+                content=body,
+                headers={"Content-Type": "application/json"},
+            )
+            return JSONResponse(content=r.json(), status_code=r.status_code)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/telegram/webhook/{bot_id}")
+async def telegram_webhook_proxy_by_bot(bot_id: int, request: Request):
+    """Proxy Telegram webhook → tgapi /telegram/webhook/{bot_id}."""
+    body = await request.body()
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                f"{settings.tgapi_url}/telegram/webhook/{bot_id}",
+                content=body,
+                headers={"Content-Type": "application/json"},
+            )
+            return JSONResponse(content=r.json(), status_code=r.status_code)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

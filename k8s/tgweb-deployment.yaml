@@ -36,6 +36,7 @@ spec:
             - /certs/privkey.pem
           ports:
             - containerPort: 8000
+              hostPort: 8443
               name: https
           env:
             - name: DB_HOST

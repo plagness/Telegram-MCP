@@ -179,7 +179,7 @@ async def _insert_inbound_message(message: dict[str, Any], update_type: str, bot
             payload_json
         )
         VALUES (%s, %s, %s, 'inbound', %s, NULL, %s, %s::jsonb)
-        ON CONFLICT (chat_id, telegram_message_id) DO NOTHING
+        ON CONFLICT (chat_id, telegram_message_id) WHERE telegram_message_id IS NOT NULL DO NOTHING
         """,
         [
             str(message.get("chat", {}).get("id")),

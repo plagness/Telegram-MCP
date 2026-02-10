@@ -64,3 +64,4 @@ pgdata/
 *.key
 secrets/
 .secrets/
+**/k8s/secret.yaml
