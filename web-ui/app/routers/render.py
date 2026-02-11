@@ -75,6 +75,7 @@ async def render_page(slug: str, request: Request):
         "leaderboard": "leaderboard.html",
         "calendar": "calendar.html",
         "llm": "llm.html",
+        "infra": "infra.html",
     }
     template_name = template_map.get(page["page_type"], "page.html")
 
@@ -986,6 +987,34 @@ async def calendar_delete_entry_proxy(slug: str, entry_id: int, request: Request
             return r.json()
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# ── Infrastructure Dashboard Proxy ──────────────────────────────
+
+
+@router.get("/p/{slug}/infra/data")
+async def infra_data_proxy(slug: str, request: Request):
+    """Прокси для JS: данные LLM-инфраструктуры (с проверкой доступа)."""
+    page = await pages_svc.get_page(slug)
+    if not page or page["page_type"] != "infra":
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    # Проверка доступа: config.allowed_users
+    allowed_users = page.get("config", {}).get("allowed_users", [])
+    if allowed_users:
+        init_data = request.headers.get("X-Init-Data", "")
+        user = validate_init_data(init_data, settings.get_bot_token())
+        if not user or user.get("id") not in allowed_users:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{settings.llm_core_url}/v1/dashboard")
+            if r.status_code == 200:
+                return JSONResponse(r.json())
+    except Exception as e:
+        logger.warning("infra_data_proxy: llmcore unavailable: %s", e)
+    raise HTTPException(status_code=502, detail="LLM core unavailable")
 
 
 # ── Telegram Webhook Proxy ──────────────────────────────────────

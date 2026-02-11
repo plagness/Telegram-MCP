@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block head %}
+<style>
+.infra-gauge{position:relative;height:8px;border-radius:4px;background:var(--tg-secondary-bg,#2a2a2a);overflow:hidden;margin-top:6px}
+.infra-gauge-fill{height:100%;border-radius:4px;transition:width .6s ease}
+
+.infra-icon{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.infra-icon img{filter:brightness(0) invert(1)}
+.infra-icon-text{color:#fff;font-weight:700;line-height:1}
+
+.infra-tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.infra-tap:active{opacity:.7}
+
+/* Bottom sheet */
+.infra-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;opacity:0;transition:opacity .25s;pointer-events:none}
+.infra-overlay.active{opacity:1;pointer-events:auto}
+.infra-sheet{position:fixed;bottom:0;left:0;right:0;z-index:1001;background:var(--tg-bg,#1c1c1e);border-radius:14px 14px 0 0;max-height:80vh;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.infra-sheet.active{transform:translateY(0)}
+.infra-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--tg-hint);opacity:.3;margin:8px auto 0}
+.infra-sheet-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px}
+.infra-sheet-title{font-size:16px;font-weight:600}
+.infra-sheet-x{width:28px;height:28px;border-radius:50%;background:var(--tg-secondary-bg,#2a2a2a);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--tg-hint)}
+.infra-sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1}
+
+/* Toolbar */
+.infra-toolbar{display:flex;gap:6px;padding:6px 16px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--tg-secondary-bg,#2a2a2a)}
+.infra-toolbar::-webkit-scrollbar{display:none}
+.infra-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:500;white-space:nowrap;background:var(--tg-secondary-bg,#2a2a2a);color:var(--tg-hint);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s;border:1px solid transparent}
+.infra-chip:active{opacity:.7}
+.infra-chip.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.infra-chip-icon{width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+.infra-chip-icon img{width:10px;height:10px;filter:brightness(0) invert(1)}
+
+/* Model item */
+.infra-m{display:flex;align-items:center;gap:10px;padding:10px 16px}
+.infra-m-body{min-width:0;flex:1}
+.infra-m-name{font-size:14px;font-weight:500}
+.infra-m-meta{font-size:12px;color:var(--tg-hint);margin-top:1px}
+.infra-m-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.infra-tag{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:500;background:var(--tg-secondary-bg,#2a2a2a);color:var(--tg-hint)}
+.infra-tag-dot{width:6px;height:6px;border-radius:50%}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+
+<div id="access-denied" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Доступ ограничен</div>
+    <div class="bee-subtitle">Эта страница доступна только авторизованным пользователям.</div>
+</div>
+
+<div id="infra-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="infra-error-text">Не удалось получить данные. Повтор через 10 секунд...</div>
+</div>
+
+<div id="infra-loading" class="bee-card" style="text-align:center;padding:32px 16px">
+    <div class="bee-subtitle">Загрузка данных...</div>
+</div>
+
+<div id="infra-content" style="display:none">
+
+<!-- Performance -->
+<div class="bee-card">
+    <div class="bee-card-title">Performance</div>
+    <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12px;color:var(--tg-hint)">Fleet Health</span>
+            <span style="font-size:13px;font-weight:600" id="g-fleet-text">-</span>
+        </div>
+        <div class="infra-gauge"><div class="infra-gauge-fill" id="g-fleet" style="width:0%;background:var(--success)"></div></div>
+    </div>
+    <div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12px;color:var(--tg-hint)">Compute Load</span>
+            <span style="font-size:13px;font-weight:600" id="g-load-text">-</span>
+        </div>
+        <div class="infra-gauge"><div class="infra-gauge-fill" id="g-load" style="width:0%;background:var(--accent)"></div></div>
+    </div>
+</div>
+
+<!-- Cluster Overview -->
+<div class="bee-card">
+    <div class="bee-card-title">Cluster Overview</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat"><div class="bee-stat-value" id="s-devices">-</div><div class="bee-stat-label">devices</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--success)" id="s-online">-</div><div class="bee-stat-label">online</div></div>
+        <div class="bee-stat infra-tap" onclick="window._showAllModels()">
+            <div class="bee-stat-value" style="color:var(--accent)" id="s-models">-</div>
+            <div class="bee-stat-label" style="text-decoration:underline;text-decoration-style:dotted">models ›</div>
+        </div>
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--accent)" id="s-running">-</div><div class="bee-stat-label">running</div></div>
+    </div>
+</div>
+
+<!-- Fleet -->
+<div class="bee-card">
+    <div class="bee-card-title">Fleet <span id="fleet-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="fleet-list"></div>
+</div>
+
+<!-- Job Queue -->
+<div class="bee-card">
+    <div class="bee-card-title">Job Queue</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat"><div class="bee-stat-value" id="j-queued">-</div><div class="bee-stat-label">queued</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--accent)" id="j-running">-</div><div class="bee-stat-label">running</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" id="j-done">-</div><div class="bee-stat-label">done</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--error)" id="j-failed">-</div><div class="bee-stat-label">failed</div></div>
+    </div>
+    <div class="bee-progress bee-progress--lg" style="margin-top:8px"><div class="bee-progress-fill" id="j-progress" style="width:0%"></div></div>
+</div>
+
+<!-- Running Jobs -->
+<div class="bee-card" id="running-card" style="display:none">
+    <div class="bee-card-title">Running <span id="running-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="running-list"></div>
+</div>
+
+<!-- Costs -->
+<div class="bee-card">
+    <div class="bee-card-title">Costs (USD)</div>
+    <div class="bee-stat-grid bee-stat-grid--three">
+        <div class="bee-stat"><div class="bee-stat-value" id="c-day">-</div><div class="bee-stat-label">today</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" id="c-week">-</div><div class="bee-stat-label">week</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" id="c-month">-</div><div class="bee-stat-label">month</div></div>
+    </div>
+</div>
+
+</div><!-- /infra-content -->
+
+<!-- Bottom Sheet -->
+<div class="infra-overlay" id="sh-overlay"></div>
+<div class="infra-sheet" id="sh">
+    <div class="infra-sheet-handle"></div>
+    <div class="infra-sheet-hdr">
+        <div class="infra-sheet-title" id="sh-title">Models</div>
+        <div class="infra-sheet-x" id="sh-close">&times;</div>
+    </div>
+    <div id="sh-toolbar"></div>
+    <div class="infra-sheet-body" id="sh-body"></div>
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var REFRESH_MS = 10000;
+    var started = false;
+    var lastDevices = [];
+
+    function $(id) { return document.getElementById(id); }
+
+    function showAccessDenied() { $('infra-loading').style.display='none'; $('infra-error').style.display='none'; $('access-denied').style.display=''; }
+    function showError(msg) { $('infra-loading').style.display='none'; $('infra-error-text').textContent=msg||'Не удалось получить данные. Повтор через 10 секунд...'; $('infra-error').style.display=''; }
+    function showContent() { $('infra-loading').style.display='none'; $('infra-error').style.display='none'; $('infra-content').style.display=''; }
+
+    function fmt(n) { return '$' + Number(n).toFixed(2); }
+
+    function shortName(id) {
+        if (!id) return '?';
+        return id.split('.')[0] || id;
+    }
+
+    function timeAgo(iso) {
+        if (!iso) return '';
+        var d = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (d < 60) return Math.round(d) + 's';
+        if (d < 3600) return Math.round(d/60) + 'm';
+        if (d < 86400) return Math.round(d/3600) + 'h';
+        return Math.round(d/86400) + 'd';
+    }
+
+    // ── Иконки устройств ──
+    var DEV = [
+        {m:'pi5',    icon:'/static/icons/raspberrypi.svg', c:'#A22846', l:'Raspberry Pi 5'},
+        {m:'macbook',icon:'/static/icons/apple.svg',       c:'#777777', l:'MacBook'},
+        {m:'fi-',    icon:'/static/icons/linux.svg',       c:'#E8A317', l:'VDS Finland'},
+        {m:'se-',    icon:'/static/icons/linux.svg',       c:'#E8A317', l:'VDS Sweden'},
+        {m:'worker', icon:'/static/icons/kubernetes.svg',  c:'#326CE5', l:'K3s Worker'}
+    ];
+    function devIcon(name, id) {
+        var k = (name+' '+id).toLowerCase();
+        for (var i=0;i<DEV.length;i++) if(k.indexOf(DEV[i].m)!==-1) return DEV[i];
+        return {icon:null,c:'#666',l:'Server',txt:'S'};
+    }
+
+    // ── Иконки моделей (по производителю) ──
+    var MDL = [
+        {m:'qwen',     icon:'/static/icons/alibabacloud.svg', c:'#FF6A00', f:'Alibaba Qwen'},
+        {m:'tinyllama', icon:'/static/icons/meta.svg',         c:'#0467DF', f:'TinyLlama'},
+        {m:'llama',    icon:'/static/icons/meta.svg',          c:'#0467DF', f:'Meta Llama'},
+        {m:'gemma',    icon:'/static/icons/googlegemini.svg',  c:'#8E75B2', f:'Google Gemma'},
+        {m:'deepseek', icon:'/static/icons/deepgram.svg',      c:'#4D6BFE', f:'DeepSeek'},
+        {m:'deepcoder',icon:'/static/icons/deepgram.svg',      c:'#4D6BFE', f:'DeepSeek'},
+        {m:'deepscaler',icon:'/static/icons/deepgram.svg',     c:'#4D6BFE', f:'DeepSeek'},
+        {m:'phi',      icon:'/static/icons/dotnet.svg',        c:'#512BD4', f:'Microsoft Phi'},
+        {m:'falcon',   icon:'/static/icons/falcon.svg',        c:'#F0AD4E', f:'TII Falcon'},
+        {m:'nomic',    icon:'/static/icons/huggingface.svg',   c:'#FFD21E', f:'Nomic AI'},
+        {m:'smollm',   icon:'/static/icons/huggingface.svg',   c:'#FFD21E', f:'HuggingFace'},
+        {m:'stablelm', icon:'/static/icons/huggingface.svg',   c:'#FFD21E', f:'Stability AI'},
+        {m:'mistral',  icon:'/static/icons/mistralai.svg',     c:'#FF7000', f:'Mistral AI'},
+        {m:'yi',       c:'#06B6D4', f:'01.AI',       txt:'Yi'},
+        {m:'exaone',   c:'#A50034', f:'LG ExaOne',   txt:'LG'},
+        {m:'granite',  c:'#052FAD', f:'IBM Granite',  txt:'IBM'},
+        {m:'lfm',      c:'#8B5CF6', f:'Liquid AI',   txt:'L'},
+        {m:'ollama',   icon:'/static/icons/ollama.svg', c:'#666', f:'Ollama'}
+    ];
+    function mdlIcon(name) {
+        var k = name.toLowerCase();
+        for (var i=0;i<MDL.length;i++) if(k.indexOf(MDL[i].m)!==-1) return MDL[i];
+        return {c:'#555', f:'Unknown', txt:'?'};
+    }
+
+    function parseSize(name) {
+        var m = name.match(/(\d+(?:\.\d+)?)\s*[bB]/);
+        return m ? m[1]+'B' : '';
+    }
+
+    // Рейтинг популярности моделей (выше = лучше)
+    var POP = {
+        'llama3':8, 'llama3.2':9, 'qwen3':10, 'qwen2.5':9, 'phi4':7, 'gemma2':7, 'gemma3':8,
+        'deepseek-r1':8, 'nomic-embed':6, 'falcon3':5, 'mistral':7
+    };
+    function getPopularity(name) {
+        var k = name.toLowerCase().split(':')[0];
+        if (POP[k]) return POP[k];
+        for (var p in POP) if (k.indexOf(p) !== -1) return POP[p];
+        return 3;
+    }
+
+    function mkIcon(info, sz) {
+        sz = sz || 28;
+        var half = Math.round(sz/2);
+        var inner;
+        if (info.icon) {
+            inner = '<img src="'+info.icon+'" alt="" width="'+half+'" height="'+half+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'\'">' +
+                '<span class="infra-icon-text" style="display:none;font-size:'+(half-2)+'px">'+(info.txt||'?')+'</span>';
+        } else {
+            inner = '<span class="infra-icon-text" style="font-size:'+(half-2)+'px">'+(info.txt||'?')+'</span>';
+        }
+        return '<div class="infra-icon" style="width:'+sz+'px;height:'+sz+'px;background:'+info.c+'">'+inner+'</div>';
+    }
+
+    // ── Sheet ──
+    function openSheet(title, toolbarHtml, bodyHtml) {
+        $('sh-title').textContent = title;
+        $('sh-toolbar').innerHTML = toolbarHtml || '';
+        $('sh-body').innerHTML = bodyHtml;
+        $('sh-overlay').classList.add('active');
+        $('sh').classList.add('active');
+        if (window.haptic) haptic('impact', 'light');
+    }
+    function closeSheet() {
+        $('sh-overlay').classList.remove('active');
+        $('sh').classList.remove('active');
+    }
+    $('sh-overlay').addEventListener('click', closeSheet);
+    $('sh-close').addEventListener('click', closeSheet);
+
+    // ── All Models (агрегация) ──
+    var allModelsSort = 'pop'; // pop | name | size | devices
+    var allModelsDevice = null; // null = все
+
+    function buildModelIndex() {
+        var idx = {}; // modelName → {devices: [{name, color}], ...}
+        for (var i=0; i<lastDevices.length; i++) {
+            var d = lastDevices[i];
+            var names = d.model_names || [];
+            if (typeof names === 'string') try { names = JSON.parse(names); } catch(e) { names = []; }
+            var dname = d.name || shortName(d.id);
+            var di = devIcon(dname, d.id);
+            var statusColor = d.status === 'online' ? '#4caf50' : '#f44336';
+            for (var j=0; j<names.length; j++) {
+                var mn = names[j];
+                if (!idx[mn]) idx[mn] = {name: mn, devices: [], mi: mdlIcon(mn), size: parseSize(mn), pop: getPopularity(mn)};
+                idx[mn].devices.push({name: dname, color: statusColor, di: di});
+            }
+        }
+        return Object.values(idx);
+    }
+
+    function sortModels(list, by) {
+        var copy = list.slice();
+        if (by === 'name') copy.sort(function(a,b){ return a.name.localeCompare(b.name); });
+        else if (by === 'size') copy.sort(function(a,b){
+            var sa = parseFloat(a.size)||0, sb = parseFloat(b.size)||0;
+            return sb - sa;
+        });
+        else if (by === 'devices') copy.sort(function(a,b){ return b.devices.length - a.devices.length; });
+        else copy.sort(function(a,b){ return b.pop - a.pop || b.devices.length - a.devices.length; }); // pop
+        return copy;
+    }
+
+    function renderAllModels() {
+        var list = buildModelIndex();
+        if (allModelsDevice) {
+            list = list.filter(function(m){
+                return m.devices.some(function(d){ return d.name === allModelsDevice; });
+            });
+        }
+        list = sortModels(list, allModelsSort);
+
+        // Toolbar: sort chips + device filter
+        var sorts = [
+            {id:'pop', label:'Popular'},
+            {id:'name', label:'A–Z'},
+            {id:'size', label:'Size'},
+            {id:'devices', label:'Devices'}
+        ];
+        var tb = '<div class="infra-toolbar">';
+        for (var s=0; s<sorts.length; s++) {
+            tb += '<div class="infra-chip'+(allModelsSort===sorts[s].id?' active':'')+'" data-sort="'+sorts[s].id+'">'+sorts[s].label+'</div>';
+        }
+        // Device filter chips
+        var devNames = [];
+        var seen = {};
+        for (var i=0; i<lastDevices.length; i++) {
+            var dn = lastDevices[i].name || shortName(lastDevices[i].id);
+            if (!seen[dn]) { seen[dn] = true; devNames.push({name: dn, di: devIcon(dn, lastDevices[i].id)}); }
+        }
+        tb += '<div style="width:1px;background:var(--tg-hint);opacity:.3;margin:2px 2px;flex-shrink:0"></div>';
+        for (var i=0; i<devNames.length; i++) {
+            var dn = devNames[i];
+            tb += '<div class="infra-chip'+(allModelsDevice===dn.name?' active':'')+'" data-dev="'+dn.name+'">' +
+                '<span class="infra-chip-icon" style="background:'+dn.di.c+'">'+(dn.di.icon?'<img src="'+dn.di.icon+'" alt="">':'')+'</span>' +
+                dn.name+'</div>';
+        }
+        tb += '</div>';
+
+        // Body
+        var html = '';
+        for (var i=0; i<list.length; i++) {
+            var m = list[i];
+            var tags = '';
+            for (var j=0; j<m.devices.length; j++) {
+                var dd = m.devices[j];
+                tags += '<span class="infra-tag"><span class="infra-tag-dot" style="background:'+dd.color+'"></span>'+dd.name+'</span>';
+            }
+            html += '<div class="infra-m">' +
+                mkIcon(m.mi, 32) +
+                '<div class="infra-m-body">' +
+                    '<div class="infra-m-name">'+m.name+'</div>' +
+                    '<div class="infra-m-meta">'+m.mi.f+(m.size?' \u00B7 '+m.size:'') + ' \u00B7 '+m.devices.length+' node'+(m.devices.length>1?'s':'')+'</div>' +
+                    '<div class="infra-m-tags">'+tags+'</div>' +
+                '</div>' +
+            '</div>';
+        }
+        if (!list.length) html = '<div style="text-align:center;padding:24px;color:var(--tg-hint)">Нет моделей</div>';
+
+        var total = buildModelIndex().length;
+        openSheet('All Models (' + total + ')', tb, html);
+
+        // Bind sort/filter
+        var chips = $('sh-toolbar').querySelectorAll('.infra-chip');
+        for (var i=0; i<chips.length; i++) {
+            chips[i].addEventListener('click', function(e) {
+                var el = e.currentTarget;
+                if (el.dataset.sort) {
+                    allModelsSort = el.dataset.sort;
+                    renderAllModels();
+                } else if (el.dataset.dev) {
+                    allModelsDevice = allModelsDevice === el.dataset.dev ? null : el.dataset.dev;
+                    renderAllModels();
+                }
+                if (window.haptic) haptic('selection');
+            });
+        }
+    }
+
+    window._showAllModels = function() { allModelsSort='pop'; allModelsDevice=null; renderAllModels(); };
+
+    // ── Device models sheet ──
+    function showDevModels(idx) {
+        var d = lastDevices[idx];
+        if (!d) return;
+        var names = d.model_names || [];
+        if (typeof names === 'string') try { names = JSON.parse(names); } catch(e) { names = []; }
+        if (!names.length) return;
+
+        var html = '';
+        for (var i=0; i<names.length; i++) {
+            var n = names[i];
+            var mi = mdlIcon(n);
+            var size = parseSize(n);
+            html += '<div class="infra-m">' + mkIcon(mi, 28) +
+                '<div class="infra-m-body"><div class="infra-m-name">'+n+'</div>' +
+                '<div class="infra-m-meta">'+mi.f+(size?' \u00B7 '+size:'')+'</div></div></div>';
+        }
+        var name = d.name || shortName(d.id);
+        openSheet(name+' \u2014 '+names.length+' models', '', html);
+    }
+    window._showDevModels = function(i) { showDevModels(i); };
+
+    // ── Рендеринг ──
+    function renderGauges(devices, totalLoad) {
+        var online = 0;
+        for (var i=0; i<devices.length; i++) if(devices[i].status==='online') online++;
+        var fp = devices.length>0 ? Math.round(online*100/devices.length) : 0;
+        $('g-fleet').style.width = fp+'%';
+        $('g-fleet').style.background = fp>=80?'var(--success)':fp>=50?'var(--accent)':'var(--error)';
+        $('g-fleet-text').textContent = online+'/'+devices.length+' online';
+
+        var cap = Math.max(online*2, 1);
+        var lp = Math.min(Math.round(totalLoad*100/cap), 100);
+        $('g-load').style.width = lp+'%';
+        $('g-load').style.background = lp<=50?'var(--success)':lp<=80?'var(--accent)':'var(--error)';
+        $('g-load-text').textContent = totalLoad+' jobs / ~'+cap+' capacity';
+    }
+
+    function renderFleet(devices) {
+        lastDevices = devices;
+        var el = $('fleet-list');
+        $('fleet-count').textContent = '('+devices.length+')';
+        if (!devices.length) {
+            el.innerHTML = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет устройств</div></div></div>';
+            return;
+        }
+        var html = '';
+        for (var i=0; i<devices.length; i++) {
+            var d = devices[i];
+            var sc = d.status==='online'?'#4caf50':d.status==='offline'?'#f44336':'#ff9800';
+            var name = d.name || shortName(d.id);
+            var di = devIcon(name, d.id);
+            var meta = [];
+            if (d.platform) meta.push(d.platform);
+            if (d.latency_ms) meta.push(d.latency_ms+'ms');
+            if (d.last_seen) meta.push(timeAgo(d.last_seen));
+
+            var names = d.model_names||[];
+            if (typeof names==='string') try{names=JSON.parse(names);}catch(e){names=[];}
+            var btn = names.length > 0 ?
+                '<div class="infra-tap" onclick="window._showDevModels('+i+')" style="font-size:12px;color:var(--accent);margin-top:2px">'+d.models_count+' models \u203A</div>' : '';
+
+            var badge = d.running_jobs > 0 ?
+                '<span class="bee-badge">'+d.running_jobs+' jobs</span>' :
+                '<span class="bee-badge bee-badge--outline">idle</span>';
+
+            html += '<div class="bee-list-item">' +
+                '<div style="position:relative">' + mkIcon(di, 32) +
+                    '<div style="position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:'+sc+';border:2px solid var(--tg-bg,#1c1c1e)"></div>' +
+                '</div>' +
+                '<div class="bee-list-content" style="margin-left:10px">' +
+                    '<div class="bee-list-title">'+name+'</div>' +
+                    '<div class="bee-list-subtitle">'+meta.join(' \u00B7 ')+'</div>' +
+                    btn +
+                '</div>' +
+                '<div class="bee-list-right">'+badge+'</div></div>';
+        }
+        el.innerHTML = html;
+    }
+
+    function renderRunning(jobs) {
+        var card = $('running-card');
+        if (!jobs||!jobs.length) { card.style.display='none'; return; }
+        card.style.display = '';
+        $('running-count').textContent = '('+jobs.length+')';
+        var html = '';
+        for (var i=0; i<jobs.length; i++) {
+            var j = jobs[i];
+            var mi = mdlIcon(j.model||j.kind||'');
+            var title = j.model||j.kind||'unknown';
+            var device = shortName(j.device_id)||'cloud';
+            var kind = j.kind?j.kind.split('.').pop():'';
+            var ago = timeAgo(j.updated_at);
+            html += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon">'+mkIcon(mi,24)+'</div>' +
+                '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">'+title+' \u2192 '+device+'</div>' +
+                    '<div class="bee-list-subtitle">'+kind+(ago?' \u00B7 '+ago:'')+'</div></div></div>';
+        }
+        $('running-list').innerHTML = html;
+    }
+
+    function render(data) {
+        var devices = data.devices||[];
+        var online=0, totalModels=0, totalLoad=0;
+        for (var i=0;i<devices.length;i++) {
+            if(devices[i].status==='online') online++;
+            totalModels += devices[i].models_count||0;
+            totalLoad += devices[i].running_jobs||0;
+        }
+        renderGauges(devices, totalLoad);
+        $('s-devices').textContent = devices.length;
+        $('s-online').textContent = online;
+        $('s-models').textContent = totalModels;
+        $('s-running').textContent = totalLoad;
+        renderFleet(devices);
+
+        var jobs = data.jobs||{};
+        var queued=jobs.queued||0, running=jobs.running||0, done=jobs.done||0, failed=(jobs.error||0)+(jobs.failed||0);
+        $('j-queued').textContent = queued;
+        $('j-running').textContent = running;
+        $('j-done').textContent = done;
+        $('j-failed').textContent = failed;
+        var total = queued+running+done+failed;
+        $('j-progress').style.width = (total>0?Math.round(done*100/total):0)+'%';
+
+        renderRunning(data.running_jobs);
+
+        var costs = data.costs||{};
+        $('c-day').textContent = fmt(costs.today||0);
+        $('c-week').textContent = fmt(costs.week||0);
+        $('c-month').textContent = fmt(costs.month||0);
+
+        if (data.updated_at) $('updated-at').textContent = 'Updated: '+data.updated_at.substring(0,19).replace('T',' ');
+    }
+
+    function fetchData() {
+        fetch('/p/'+SLUG+'/infra/data', { headers: {'X-Init-Data': initData} })
+        .then(function(r) {
+            if (r.status===403) { showAccessDenied(); return null; }
+            if (!r.ok) { if(!started) showError('Сервер вернул ошибку ('+r.status+'). Повтор через 10 сек...'); return null; }
+            return r.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (!started) { showContent(); started=true; }
+            render(data);
+        })
+        .catch(function(e) {
+            console.warn('infra fetch error:', e);
+            if (!started) showError('Ошибка сети. Повтор через 10 сек...');
+        });
+    }
+
+    fetchData();
+    setInterval(fetchData, REFRESH_MS);
+})();
+</script>
+{% endblock %}
