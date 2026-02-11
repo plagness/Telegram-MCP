@@ -6,6 +6,53 @@
 
 ---
 
+## [2026.02.19] - 2026-02-10
+
+### Добавлено
+
+#### LLM Infrastructure Dashboard (Mini App)
+
+- **Новый шаблон `infra.html`** — страница мониторинга LLM-инфраструктуры
+  - Cluster Overview: устройства, модели, running jobs, статус
+  - Fleet: карточки устройств с иконками (Simple Icons), статусом, latency
+  - Performance gauges: CPU Load, Capacity
+  - Job Queue: статистика очереди + progress bar
+  - Running Jobs: текущие задачи в реальном времени
+  - Costs: расходы за день/неделю/месяц (USD)
+  - Auto-refresh каждые 10 сек (без мерцания)
+- **All Models sheet** — каталог всех моделей кластера
+  - Агрегация моделей по устройствам с device tags
+  - Сортировка: Popular, A-Z, Size, Devices
+  - Фильтр по устройству через чипы
+  - Bottom sheet UI (native Telegram Mini App feel)
+- **Иконки производителей моделей** через Simple Icons:
+  - Alibaba Cloud → Qwen, Meta → Llama/TinyLlama, Google → Gemma
+  - Microsoft (.NET) → Phi, HuggingFace → SmolLM/Nomic, Mistral AI → Mistral
+  - Text fallback для отсутствующих: Yi (01.AI), IBM (Granite), LG (ExaOne)
+- **Прокси-эндпоинт** `GET /p/{slug}/infra/data` с проверкой `allowed_users`
+- **page_type `infra`** в template_map
+
+#### Документация
+
+- **`docs/access-control.md`** — design doc будущей системы доступов
+  - Два уровня: chat-based + global roles
+  - Текущая инфраструктура и план расширения
+  - access_rules schema (allowed_users, allowed_roles, allowed_chats)
+
+### Изменено
+
+- VERSION: `2026.02.18` → `2026.02.19`
+
+---
+
+## [2026.02.18] - 2026-02-10
+
+### Добавлено
+
+- K8s миграция: hostPort для SSL, webhook proxy, исправления деплоя
+
+---
+
 ## [2026.02.17] - 2026-02-09
 
 ### Добавлено
