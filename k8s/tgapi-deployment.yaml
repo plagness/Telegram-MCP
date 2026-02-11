@@ -107,5 +107,5 @@ spec:
       volumes:
         - name: templates
           hostPath:
-            path: /opt/neuronswarm/telegram-mcp/templates
+            path: /opt/telegram-mcp/templates
             type: Directory

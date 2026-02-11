@@ -68,15 +68,15 @@ CSS для белой иконки:
 
 ```bash
 # Резолв имени
-curl https://tg.plag.space:8443/api/icons/resolve?name=claude
+curl https://tg.example.com:8443/api/icons/resolve?name=claude
 # {"found":true,"slug":"claude","hex":"D97757","icon_url":"/static/icons/claude.svg",...}
 
 # Редирект на SVG (для <img src>)
-curl -L https://tg.plag.space:8443/api/icons/redirect?name=btc
+curl -L https://tg.example.com:8443/api/icons/redirect?name=btc
 # → 302 → /static/icons/bitcoin.svg
 
 # Статистика
-curl https://tg.plag.space:8443/api/icons/info
+curl https://tg.example.com:8443/api/icons/info
 # {"total_icons":3393,"aliases":{"claude":"claude","btc":"bitcoin",...}}
 ```
 

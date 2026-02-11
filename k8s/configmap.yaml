@@ -20,6 +20,6 @@ data:
   TEMPLATE_AUTOSEED: "1"
   WEBUI_ENABLED: "true"
   # Публичный URL Mini App (домен + порт)
-  WEBUI_PUBLIC_URL: https://tg.plag.space:8443
-  PUBLIC_URL: https://tg.plag.space:8443
+  WEBUI_PUBLIC_URL: https://tg.example.com:8443
+  PUBLIC_URL: https://tg.example.com:8443
   NODE_TLS_REJECT_UNAUTHORIZED: "0"

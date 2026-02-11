@@ -12,7 +12,7 @@
 
 ```json
 {
-  "allowed_users": [269949384]
+  "allowed_users": [123456789]
 }
 ```
 
@@ -75,7 +75,7 @@ CREATE INDEX idx_user_roles_user ON user_roles(user_id);
 ```json
 {
   "access_rules": {
-    "allowed_users": [269949384],
+    "allowed_users": [123456789],
     "allowed_roles": ["project_owner", "tester"],
     "allowed_chats": [-1001234567890],
     "public": false

@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   name: ns-telegram
   labels:
-    app.kubernetes.io/part-of: neuronswarm
+    app.kubernetes.io/part-of: telegram-mcp
     ns.module: telegram

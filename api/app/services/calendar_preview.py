@@ -322,7 +322,7 @@ async def generate_preview(calendar_id: int) -> bytes:
     draw.text((pad, footer_y), "Открыть в Mini App", fill=ACCENT, font=font_footer)
     draw.text(
         (pad + font_footer.getbbox("Открыть в Mini App")[2] + 24, footer_y + 8),
-        "NeuronSwarm",
+        "Telegram MCP",
         fill=HINT,
         font=font_footer_sm,
     )

@@ -392,7 +392,7 @@ pages = await api.list_web_pages(page_type="survey", is_active=True)
 
 ```python
 link = await api.create_web_link("my-survey", user_id=777)
-print(link["url"])  # https://tg.plag.space:8090/l/a1b2c3d4...
+print(link["url"])  # https://tg.example.com:8090/l/a1b2c3d4...
 ```
 
 #### `get_web_submissions(slug, limit, offset) -> list[dict]`
@@ -447,7 +447,7 @@ await api.set_my_profile_photo(photo={"type": "static", "sticker": "..."}, is_pu
 await api.remove_my_profile_photo()
 
 # Аудио профиля пользователя (Bot API 9.4)
-audios = await api.get_user_profile_audios(user_id=279308665)
+audios = await api.get_user_profile_audios(user_id=987654321)
 
 # Star-подписки
 await api.edit_user_star_subscription(
@@ -541,7 +541,7 @@ chat_gifts = await api.get_chat_gifts(chat_id=-100123456)
 ```python
 await api.send_message_draft(
     business_connection_id="abc123",
-    chat_id=269949384,
+    chat_id=123456789,
     text="Текст черновика",
 )
 ```

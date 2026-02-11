@@ -5,7 +5,7 @@
 Демонстрирует отправку альбомов из нескольких фото/видео одним сообщением.
 
 Использование:
-    python scripts/test_media_group.py --chat-id -1001455291970
+    python scripts/test_media_group.py --chat-id -1001234567890
 """
 
 from __future__ import annotations

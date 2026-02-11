@@ -506,7 +506,7 @@ web-ui/
   Обязательные элементы в compose.yml:
   ```yaml
   volumes:
-    - /home/plag/.certbot/flat:/certs:ro
+    - ${HOME}/.certbot/flat:/certs:ro
   command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
             "--ssl-certfile", "/certs/fullchain.pem", "--ssl-keyfile", "/certs/privkey.pem"]
   ports:

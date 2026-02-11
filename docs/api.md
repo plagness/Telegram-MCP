@@ -697,7 +697,7 @@ Long polling через `getUpdates`.
 ```json
 {
   "token": "a1b2c3d4e5f6...",
-  "url": "https://tg.plag.space:8090/l/a1b2c3d4e5f6..."
+  "url": "https://tg.example.com:8090/l/a1b2c3d4e5f6..."
 }
 ```
 
@@ -922,7 +922,7 @@ Long polling через `getUpdates`.
 ```json
 {
   "business_connection_id": "abc123",
-  "chat_id": 269949384,
+  "chat_id": 123456789,
   "text": "Текст черновика",
   "parse_mode": "HTML"
 }

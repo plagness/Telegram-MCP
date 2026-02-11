@@ -16,7 +16,7 @@ spec:
   selector:
     app.kubernetes.io/name: tgweb
 ---
-# NodePort для внешнего доступа (КРИТИЧНО: Mini App через tg.plag.space:8443)
+# NodePort для внешнего доступа (КРИТИЧНО: Mini App через tg.example.com:8443)
 # NodePort 30443 → tgweb:8000 (SSL)
 # На хосте: socat/iptables перенаправляет 8443 → 30443
 apiVersion: v1

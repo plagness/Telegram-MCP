@@ -8,7 +8,7 @@
   - Тихое закрепление без уведомлений (disable_notification=True)
 
 Использование:
-    python scripts/test_pin.py --chat-id -1001455291970
+    python scripts/test_pin.py --chat-id -1001234567890
 """
 
 from __future__ import annotations

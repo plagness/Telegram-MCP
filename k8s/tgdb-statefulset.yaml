@@ -73,5 +73,5 @@ spec:
             claimName: tgdb-data
         - name: init-scripts
           hostPath:
-            path: /opt/neuronswarm/telegram-mcp/db/init
+            path: /opt/telegram-mcp/db/init
             type: Directory

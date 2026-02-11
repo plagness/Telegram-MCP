@@ -10,8 +10,8 @@
   - Использование шаблонов в обработчиках
 
 Использование:
-    python scripts/test_command_handler.py --chat-id -1001455291970
-    python scripts/test_command_handler.py --chat-id -1001455291970 --user-id 123456
+    python scripts/test_command_handler.py --chat-id -1001234567890
+    python scripts/test_command_handler.py --chat-id -1001234567890 --user-id 123456
 
 Переменные окружения:
     TELEGRAM_API_URL — базовый URL (по умолчанию http://localhost:8081)
@@ -93,7 +93,7 @@ async def main(
             response = await api.render_template(
                 "hardware_fleet",
                 {
-                    "title": "NeuronSwarm Fleet",
+                    "title": "Compute Fleet",
                     "devices": [
                         {
                             "name": "server1",

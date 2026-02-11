@@ -23,7 +23,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    public_url: str = "https://tg.plag.space:8443"
+    public_url: str = "https://tg.example.com:8443"
     tgapi_url: str = "http://tgapi:8000"
     llm_core_url: str = "http://llmcore:8080"
     bot_token: str = ""

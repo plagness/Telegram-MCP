@@ -9,7 +9,7 @@
   - Репост историй (Bot API 9.3)
 
 Использование:
-    python scripts/test_bot_api_9x.py --chat-id -1001455291970
+    python scripts/test_bot_api_9x.py --chat-id -1001234567890
 """
 
 from __future__ import annotations

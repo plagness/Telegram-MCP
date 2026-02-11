@@ -5,9 +5,9 @@ namespace: ns-telegram
 
 labels:
   - pairs:
-      app.kubernetes.io/part-of: neuronswarm
+      app.kubernetes.io/part-of: telegram-mcp
       app.kubernetes.io/managed-by: kustomize
-      project: neuronswarm
+      project: telegram-mcp
       module: telegram
 
 resources:
