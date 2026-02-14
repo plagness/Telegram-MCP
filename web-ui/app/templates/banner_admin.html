@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Баннеры{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+{% block bar_right %}<button class="bee-bar__action">&#9881;</button>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">Промо-баннеры</div>
+    <div class="bee-subtitle">Управление баннерами на Hub</div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# ── Форма создания ── #}
+<div class="bee-card">
+    <div class="bee-card-title">Новый баннер</div>
+    <form method="POST" action="/admin/banners/create?initData={{ request.query_params.get('initData', '') }}"
+          style="display:flex;flex-direction:column;gap:10px">
+        <div>
+            <label class="bee-label">Telegram username</label>
+            <input type="text" name="tg_username" class="bee-input" placeholder="username" required>
+        </div>
+        <div>
+            <label class="bee-label">Заголовок</label>
+            <input type="text" name="title" class="bee-input" placeholder="Название баннера" required>
+        </div>
+        <div>
+            <label class="bee-label">Описание</label>
+            <input type="text" name="description" class="bee-input" placeholder="Краткое описание">
+        </div>
+        <div>
+            <label class="bee-label">Ссылка</label>
+            <input type="url" name="link" class="bee-input" placeholder="https://t.me/username" required>
+        </div>
+        <div style="display:flex;gap:10px">
+            <div style="flex:1">
+                <label class="bee-label">Приоритет</label>
+                <input type="number" name="priority" class="bee-input" value="0" min="0" max="100">
+            </div>
+            <div style="flex:2">
+                <label class="bee-label">Роли (через запятую)</label>
+                <input type="text" name="target_roles" class="bee-input" placeholder="project_owner,tester">
+            </div>
+        </div>
+        <button type="submit" class="bee-btn">Создать баннер</button>
+    </form>
+</div>
+
+{# ── Список баннеров ── #}
+{% if banners %}
+<div class="bee-card">
+    <div class="bee-card-title">Все баннеры ({{ banners|length }})</div>
+    <div class="bee-list">
+        {% for b in banners %}
+        <div class="bee-list-item" style="flex-wrap:wrap;gap:8px">
+            <div class="bee-list-icon">
+                {% if b.avatar_file %}
+                <img src="{{ b.avatar_file }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="">
+                {% else %}
+                <span style="font-size:24px">&#128100;</span>
+                {% endif %}
+            </div>
+            <div class="bee-list-content" style="min-width:0">
+                <div class="bee-list-title">{{ b.title }}</div>
+                <div class="bee-list-subtitle">
+                    @{{ b.tg_username }}
+                    &middot; p={{ b.priority }}
+                    {% if b.target_roles and b.target_roles|length > 0 %}
+                    &middot; {{ b.target_roles|join(', ') }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="bee-list-right">
+                {% if b.is_active %}
+                <span class="bee-badge">active</span>
+                {% else %}
+                <span class="bee-badge bee-badge--outline">off</span>
+                {% endif %}
+            </div>
+            <div style="width:100%;display:flex;gap:6px;margin-top:4px;padding-left:46px">
+                <form method="POST"
+                      action="/admin/banners/{{ b.id }}/refresh-avatar?initData={{ request.query_params.get('initData', '') }}"
+                      style="margin:0">
+                    <button type="submit" class="bee-btn bee-btn--outline" style="font-size:12px;padding:4px 10px">
+                        &#128247; Аватар
+                    </button>
+                </form>
+                <form method="POST"
+                      action="/admin/banners/{{ b.id }}/toggle?initData={{ request.query_params.get('initData', '') }}"
+                      style="margin:0">
+                    <input type="hidden" name="active" value="{{ '0' if b.is_active else '1' }}">
+                    <button type="submit" class="bee-btn bee-btn--outline" style="font-size:12px;padding:4px 10px">
+                        {% if b.is_active %}&#10060; Выкл{% else %}&#10004; Вкл{% endif %}
+                    </button>
+                </form>
+                <form method="POST"
+                      action="/admin/banners/{{ b.id }}/delete?initData={{ request.query_params.get('initData', '') }}"
+                      style="margin:0"
+                      onsubmit="return confirm('Удалить баннер?')">
+                    <button type="submit" class="bee-btn bee-btn--outline" style="font-size:12px;padding:4px 10px;color:var(--error)">
+                        &#128465; Удалить
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="bee-result">
+    <div class="bee-result-icon">&#128203;</div>
+    <div class="bee-result-title">Нет баннеров</div>
+    <div class="bee-result-text">Создайте первый промо-баннер выше.</div>
+</div>
+{% endif %}
+{% endblock %}

@@ -59,6 +59,9 @@ Thumbs.db
 postgres_data/
 pgdata/
 
+# Конфиг нод (содержит реальные IP)
+config/nodes.json
+
 # Secrets (дополнительная защита)
 *.pem
 *.key

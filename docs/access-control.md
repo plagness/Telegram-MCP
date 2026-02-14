@@ -1,14 +1,42 @@
-# Access Control — Design Doc
+# Access Control
 
-## Статус: Планирование
+## Статус: Реализовано (v2026.02.19)
 
-Документ описывает будущую архитектуру доступов для Telegram Mini App.
+Система контроля доступа для Telegram Mini App страниц.
 
 ---
 
-## Текущая реализация (v1 — Фаза 8)
+## Архитектура
 
-Простая проверка `config.allowed_users` в конфиге страницы:
+Единая точка проверки — `check_page_access(user_id, page)` в `web-ui/app/services/access.py`.
+
+**Логика (OR):** доступ если выполняется ХОТЯ БЫ одно условие:
+
+1. `access_rules.public == true` → доступно всем
+2. `user_id` в `access_rules.allowed_users` → прямой доступ
+3. У пользователя есть роль из `access_rules.allowed_roles` → проверка `user_roles`
+4. Пользователь — участник чата из `access_rules.allowed_chats` → проверка `chat_members`
+5. **Обратная совместимость:** `config.allowed_users` (старый формат) → проверка по нему
+6. Если правил нет совсем → страница публичная
+
+---
+
+## Формат access_rules
+
+Расширение `web_pages.config`:
+
+```json
+{
+  "access_rules": {
+    "public": false,
+    "allowed_users": [123456789],
+    "allowed_roles": ["project_owner", "tester"],
+    "allowed_chats": [-1001234567890]
+  }
+}
+```
+
+Старый формат продолжает работать:
 
 ```json
 {
@@ -16,125 +44,114 @@
 }
 ```
 
-- Проверка через `validate_init_data()` + сравнение `user.id` с массивом
-- Используется в page_type `"infra"` — прокси-эндпоинт `/p/{slug}/infra/data`
-- Проверка на бэкенде (не UI-only) — initData передаётся в `X-Init-Data` header
-
 ---
 
-## Два уровня доступов (будущее)
+## Глобальные роли
 
-### 1. Chat-based доступ
+Роли не привязаны к чатам — проектные/системные.
 
-Пользователь — участник чата → видит страницы привязанные к этому чату.
-
-**Уже есть:**
-- Таблица `chat_members(chat_id, user_id, status)` — обновляется из Telegram updates
-- Функция `_check_chat_admin(user_id, chat_id)` в `render.py`
-- Поле `web_pages.config` может хранить `chat_id` привязку
-
-**Примеры:**
-- Чат "Ковенант" → страницы с шутками → доступ только участникам чата
-- Чат "Трейдинг" → страницы с аналитикой → доступ участникам
-
-**Нужно:**
-- `config.allowed_chats: [-1001234567890]` — список chat_id
-- Проверка: `user_id IN (SELECT user_id FROM chat_members WHERE chat_id = ANY(allowed_chats))`
-
-### 2. Глобальные роли
-
-Роли не привязанные к чатам — проектные/системные.
-
-**Примеры ролей:**
-| Роль | Описание | Доступы |
-|------|----------|---------|
+| Роль | Описание | Типичные доступы |
+|------|----------|------------------|
 | `project_owner` | Владелец проекта | Все страницы, infra, admin |
 | `tester` | Тестировщик | Отладочные страницы, логи |
 | `backend_dev` | Бэкенд-разработчик | Infra, API docs, метрики |
 | `moderator` | Модератор чатов | Календари, контент |
 
-**Нужна новая таблица:**
+### Таблица БД
+
+Миграция: `db/init/12_access_control.sql`
+
 ```sql
-CREATE TABLE IF NOT EXISTS user_roles (
+CREATE TABLE user_roles (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     role TEXT NOT NULL,
     granted_by BIGINT,
+    note TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, role)
 );
-CREATE INDEX idx_user_roles_user ON user_roles(user_id);
 ```
 
 ---
 
-## Единый формат access_rules
+## REST API (через tgapi proxy)
 
-Расширение `web_pages.config`:
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/v1/web/roles` | Список ролей (фильтр: `?user_id=`, `?role=`) |
+| `GET` | `/v1/web/roles/{user_id}` | Роли конкретного пользователя |
+| `POST` | `/v1/web/roles` | Назначить роль `{user_id, role, granted_by, note}` |
+| `DELETE` | `/v1/web/roles/{user_id}/{role}` | Отозвать роль |
+| `POST` | `/v1/web/roles/check-access` | Проверить доступ `{user_id, slug}` |
 
-```json
-{
-  "access_rules": {
-    "allowed_users": [123456789],
-    "allowed_roles": ["project_owner", "tester"],
-    "allowed_chats": [-1001234567890],
-    "public": false
-  }
-}
-```
+### Примеры
 
-**Логика (OR):** доступ если выполняется ХОТЯ БЫ одно:
-- `public: true` → доступно всем
-- `user_id IN allowed_users`
-- Пользователь имеет роль из `allowed_roles`
-- Пользователь — участник чата из `allowed_chats`
+```bash
+# Назначить роль
+curl -X POST http://localhost:8081/v1/web/roles \
+  -H 'content-type: application/json' \
+  -d '{"user_id": 123456789, "role": "project_owner"}'
 
----
-
-## Единая функция проверки
-
-```python
-async def check_page_access(user_id: int, page: dict) -> bool:
-    """Единая точка проверки доступа к странице."""
-    rules = page.get("config", {}).get("access_rules", {})
-
-    # Обратная совместимость: старый формат allowed_users
-    if not rules and page.get("config", {}).get("allowed_users"):
-        return user_id in page["config"]["allowed_users"]
-
-    if rules.get("public"):
-        return True
-    if user_id in rules.get("allowed_users", []):
-        return True
-    if rules.get("allowed_roles"):
-        user_roles = await get_user_roles(user_id)
-        if user_roles & set(rules["allowed_roles"]):
-            return True
-    if rules.get("allowed_chats"):
-        member = await is_chat_member(user_id, rules["allowed_chats"])
-        if member:
-            return True
-    return False
+# Проверить доступ
+curl -X POST http://localhost:8081/v1/web/roles/check-access \
+  -H 'content-type: application/json' \
+  -d '{"user_id": 123456789, "slug": "infra-dashboard"}'
+# → {"user_id": 123456789, "slug": "infra-dashboard", "has_access": true, "reasons": ["role:project_owner"]}
 ```
 
 ---
 
-## Главный экран Mini App
+## MCP инструменты
 
-Сейчас `/` (index) — пустой base.html с редиректом по start_param.
-
-**Будущее:** Главный экран показывает все доступные страницы для текущего пользователя:
-- Авторизация через initData
-- Запрос всех активных `web_pages`
-- Фильтрация по `check_page_access()`
-- Отображение карточками: иконка, название, тип, описание
-- Группировка: по чату / по роли / личные
+| Инструмент | Описание |
+|------------|----------|
+| `webui.list_roles` | Список ролей (опционально `user_id`) |
+| `webui.grant_role` | Назначить роль `{user_id, role, granted_by, note}` |
+| `webui.revoke_role` | Отозвать роль `{user_id, role}` |
+| `webui.check_access` | Проверить доступ `{user_id, slug}` → `{has_access, reasons}` |
 
 ---
 
-## Миграция
+## Chat-based доступ
 
-1. Текущий `config.allowed_users` продолжает работать (обратная совместимость)
-2. Новые страницы используют `config.access_rules`
-3. `check_page_access()` поддерживает оба формата
-4. Миграция: одноразовый скрипт переносит `allowed_users` → `access_rules.allowed_users`
+Пользователь — участник чата → видит страницы привязанные к этому чату.
+
+**Зависимости:**
+- Таблица `chat_members(chat_id, user_id, status)` — обновляется из Telegram updates
+- Проверка: `user_id IN (SELECT user_id FROM chat_members WHERE chat_id = ANY(allowed_chats))`
+
+**Примеры:**
+- Чат «Ковенант» → страницы с календарём → доступ только участникам чата
+- Чат «Трейдинг» → страницы с аналитикой → доступ участникам
+
+---
+
+## Интеграция
+
+### render.py
+
+- `render_page()` — проверяет доступ через initData из `X-Init-Data` header
+- `infra_data_proxy()` — использует единую `check_page_access()` вместо хардкода
+- `index()` — рендерит hub с доступными страницами для текущего пользователя
+
+### Hub (главный экран)
+
+При открытии Mini App без `start_param`, показывается hub:
+- Загружаются все активные страницы
+- Фильтруются через `check_page_access()` для текущего пользователя
+- Группируются: по чатам → системные (по ролям) → публичные
+- Отображаются карточками с иконками и бейджами типов
+
+---
+
+## Файлы
+
+| Файл | Назначение |
+|------|------------|
+| `db/init/12_access_control.sql` | SQL миграция: таблица user_roles |
+| `web-ui/app/services/access.py` | check_page_access(), get_accessible_pages(), group_pages_for_hub() |
+| `web-ui/app/services/roles.py` | CRUD для user_roles |
+| `web-ui/app/routers/roles.py` | REST API управления ролями |
+| `api/app/routers/webui.py` | Проксирование roles API через tgapi |
+| `mcp/src/tools/webui.ts` | MCP инструменты для ролей |

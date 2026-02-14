@@ -86,9 +86,17 @@ spec:
                 secretKeyRef:
                   name: telegram-secrets
                   key: TELEGRAM_BOT_TOKEN
+            - name: NODES_CONFIG_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: NODES_CONFIG_PATH
           volumeMounts:
             - name: certs
               mountPath: /certs
+              readOnly: true
+            - name: nodes-config
+              mountPath: /app/config
               readOnly: true
           livenessProbe:
             httpGet:
@@ -118,3 +126,7 @@ spec:
           hostPath:
             path: /opt/certs/letsencrypt
             type: Directory
+        - name: nodes-config
+          hostPath:
+            path: /opt/telegram-mcp/config
+            type: DirectoryOrCreate

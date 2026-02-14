@@ -1,7 +1,7 @@
 # Telegram-MCP
 
 [![Bot API](https://img.shields.io/badge/Bot%20API-9.4-00ACED.svg?logo=telegram)](https://core.telegram.org/bots/api)
-[![Version](https://img.shields.io/badge/version-2026.02.19-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
+[![Version](https://img.shields.io/badge/version-2026.02.20-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)

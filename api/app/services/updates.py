@@ -1383,6 +1383,25 @@ async def ingest_update(update: dict[str, Any], bot_id: int | None = None) -> di
         # Бизнес-логика обработки callback
         await _process_callback_query(callback_query)
 
+    # Обработка chat_member / my_chat_member (вступление/выход из чата)
+    if update_type in ("chat_member", "my_chat_member"):
+        member_update = update.get(update_type, {})
+        cm_chat = member_update.get("chat") or {}
+        cm_new = member_update.get("new_chat_member") or {}
+        cm_user = cm_new.get("user") or {}
+        cm_status = cm_new.get("status")  # member, administrator, creator, left, kicked, restricted
+
+        if cm_chat.get("id") and cm_user.get("id"):
+            update_chat_id = str(cm_chat["id"])
+            update_user_id = str(cm_user["id"])
+            await _upsert_chat(cm_chat, bot_id=bot_id)
+            await _upsert_user(cm_user)
+            await _upsert_chat_member(
+                cm_chat["id"], cm_user["id"],
+                bot_id=bot_id,
+                status=cm_status,
+            )
+
     # Обработка pre_checkout_query (подтверждение перед оплатой)
     if update_type == "pre_checkout_query":
         pre_checkout = update.get("pre_checkout_query", {})

@@ -6,7 +6,9 @@
 <script src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
 {% endblock %}
 
-{% block content %}
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
 {% if event %}
 <div class="bee-card bee-hex-bg">
     <div class="bee-title">{{ page.title }}</div>
@@ -14,7 +16,11 @@
     <div class="bee-subtitle">{{ event.description }}</div>
     {% endif %}
 </div>
+{% endif %}
+{% endblock %}
 
+{% block content %}
+{% if event %}
 <!-- Статистика -->
 <div class="bee-card">
     <div class="bee-stat-grid{% if event.deadline %} bee-stat-grid--three{% endif %}">

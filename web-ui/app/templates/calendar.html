@@ -2,8 +2,10 @@
 
 {% block title %}{{ calendar.title if calendar else page.title }}{% endblock %}
 
-{% block content %}
-{# ── Заголовок с аватаркой чата + профиль юзера ──────── #}
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+{# ── Заголовок с аватаркой чата ──────── #}
 <div class="bee-card bee-hex-bg">
     {% if chat_info %}
     <div class="bee-cal-header">
@@ -22,23 +24,17 @@
             <span class="bee-badge" style="font-size:11px;padding:2px 8px">{{ chat_info.member_count }} уч.</span>
             {% endif %}
         </div>
-        <div class="bee-cal-user-mini" id="user-avatar" title="Профиль">
-            <span class="bee-cal-user-mini-fallback" id="user-fallback">?</span>
-        </div>
     </div>
     {% else %}
-    <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="bee-title">{{ calendar.title if calendar else page.title }}</div>
-        <div class="bee-cal-user-mini" id="user-avatar" title="Профиль">
-            <span class="bee-cal-user-mini-fallback" id="user-fallback">?</span>
-        </div>
-    </div>
+    <div class="bee-title">{{ calendar.title if calendar else page.title }}</div>
     {% endif %}
     {% if calendar and calendar.description %}
     <div class="bee-subtitle" style="margin-top:6px">{{ calendar.description }}</div>
     {% endif %}
 </div>
+{% endblock %}
 
+{% block content %}
 {# ── Переключатель вида + Поиск + Навигация + Сетка ──── #}
 <div class="bee-card">
     <div class="bee-cal-toggle">
@@ -551,24 +547,6 @@
         if (!s) return '';
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-
-    // ── Профиль пользователя ────────────────
-    (function initUserProfile() {
-        var userAva = document.getElementById('user-avatar');
-        var userFallback = document.getElementById('user-fallback');
-        if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) return;
-        var u = tg.initDataUnsafe.user;
-        if (u.photo_url) {
-            var img = document.createElement('img');
-            img.src = u.photo_url;
-            img.alt = u.first_name || '';
-            img.onerror = function () { this.remove(); };
-            if (userFallback) userFallback.style.display = 'none';
-            userAva.insertBefore(img, userAva.firstChild);
-        } else if (u.first_name && userFallback) {
-            userFallback.textContent = u.first_name.charAt(0).toUpperCase();
-        }
-    })();
 
     // ── Переключение вида ──────────────────────
     var btnMonth = document.getElementById('btn-month');

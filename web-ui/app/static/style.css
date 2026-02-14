@@ -45,8 +45,8 @@
     --radius-lg:  18px;
 
     /* --- Отступы --- */
-    --spacing:    16px;
-    --page-pad:   20px;
+    --spacing:    20px;
+    --page-pad:   24px;
 
     /* --- Типография --- */
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -59,6 +59,32 @@
     /* --- Анимации (0 для отключения) --- */
     --anim-duration: 0.3s;
     --anim-stagger:  0.05s;
+
+    /* --- Орбитальная система эмодзи --- */
+    --orbit1-r:  22px;
+    --orbit2-r:  34px;
+    --orbit3-r:  44px;
+    --binary-r:   8px;
+
+    /* --- Glass morphism (Apple-style) --- */
+    --glass-bg:        transparent;
+    --glass-border:    rgba(255, 255, 255, 0.25);
+    --glass-blur:      16px;
+    --glass-saturate:  180%;
+    --glass-shadow:    0 2px 16px rgba(0, 0, 0, 0.06);
+
+    /* --- Frosted glass (карточки, поиск, pills — не liquid glass) --- */
+    --frosted-bg:      rgba(255, 255, 255, 0.45);
+}
+
+/* Тёмная тема: Telegram ставит bg-color близкий к чёрному */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --glass-bg:     transparent;
+        --glass-border: rgba(255, 255, 255, 0.06);
+        --glass-shadow: 0 2px 16px rgba(0, 0, 0, 0.25);
+        --frosted-bg:   rgba(40, 40, 40, 0.45);
+    }
 }
 
 
@@ -142,8 +168,8 @@ a { color: var(--accent-dark); }
 .bee-card {
     background: var(--tg-section-bg);
     border-radius: var(--radius-lg);
-    padding: var(--spacing);
-    margin-bottom: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
     animation: slideUp var(--anim-duration) ease both;
 }
 
@@ -878,21 +904,7 @@ a { color: var(--accent-dark); }
 
 .bee-error-page {
     text-align: center;
-    padding: 60px 24px;
-}
-
-.bee-error-code {
-    font-size: 64px;
-    font-weight: 800;
-    color: var(--accent);
-    line-height: 1;
-    margin-bottom: 8px;
-}
-
-.bee-error-text {
-    font-size: 16px;
-    color: var(--tg-hint);
-    margin-bottom: 32px;
+    padding: 32px 24px;
 }
 
 /* ── Hex pattern (subtle decoration) ───────── */
@@ -958,7 +970,7 @@ a { color: var(--accent-dark); }
 /* ── Responsive ────────────────────────────── */
 
 @media (max-width: 360px) {
-    .bee-app { padding: 14px; }
+    .bee-app { padding: 16px; }
     .bee-stat-grid { grid-template-columns: 1fr 1fr; }
     .bee-podium-item { max-width: 100px; }
     .bee-medal { width: 40px; height: 40px; font-size: 16px; }
@@ -966,7 +978,7 @@ a { color: var(--accent-dark); }
 }
 
 @media (min-width: 521px) {
-    .bee-app { padding: 24px 32px; }
+    .bee-app { padding: 28px 36px; }
 }
 
 /* ══════════════════════════════════════════════
@@ -2374,3 +2386,1376 @@ a { color: var(--accent-dark); }
     font-size: 13px;
     padding: 6px 0 0;
 }
+
+/* ══════════════════════════════════════════════════════════
+   Bee Bar — Compact Sticky Header (liquid glass)
+   ══════════════════════════════════════════════════════════ */
+
+.bee-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    min-height: 44px;
+    background: transparent;
+    border: none;
+    pointer-events: none;
+}
+.bee-bar > * {
+    pointer-events: auto;
+}
+.bee-bar.scrolled {
+    box-shadow: none;
+}
+
+/* Glass layers на pill (.bee-bar__center) */
+.bee-bar__center > .bee-glass-tint     { z-index: 0; }
+.bee-bar__center > .bee-glass-specular { z-index: 1; }
+.bee-bar__center > .bee-glass-refract  { z-index: -1; }
+.bee-bar__center > .bee-bar__avatar,
+.bee-bar__center > .bee-bar__name {
+    position: relative;
+    z-index: 2;
+}
+
+/* Слот: левый */
+.bee-bar__left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bee-bar__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(128, 128, 128, 0.12);
+    color: var(--tg-text);
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+.bee-bar__back:active {
+    background: rgba(128, 128, 128, 0.25);
+}
+
+/* Слот: центр — pill (аватар + имя) */
+.bee-bar__center {
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 36px;
+    overflow: hidden;
+    padding: 4px 14px 4px 4px;
+    border-radius: 20px;
+    background: var(--frosted-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    position: relative;
+    transition: background 0.2s ease;
+}
+.bee-bar__center[data-bee-glass] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: transparent;
+}
+
+.bee-bar__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+.bee-bar__name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--tg-text);
+    max-width: 180px;
+}
+
+/* Слот: правый */
+.bee-bar__right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.bee-bar__action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--frosted-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    color: var(--tg-text);
+    text-decoration: none;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+    position: relative;
+    overflow: hidden;
+}
+.bee-bar__action[data-bee-glass] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: transparent;
+}
+.bee-bar__action svg {
+    display: block;
+}
+.bee-bar__action:active {
+    background: rgba(128, 128, 128, 0.25);
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   Hub v2 — Главный экран Mini App (карточки-список)
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Шапка ── */
+.bee-hub-header {
+    padding: 20px 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bee-hub-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bee-hub-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--tg-theme-button-color, #FFC107);
+    color: var(--tg-theme-button-text-color, #fff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.bee-hub-user-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--tg-text);
+}
+
+.bee-hub-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.bee-hub-role-badge {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--tg-theme-button-color, #FFC107);
+    color: var(--tg-theme-button-text-color, #fff);
+    opacity: 0.85;
+}
+
+.bee-hub-stats {
+    font-size: 13px;
+    color: var(--tg-hint);
+    white-space: nowrap;
+}
+
+/* ── Промо-баннер ── */
+.bee-promo {
+    display: flex;
+    align-items: center;
+    position: relative;
+    margin: 18px 20px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--tg-text);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.bee-promo:active {
+    transform: scale(0.98);
+}
+
+.bee-promo__bg {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(30px) saturate(180%);
+    opacity: 0.25;
+    z-index: 0;
+}
+
+.bee-promo__content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    min-width: 0;
+}
+
+.bee-promo__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+.bee-promo__avatar--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.bee-promo__text {
+    flex: 1;
+    min-width: 0;
+}
+.bee-promo__title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.bee-promo__username {
+    font-size: 12px;
+    color: var(--tg-hint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bee-promo__arrow {
+    font-size: 20px;
+    color: var(--tg-hint);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.bee-promo__close {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(128, 128, 128, 0.2);
+    color: var(--tg-hint);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+.bee-promo__close:active {
+    background: rgba(128, 128, 128, 0.4);
+}
+
+/* ── Поиск + кнопка фильтров ── */
+.bee-hub-search-row {
+    display: flex;
+    gap: 10px;
+    padding: 20px 20px 18px;
+    align-items: center;
+}
+
+/* Обёртка поиска для liquid glass */
+.bee-hub-search-wrap {
+    flex: 1;
+    position: relative;
+    border-radius: var(--radius-md);
+    background: var(--frosted-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.bee-hub-search-wrap[data-bee-glass] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: transparent;
+}
+.bee-hub-search-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.bee-hub-search {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    color: var(--tg-text);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+}
+
+.bee-hub-filter-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--glass-border);
+    background: var(--frosted-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    color: var(--tg-text);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+}
+.bee-hub-filter-toggle[data-bee-glass] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: transparent;
+}
+.bee-hub-filter-toggle > span,
+.bee-hub-filter-toggle > svg {
+    position: relative;
+    z-index: 2;
+}
+
+.bee-hub-filter-toggle:active {
+    transform: scale(0.92);
+}
+
+.bee-hub-filter-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+/* ── Фильтры ── */
+.bee-hub-filters {
+    padding: 0 20px 18px;
+    overflow: hidden;
+    max-height: 500px;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.bee-hub-filters.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.bee-hub-filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tg-hint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    margin-top: 8px;
+}
+
+.bee-hub-filter-label:first-child {
+    margin-top: 0;
+}
+
+.bee-hub-filter-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px 0 6px;
+}
+
+.bee-hub-filter-row::-webkit-scrollbar {
+    display: none;
+}
+
+.bee-hub-pill {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    background: var(--frosted-bg);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    backdrop-filter: blur(10px) saturate(150%);
+    color: var(--tg-text);
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: var(--font);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.bee-hub-pill:active {
+    transform: scale(0.95);
+}
+
+.bee-hub-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+/* ── Список карточек (edge-to-edge) ── */
+.bee-hub-list {
+    padding: 0;
+}
+
+/* ── Карточка (edge-to-edge, transparent, separator) ── */
+.bee-hub-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 0.5px solid var(--tg-separator);
+    margin-bottom: 0;
+    text-decoration: none;
+    color: var(--tg-text);
+    position: relative;
+    transition: background-color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    animation: fadeIn var(--anim-duration) ease backwards;
+}
+.bee-hub-card:last-child { border-bottom: none; }
+.bee-hub-card:active { background: var(--tg-separator); }
+
+/* Stagger анимация */
+.bee-hub-card:nth-child(1) { animation-delay: 0s; }
+.bee-hub-card:nth-child(2) { animation-delay: calc(var(--anim-stagger) * 1); }
+.bee-hub-card:nth-child(3) { animation-delay: calc(var(--anim-stagger) * 2); }
+.bee-hub-card:nth-child(4) { animation-delay: calc(var(--anim-stagger) * 3); }
+.bee-hub-card:nth-child(5) { animation-delay: calc(var(--anim-stagger) * 4); }
+.bee-hub-card:nth-child(6) { animation-delay: calc(var(--anim-stagger) * 5); }
+
+/* ── Визуальная панель (30% — орбитальная система эмодзи) ── */
+.bee-hub-card__visual {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+.bee-hub-card__visual-bg { display: none; }
+.bee-hub-card__visual-emojis {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+}
+
+/* Orbit1 trail (conic-gradient sweep) */
+.bee-hub-card__visual-emojis::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: calc(var(--orbit1-r, 22px) * 2 + 14px);
+    height: calc(var(--orbit1-r, 22px) * 2 + 14px);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        var(--glow-color, rgba(255,152,0,0.4)) 10%,
+        transparent 25%,
+        transparent 100%
+    );
+    -webkit-mask: radial-gradient(circle, transparent calc(50% - 2px), black calc(50% - 1px), black calc(50% + 1px), transparent calc(50% + 2px));
+    mask: radial-gradient(circle, transparent calc(50% - 2px), black calc(50% - 1px), black calc(50% + 1px), transparent calc(50% + 2px));
+    animation: trailSpin var(--orbit1-period, 5s) linear infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -0.7s);
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+}
+.bee-hub-card__visual-emojis:has(.bee-hub-card__emoji--orbit1)::before,
+.bee-hub-card__visual-emojis.--has-orbit1::before { display: block; }
+
+/* Orbit2 trail */
+.bee-hub-card__visual-emojis::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: calc(var(--orbit2-r, 34px) * 2 + 10px);
+    height: calc(var(--orbit2-r, 34px) * 2 + 10px);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        var(--glow-color, rgba(255,152,0,0.35)) 8%,
+        transparent 22%,
+        transparent 100%
+    );
+    -webkit-mask: radial-gradient(circle, transparent calc(50% - 2px), black calc(50% - 1px), black calc(50% + 1px), transparent calc(50% + 2px));
+    mask: radial-gradient(circle, transparent calc(50% - 2px), black calc(50% - 1px), black calc(50% + 1px), transparent calc(50% + 2px));
+    animation: trailSpin var(--orbit2-period, 8s) linear infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -1.3s);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+}
+.bee-hub-card__visual-emojis:has(.bee-hub-card__emoji--orbit2)::after,
+.bee-hub-card__visual-emojis.--has-orbit2::after { display: block; }
+.bee-hub-card__emoji {
+    position: absolute;
+    line-height: 1;
+}
+
+/* ── Орбитальные роли ── */
+
+/* Звезда (ядро) — центр, мягкая пульсация */
+/* По умолчанию: крупная (28px), при expand уменьшается до 20px */
+.bee-hub-card__emoji--star {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: calc(28px * var(--star-scale, 1));
+    z-index: 2;
+    animation: starPulse 4s ease-in-out infinite;
+    filter: drop-shadow(0 0 calc(4px + var(--urgency, 0) * 6px) var(--glow-color, rgba(255, 193, 7, 0.3)));
+    transition: font-size 0.35s ease;
+}
+
+/* Бинарная звезда (star2) — встречная орбита */
+.bee-hub-card__emoji--star2 {
+    top: 50%;
+    left: 50%;
+    font-size: calc(20px * var(--star-scale, 1));
+    z-index: 2;
+    animation: binaryOrbit var(--binary-period, 3s) linear infinite;
+    animation-delay: calc(var(--binary-period, 3s) / -2);
+    filter: drop-shadow(0 0 4px var(--glow-color, rgba(255, 193, 7, 0.3)));
+}
+
+/* Когда есть star2, star тоже вращается по бинарной орбите */
+.bee-hub-card__visual--binary .bee-hub-card__emoji--star {
+    font-size: calc(22px * var(--star-scale, 1));
+    animation: binaryOrbit var(--binary-period, 3s) linear infinite;
+}
+
+/* Планета (внутренняя орбита) */
+.bee-hub-card__emoji--orbit1 {
+    top: 50%;
+    left: 50%;
+    font-size: 15px;
+    z-index: 1;
+    --orbit-r: var(--orbit1-r);
+    animation-name: orbit;
+    animation-duration: var(--orbit1-period, 5s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -0.7s);
+    filter: drop-shadow(0 0 6px var(--glow-color, rgba(255, 152, 0, 0.5)));
+    will-change: transform;
+}
+
+/* Спутник (внешняя орбита) */
+.bee-hub-card__emoji--orbit2 {
+    top: 50%;
+    left: 50%;
+    font-size: 12px;
+    z-index: 1;
+    opacity: 0.9;
+    --orbit-r: var(--orbit2-r);
+    animation-name: orbit;
+    animation-duration: var(--orbit2-period, 8s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -1.3s);
+    filter: drop-shadow(0 0 5px var(--glow-color, rgba(255, 152, 0, 0.4)));
+    will-change: transform;
+}
+
+/* orbit3 — 2-й на среднем кольце (orbit2-r), сдвиг 180° */
+.bee-hub-card__emoji--orbit3 {
+    top: 50%;
+    left: 50%;
+    font-size: 11px;
+    z-index: 1;
+    opacity: 0.85;
+    --orbit-r: var(--orbit2-r);
+    animation-name: orbit;
+    animation-duration: var(--orbit2-period, 8s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -1.3s + var(--orbit2-period, 8s) / -2);
+    filter: drop-shadow(0 0 4px var(--glow-color, rgba(255, 152, 0, 0.3)));
+    will-change: transform;
+}
+
+/* orbit4 — 1-й на внешнем кольце (orbit3-r) */
+.bee-hub-card__emoji--orbit4 {
+    top: 50%;
+    left: 50%;
+    font-size: 10px;
+    z-index: 1;
+    opacity: 0.7;
+    --orbit-r: var(--orbit3-r);
+    animation-name: orbit;
+    animation-duration: var(--orbit3-period, 12s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -1.7s);
+    filter: drop-shadow(0 0 3px var(--glow-color, rgba(255, 152, 0, 0.2)));
+    will-change: transform;
+}
+
+/* orbit5 — 2-й на внешнем кольце (orbit3-r), сдвиг 180° */
+.bee-hub-card__emoji--orbit5 {
+    top: 50%;
+    left: 50%;
+    font-size: 9px;
+    z-index: 1;
+    opacity: 0.6;
+    --orbit-r: var(--orbit3-r);
+    animation-name: orbit;
+    animation-duration: var(--orbit3-period, 12s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -1.7s + var(--orbit3-period, 12s) / -2);
+    filter: drop-shadow(0 0 3px var(--glow-color, rgba(255, 152, 0, 0.2)));
+    will-change: transform;
+}
+
+/* Trail для 3-го кольца (div, не pseudo-element) */
+.bee-hub-card__trail--orbit3 {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: calc(var(--orbit3-r, 44px) * 2 + 8px);
+    height: calc(var(--orbit3-r, 44px) * 2 + 8px);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        var(--glow-color, rgba(255, 152, 0, 0.25)) 6%,
+        transparent 18%,
+        transparent 100%
+    );
+    -webkit-mask: radial-gradient(circle, transparent calc(50% - 2px), black calc(50% - 1px), black calc(50% + 1px), transparent calc(50% + 2px));
+    mask: radial-gradient(circle, transparent calc(50% - 2px), black calc(50% - 1px), black calc(50% + 1px), transparent calc(50% + 2px));
+    animation: trailSpin var(--orbit3-period, 12s) linear infinite;
+    animation-delay: calc(var(--orbit-phase, 0) * -1.7s);
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Аватарка чата как звезда — по умолчанию крупная (30px) */
+.bee-hub-card__star-avatar {
+    width: calc(30px * var(--star-scale, 1));
+    height: calc(30px * var(--star-scale, 1));
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    transition: width 0.35s ease, height 0.35s ease;
+}
+
+/* ── Collapsed (default): орбиты скрыты, только звезда ── */
+.bee-hub-card__emoji--orbit1,
+.bee-hub-card__emoji--orbit2,
+.bee-hub-card__emoji--orbit3,
+.bee-hub-card__emoji--orbit4,
+.bee-hub-card__emoji--orbit5 {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.bee-hub-card__emoji--star2 { opacity: 0; transition: opacity 0.4s ease; }
+.bee-hub-card__visual-emojis::before,
+.bee-hub-card__visual-emojis::after { opacity: 0 !important; transition: opacity 0.4s ease 0.15s; }
+.bee-hub-card__trail--orbit3 { opacity: 0 !important; transition: opacity 0.4s ease 0.2s; }
+
+.bee-hub-card__visual-metric {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--tg-hint);
+    padding: 1px 6px;
+    background: rgba(128, 128, 128, 0.15);
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.bee-hub-card__visual-brand {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* ── Expanded: hover (desktop) + .expanded (mobile touch) ── */
+@media (hover: hover) {
+    .bee-hub-card:hover .bee-hub-card__emoji--star {
+        font-size: calc(20px * var(--star-scale, 1));
+    }
+    .bee-hub-card:hover .bee-hub-card__star-avatar {
+        width: calc(22px * var(--star-scale, 1));
+        height: calc(22px * var(--star-scale, 1));
+    }
+    .bee-hub-card:hover .bee-hub-card__emoji--star2 { opacity: 1; transition-delay: 0.05s; }
+    .bee-hub-card:hover .bee-hub-card__emoji--orbit1 { opacity: 1; transition-delay: 0.05s; }
+    .bee-hub-card:hover .bee-hub-card__emoji--orbit2 { opacity: 0.9; transition-delay: 0.1s; }
+    .bee-hub-card:hover .bee-hub-card__emoji--orbit3 { opacity: 0.85; transition-delay: 0.15s; }
+    .bee-hub-card:hover .bee-hub-card__emoji--orbit4 { opacity: 0.7; transition-delay: 0.2s; }
+    .bee-hub-card:hover .bee-hub-card__emoji--orbit5 { opacity: 0.6; transition-delay: 0.25s; }
+    .bee-hub-card:hover .bee-hub-card__visual-emojis::before { opacity: 0.6 !important; transition-delay: 0.1s; }
+    .bee-hub-card:hover .bee-hub-card__visual-emojis::after { opacity: 0.35 !important; transition-delay: 0.15s; }
+    .bee-hub-card:hover .bee-hub-card__trail--orbit3 { opacity: 0.25 !important; transition-delay: 0.2s; }
+    .bee-hub-card:hover .bee-hub-card__visual-metric { opacity: 1; transition-delay: 0.15s; }
+    .bee-hub-card:hover .bee-hub-card__visual-brand { opacity: 0.35; transition-delay: 0.15s; }
+}
+
+/* Mobile: .expanded class via JS touch */
+.bee-hub-card.expanded .bee-hub-card__emoji--star {
+    font-size: calc(20px * var(--star-scale, 1));
+}
+.bee-hub-card.expanded .bee-hub-card__star-avatar {
+    width: calc(22px * var(--star-scale, 1));
+    height: calc(22px * var(--star-scale, 1));
+}
+.bee-hub-card.expanded .bee-hub-card__emoji--star2 { opacity: 1; transition-delay: 0.05s; }
+.bee-hub-card.expanded .bee-hub-card__emoji--orbit1 { opacity: 1; transition-delay: 0.05s; }
+.bee-hub-card.expanded .bee-hub-card__emoji--orbit2 { opacity: 0.9; transition-delay: 0.1s; }
+.bee-hub-card.expanded .bee-hub-card__emoji--orbit3 { opacity: 0.85; transition-delay: 0.15s; }
+.bee-hub-card.expanded .bee-hub-card__emoji--orbit4 { opacity: 0.7; transition-delay: 0.2s; }
+.bee-hub-card.expanded .bee-hub-card__emoji--orbit5 { opacity: 0.6; transition-delay: 0.25s; }
+.bee-hub-card.expanded .bee-hub-card__visual-emojis::before { opacity: 0.6 !important; transition-delay: 0.1s; }
+.bee-hub-card.expanded .bee-hub-card__visual-emojis::after { opacity: 0.35 !important; transition-delay: 0.15s; }
+.bee-hub-card.expanded .bee-hub-card__trail--orbit3 { opacity: 0.25 !important; transition-delay: 0.2s; }
+.bee-hub-card.expanded .bee-hub-card__visual-metric { opacity: 1; transition-delay: 0.15s; }
+.bee-hub-card.expanded .bee-hub-card__visual-brand { opacity: 0.35; transition-delay: 0.15s; }
+
+/* Контент */
+.bee-hub-card__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.bee-hub-card__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bee-hub-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    line-height: 1.3;
+}
+
+/* Статус-точка */
+.bee-hub-card__status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.bee-hub-card__status--active    { background: var(--success); }
+.bee-hub-card__status--open      { background: var(--success); }
+.bee-hub-card__status--closed    { background: #FFC107; }
+.bee-hub-card__status--resolved  { background: var(--tg-link); }
+.bee-hub-card__status--cancelled { background: var(--error); }
+
+/* Источник */
+.bee-hub-card__source {
+    font-size: 12px;
+    color: var(--tg-hint);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Аватарка источника (чат) */
+.bee-hub-card__source-avatar {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.bee-hub-card__source-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--tg-hint);
+    color: var(--tg-bg, #fff);
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Meta-row: badge + дата снизу описания */
+.bee-hub-card__meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+.bee-hub-card__date {
+    font-size: 11px;
+    color: var(--tg-hint);
+    opacity: 0.7;
+}
+
+/* Описание */
+.bee-hub-card__desc {
+    font-size: 12px;
+    color: var(--tg-hint);
+    margin-top: 3px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Виджеты (горизонтальная строка) */
+.bee-hub-card__widgets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.bee-hub-widget {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.1);
+    color: var(--tg-text);
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.bee-hub-widget--done {
+    background: rgba(76, 175, 80, 0.15);
+    color: var(--success);
+    font-weight: 600;
+}
+
+/* Таймер обратного отсчёта */
+.bee-hub-card__countdown {
+    font-size: 12px;
+    color: var(--tg-hint);
+    margin-top: 4px;
+}
+
+.bee-hub-card__countdown.urgent {
+    color: var(--error);
+    font-weight: 600;
+}
+
+.bee-hub-card__countdown.expired {
+    color: var(--tg-hint);
+    opacity: 0.6;
+}
+
+/* Статусные тексты для карточек (resolved, cancelled, expired calendar) */
+.bee-hub-card__status-text {
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+.bee-hub-card__status-text--resolved {
+    color: var(--success);
+}
+.bee-hub-card__status-text--cancelled {
+    color: var(--error);
+}
+.bee-hub-card__status-text--finished {
+    color: var(--tg-hint);
+}
+
+/* Пользовательское действие (ставка, ответ) */
+.bee-hub-card__user-action {
+    font-size: 12px;
+    color: var(--success);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* ── Контекстные трансформации карточек ── */
+
+/* Resolved — приглушённая */
+.bee-hub-card[data-status="resolved"] { opacity: 0.65; }
+
+/* Cancelled — ещё более приглушённая + зачёркнутый заголовок */
+.bee-hub-card[data-status="cancelled"] { opacity: 0.45; }
+.bee-hub-card[data-status="cancelled"] .bee-hub-card__title {
+    text-decoration: line-through;
+    text-decoration-color: var(--tg-hint);
+}
+
+/* Юзер участвовал — акцентная полоска слева */
+.bee-hub-card[data-participated="true"] {
+    border-left: 3px solid var(--accent);
+    padding-left: 17px;
+}
+
+/* ── Орбитальные keyframes ── */
+@keyframes starPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%      { transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes orbit {
+    from { transform: translate(-50%, -50%) rotate(0deg)   translateX(var(--orbit-r)) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+}
+@keyframes binaryOrbit {
+    from { transform: translate(-50%, -50%) rotate(0deg)   translateX(var(--binary-r)) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg) translateX(var(--binary-r)) rotate(-360deg); }
+}
+@keyframes trailSpin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes emojiPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%      { transform: translate(-50%, -50%) scale(1.15); }
+}
+@keyframes countdownPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+@keyframes resolvedFlash {
+    0%   { background: transparent; }
+    20%  { background: rgba(76, 175, 80, 0.06); }
+    100% { background: transparent; }
+}
+
+/* ── Metadata-driven CSS-классы (применяются JS) ── */
+
+/* Hot — усиленная пульсация звезды */
+.bee-hub-card--hot .bee-hub-card__emoji--star {
+    animation: emojiPulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px var(--glow-color, rgba(255, 152, 0, 0.6)));
+}
+
+/* New — однократная пульсация */
+.bee-hub-card--new .bee-hub-card__emoji--star {
+    animation: emojiPulse 2s ease-in-out 1;
+}
+.bee-hub-card--new {
+    animation: fadeIn var(--anim-duration) ease backwards;
+}
+
+/* Participated — зелёное свечение звезды */
+.bee-hub-card--participated .bee-hub-card__emoji--star {
+    filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.5));
+}
+
+/* Deadline < 24ч — countdown пульсация */
+.bee-hub-card--deadline-near .bee-hub-card__countdown {
+    animation: countdownPulse 2s ease-in-out infinite;
+    font-weight: 600;
+}
+
+/* Deadline < 1ч — красное свечение + ускоренная пульсация */
+.bee-hub-card--deadline-urgent .bee-hub-card__countdown {
+    animation: countdownPulse 1s ease-in-out infinite;
+    color: var(--error) !important;
+    font-weight: 700;
+}
+.bee-hub-card--deadline-urgent .bee-hub-card__emoji--star {
+    animation: emojiPulse 1s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px rgba(244, 67, 54, 0.6));
+}
+
+/* Только что resolved — зелёная вспышка фона */
+.bee-hub-card--just-resolved {
+    animation: resolvedFlash 2s ease-out 1, fadeIn var(--anim-duration) ease backwards;
+}
+
+/* Trending — бейдж с огоньком */
+.bee-hub-card--trending .bee-hub-badge::after {
+    content: ' \1F525';
+    font-size: 9px;
+}
+
+/* Календарь — скоро событие */
+.bee-hub-card--event-soon .bee-hub-card__countdown {
+    animation: countdownPulse 1.5s ease-in-out infinite;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Нет будущих событий — серые эмодзи, орбиты на паузе */
+.bee-hub-card--no-future .bee-hub-card__visual {
+    opacity: 0.4;
+    filter: grayscale(0.8);
+}
+.bee-hub-card--no-future .bee-hub-card__emoji--orbit1,
+.bee-hub-card--no-future .bee-hub-card__emoji--orbit2,
+.bee-hub-card--no-future .bee-hub-card__emoji--orbit3,
+.bee-hub-card--no-future .bee-hub-card__emoji--orbit4,
+.bee-hub-card--no-future .bee-hub-card__emoji--orbit5 {
+    animation-play-state: paused;
+}
+.bee-hub-card--no-future .bee-hub-card__trail--orbit3 { animation-play-state: paused; }
+.bee-hub-card--no-future { opacity: 0.55; }
+
+/* ── Доступность: уменьшенное движение ── */
+@media (prefers-reduced-motion: reduce) {
+    .bee-hub-card__emoji--star { animation: none; }
+    .bee-hub-card__emoji--star2 {
+        animation: none;
+        transform: translate(-50%, -50%) translateX(var(--binary-r));
+    }
+    .bee-hub-card__emoji--orbit1 {
+        animation: none;
+        transform: translate(-50%, -50%) rotate(45deg) translateX(var(--orbit-r)) rotate(-45deg);
+    }
+    .bee-hub-card__emoji--orbit2 {
+        animation: none;
+        transform: translate(-50%, -50%) rotate(225deg) translateX(var(--orbit-r)) rotate(-225deg);
+    }
+    .bee-hub-card__visual-emojis::before,
+    .bee-hub-card__visual-emojis::after { animation: none; }
+    .bee-hub-card__emoji--orbit3 {
+        animation: none;
+        transform: translate(-50%, -50%) rotate(135deg) translateX(var(--orbit-r)) rotate(-135deg);
+    }
+    .bee-hub-card__emoji--orbit4 {
+        animation: none;
+        transform: translate(-50%, -50%) rotate(300deg) translateX(var(--orbit-r)) rotate(-300deg);
+    }
+    .bee-hub-card__emoji--orbit5 {
+        animation: none;
+        transform: translate(-50%, -50%) rotate(120deg) translateX(var(--orbit-r)) rotate(-120deg);
+    }
+    .bee-hub-card__trail--orbit3 { animation: none; }
+}
+
+/* ── Responsive: орбитальная панель на узких экранах ── */
+@media (max-width: 360px) {
+    .bee-hub-card__visual { width: 80px; height: 80px; }
+    /* Collapsed (default): крупная звезда 24px */
+    .bee-hub-card__emoji--star { font-size: calc(24px * var(--star-scale, 1)); }
+    .bee-hub-card__star-avatar { width: calc(26px * var(--star-scale, 1)); height: calc(26px * var(--star-scale, 1)); }
+    /* Expanded: уменьшается до 17px */
+    .bee-hub-card.expanded .bee-hub-card__emoji--star { font-size: calc(17px * var(--star-scale, 1)); }
+    .bee-hub-card.expanded .bee-hub-card__star-avatar { width: calc(18px * var(--star-scale, 1)); height: calc(18px * var(--star-scale, 1)); }
+    .bee-hub-card__emoji--star2 { font-size: calc(14px * var(--star-scale, 1)); }
+    .bee-hub-card__emoji--orbit1 { font-size: 12px; --orbit1-r: 16px; }
+    .bee-hub-card__emoji--orbit2 { font-size: 10px; --orbit2-r: 26px; }
+    .bee-hub-card__emoji--orbit3 { font-size: 9px; }
+    .bee-hub-card__emoji--orbit4 { font-size: 8px; --orbit3-r: 34px; }
+    .bee-hub-card__emoji--orbit5 { font-size: 7px; }
+    .bee-hub-card__visual-emojis { --binary-r: 6px; }
+    .bee-hub-card__visual-metric { font-size: 8px; }
+}
+
+/* Бейдж типа (inline в meta-row) */
+.bee-hub-badge {
+    display: inline-flex;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.bee-hub-badge--calendar    { background: #FFF3E0; color: #E65100; }
+.bee-hub-badge--prediction  { background: #E3F2FD; color: #1565C0; }
+.bee-hub-badge--dashboard   { background: #E8F5E9; color: #2E7D32; }
+.bee-hub-badge--survey      { background: #F3E5F5; color: #7B1FA2; }
+.bee-hub-badge--leaderboard { background: #FFF8E1; color: #F57F17; }
+.bee-hub-badge--llm         { background: #EDE7F6; color: #4527A0; }
+.bee-hub-badge--infra       { background: #ECEFF1; color: #37474F; }
+.bee-hub-badge--page        { background: #E0E0E0; color: #424242; }
+
+/* Виджет-пиллы с акцентом по типу карточки */
+.bee-hub-card[data-type="prediction"] .bee-hub-widget  { background: rgba(36, 129, 204, 0.15); }
+.bee-hub-card[data-type="calendar"]   .bee-hub-widget  { background: rgba(255, 193, 7, 0.15); }
+.bee-hub-card[data-type="survey"]     .bee-hub-widget  { background: rgba(76, 175, 80, 0.15); }
+.bee-hub-card[data-type="leaderboard"] .bee-hub-widget { background: rgba(255, 215, 0, 0.12); }
+.bee-hub-card[data-type="dashboard"]  .bee-hub-widget  { background: rgba(156, 39, 176, 0.12); }
+.bee-hub-card[data-type="llm"]        .bee-hub-widget  { background: rgba(69, 39, 160, 0.12); }
+.bee-hub-card[data-type="infra"]      .bee-hub-widget  { background: rgba(96, 125, 139, 0.12); }
+
+/* ── Dark mode: Hub бейджи, иконки ── */
+@media (prefers-color-scheme: dark) {
+    .bee-hub-badge--prediction  { background: rgba(36, 129, 204, 0.25);  color: #64B5F6; }
+    .bee-hub-badge--calendar    { background: rgba(230, 81, 0, 0.25);    color: #FFB74D; }
+    .bee-hub-badge--survey      { background: rgba(76, 175, 80, 0.25);   color: #81C784; }
+    .bee-hub-badge--leaderboard { background: rgba(245, 127, 23, 0.25);  color: #FFD54F; }
+    .bee-hub-badge--dashboard   { background: rgba(156, 39, 176, 0.25);  color: #CE93D8; }
+    .bee-hub-badge--llm         { background: rgba(69, 39, 160, 0.25);   color: #B39DDB; }
+    .bee-hub-badge--infra       { background: rgba(128, 128, 128, 0.20); color: #B0BEC5; }
+    .bee-hub-badge--page        { background: rgba(128, 128, 128, 0.20); color: #BDBDBD; }
+
+}
+
+/* ── Section headers (Активные / Постоянные) ── */
+.bee-hub-section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tg-hint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.bee-hub-section-header__count {
+    font-size: 10px;
+    background: rgba(128, 128, 128, 0.15);
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: auto;
+}
+
+/* ── Пустое состояние / нет результатов ── */
+.bee-hub-empty,
+.bee-hub-no-results {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.bee-hub-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.bee-hub-empty-text {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--tg-text);
+    margin-bottom: 6px;
+}
+
+.bee-hub-empty-hint {
+    font-size: 14px;
+    color: var(--tg-hint);
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   Profile — Профиль пользователя
+   ══════════════════════════════════════════════════════════ */
+
+.bee-profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    background-size: cover;
+    background-position: center;
+}
+
+.bee-profile-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--tg-text);
+}
+
+.bee-profile-username {
+    font-size: 14px;
+    color: var(--tg-hint);
+    margin-top: 2px;
+}
+
+.bee-profile-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    text-align: center;
+}
+
+.bee-profile-stats--two {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.bee-profile-stat__value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--tg-text);
+}
+
+.bee-profile-stat--won {
+    color: var(--success, #4CAF50);
+}
+
+.bee-profile-stat--lost {
+    color: var(--error, #F44336);
+}
+
+.bee-profile-stat__label {
+    font-size: 11px;
+    color: var(--tg-hint);
+    margin-top: 2px;
+}
+
+.bee-profile-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.bee-profile-tx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.bee-profile-tx {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--tg-separator, rgba(128,128,128,0.12));
+}
+
+.bee-profile-tx:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.bee-profile-tx__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.bee-profile-tx__type {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.bee-profile-tx--win       { color: var(--success, #4CAF50); }
+.bee-profile-tx--deposit   { color: var(--accent); }
+.bee-profile-tx--loss      { color: var(--error, #F44336); }
+.bee-profile-tx--refund    { color: var(--tg-link, #2481CC); }
+.bee-profile-tx--bet       { color: var(--accent); }
+
+.bee-profile-tx__desc {
+    font-size: 12px;
+    color: var(--tg-hint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bee-profile-tx__amount {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+.bee-profile-tx--positive { color: var(--success, #4CAF50); }
+.bee-profile-tx--negative { color: var(--error, #F44336); }

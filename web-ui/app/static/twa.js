@@ -21,10 +21,32 @@
         tg.ready();
         tg.expand();
 
-        // Direct Link: start_param → редирект на /p/{slug}
+        // start_param используется для Direct Link
         var startParam = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+
+        // Direct Link: start_param → редирект на /p/{slug} с initData
         if (startParam && window.location.pathname === "/") {
-            window.location.replace("/p/" + startParam);
+            window.location.replace("/p/" + startParam + "?initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Hub: без start_param → передать initData серверу для рендера hub
+        if (!startParam && tg.initData && window.location.pathname === "/" && !window.location.search) {
+            window.location.replace("/?initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Страница /p/{slug} без initData → добавить initData и перезагрузить
+        if (tg.initData && window.location.pathname.indexOf("/p/") === 0 && window.location.search.indexOf("initData") === -1) {
+            var sep = window.location.search ? "&" : "?";
+            window.location.replace(window.location.pathname + window.location.search + sep + "initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Страница /profile без initData → добавить initData и перезагрузить
+        if (tg.initData && window.location.pathname === "/profile" && window.location.search.indexOf("initData") === -1) {
+            var sep2 = window.location.search ? "&" : "?";
+            window.location.replace("/profile" + window.location.search + sep2 + "initData=" + encodeURIComponent(tg.initData));
             return;
         }
 
@@ -120,6 +142,18 @@
 
     window.haptic = haptic;
 
+    // ── Fullscreen toggle (по запросу) ──────
+    window.toggleFullscreen = function() {
+        if (!tg) return;
+        try {
+            if (tg.isFullscreen) {
+                tg.exitFullscreen();
+            } else if (tg.requestFullscreen) {
+                tg.requestFullscreen();
+            }
+        } catch (e) { /* не поддерживается */ }
+    };
+
     // ── TON Connect ───────────────────────────
     var tonBtn = document.getElementById("ton-connect-btn");
     if (tonBtn && window.TON_CONNECT_UI) {
@@ -156,6 +190,126 @@
             });
         });
     };
+
+    // ── Sticky Header: scroll shadow + liquid glass ──
+    function initHeader() {
+        var bar = document.getElementById('bee-bar');
+        if (!bar) return;
+
+        // Scroll → shadow + усиление glass при прокрутке
+        var glassInstance = null;
+
+        window.addEventListener('scroll', function() {
+            var scrolled = window.scrollY > 8;
+            bar.classList.toggle('scrolled', scrolled);
+        }, { passive: true });
+
+        // Liquid glass на pill (центральный элемент), НЕ на весь бар
+        if (window.beeGlass && window.beeGlass.isSupported()) {
+            var colorScheme = 'system';
+            if (tg && tg.colorScheme) {
+                colorScheme = tg.colorScheme;
+            }
+
+            var centerPill = bar.querySelector('.bee-bar__center');
+            if (centerPill && centerPill.offsetWidth > 0) {
+                glassInstance = window.beeGlass.apply(centerPill, {
+                    effect: 'regular',
+                    colorScheme: colorScheme,
+                    borderRadius: 20,
+                    displacementScale: 70,
+                    shadow: true,
+                    specular: true,
+                    animate: true,
+                });
+            }
+
+            // Liquid glass на action buttons (☰, ⚙) — без тени и блика
+            var actionBtns = bar.querySelectorAll('.bee-bar__action');
+            for (var i = 0; i < actionBtns.length; i++) {
+                var btn = actionBtns[i];
+                if (btn.offsetWidth > 0) {
+                    window.beeGlass.apply(btn, {
+                        effect: 'clear',
+                        colorScheme: colorScheme,
+                        borderRadius: 14,
+                        displacementScale: 30,
+                        shadow: false,
+                        specular: false,
+                        animate: true,
+                    });
+                }
+            }
+
+            // Liquid glass на обёртку поиска — смягчённый
+            var searchWrap = document.getElementById('hub-search-wrap');
+            if (searchWrap && searchWrap.offsetWidth > 0) {
+                window.beeGlass.apply(searchWrap, {
+                    effect: 'regular',
+                    colorScheme: colorScheme,
+                    borderRadius: 14,
+                    displacementScale: 40,
+                    shadow: false,
+                    specular: false,
+                    animate: true,
+                });
+            }
+
+            // Liquid glass на кнопку фильтров — смягчённый
+            var filterToggle = document.getElementById('filter-toggle');
+            if (filterToggle && filterToggle.offsetWidth > 0) {
+                window.beeGlass.apply(filterToggle, {
+                    effect: 'clear',
+                    colorScheme: colorScheme,
+                    borderRadius: 14,
+                    displacementScale: 35,
+                    shadow: false,
+                    specular: false,
+                    animate: true,
+                });
+            }
+
+        }
+
+        // Аватар из Telegram
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            var u = tg.initDataUnsafe.user;
+            var avatar = document.getElementById('bar-avatar');
+            if (avatar && u.photo_url) {
+                avatar.style.backgroundImage = 'url(' + u.photo_url + ')';
+                avatar.style.backgroundSize = 'cover';
+                avatar.textContent = '';
+            }
+
+            // Аватар на странице профиля
+            var profileAvatar = document.getElementById('profile-avatar');
+            if (profileAvatar && u.photo_url) {
+                profileAvatar.style.backgroundImage = 'url(' + u.photo_url + ')';
+                profileAvatar.textContent = '';
+            }
+        }
+
+        // Клик по pill → переход на профиль
+        var pillEl = bar.querySelector('.bee-bar__center');
+        if (pillEl) {
+            pillEl.style.cursor = 'pointer';
+            pillEl.addEventListener('click', function() {
+                if (window.haptic) window.haptic('impact', 'light');
+                var tgApp = window.Telegram && window.Telegram.WebApp;
+                if (tgApp && tgApp.initData) {
+                    window.location.href = '/profile?initData=' + encodeURIComponent(tgApp.initData);
+                } else {
+                    window.location.href = '/profile';
+                }
+            });
+        }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(initHeader, 50);
+    } else {
+        document.addEventListener('DOMContentLoaded', initHeader);
+    }
 
     // ── Утилиты ───────────────────────────────
     function camelToKebab(str) {

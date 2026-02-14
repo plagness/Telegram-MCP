@@ -17,8 +17,24 @@ from ..auth import validate_init_data
 from ..config import get_settings
 from ..db import execute_returning, fetch_one, fetch_all
 from ..icons import resolve_icon, adjusted_color, get_display_name, get_fallback_emoji
+from ..orbital import compute_orbital
 from ..services import links as links_svc
 from ..services import pages as pages_svc
+from ..services.access import (
+    check_page_access,
+    enrich_pages_for_hub,
+    get_accessible_pages,
+    get_user_roles,
+    group_pages_for_hub,
+)
+from ..services.banner import (
+    create_banner,
+    delete_banner,
+    get_active_banners,
+    get_all_banners,
+    toggle_banner,
+    update_banner_avatar,
+)
 
 router = APIRouter(tags=["render"])
 logger = logging.getLogger(__name__)
@@ -45,17 +61,212 @@ _TAG_COLORS = {
 _PRIORITY_COLORS = {5: "#E74C3C", 4: "#E67E22", 3: "#FFC107", 2: "#2ECC71", 1: "#95A5A6"}
 _PRIORITY_LABELS = {5: "Критичный", 4: "Высокий", 3: "Средний", 2: "Обычный", 1: "Низкий"}
 
+_ROLE_LABELS: dict[str, str] = {
+    "project_owner": "Владелец",
+    "backend_dev": "Разработчик",
+    "tester": "Тестер",
+    "moderator": "Модератор",
+}
+
+# Маппинг page_type → имя иконки для resolve_icon() (Simple Icons SVG)
+_HUB_TYPE_ICONS: dict[str, str] = {
+    "prediction": "target",
+    "calendar": "googlecalendar",
+    "survey": "googleforms",
+    "leaderboard": "openbadges",
+    "dashboard": "grafana",
+    "llm": "huggingface",
+    "infra": "serverfault",
+    "page": "readme",
+}
+
+
+async def _build_bar_context(user_id: int, roles: set[str] | None = None) -> dict[str, Any]:
+    """Контекст для sticky header (bar_tag, bar_tag_type)."""
+    if roles is None:
+        roles = await get_user_roles(user_id)
+
+    for role in ("project_owner", "backend_dev", "moderator", "tester"):
+        if role in roles:
+            return {"bar_tag": _ROLE_LABELS[role], "bar_tag_type": "role"}
+
+    chat_row = await fetch_one(
+        """
+        SELECT c.title FROM chat_members cm
+        JOIN chats c ON c.chat_id = cm.chat_id
+        WHERE cm.user_id = %s AND cm.status NOT IN ('left', 'kicked')
+        ORDER BY cm.updated_at DESC NULLS LAST LIMIT 1
+        """,
+        [str(user_id)],
+    )
+    if chat_row and chat_row.get("title"):
+        return {"bar_tag": chat_row["title"], "bar_tag_type": "chat"}
+
+    return {"bar_tag": None, "bar_tag_type": None}
+
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Точка входа Mini App (Direct Link).
 
-    Telegram открывает зарегистрированный URL, start_param
-    обрабатывается в twa.js (клиентский редирект на /p/{slug}).
+    Если есть start_param → twa.js делает клиентский редирект на /p/{slug}.
+    Если есть initData (без start_param) → рендерим hub с доступными страницами.
+    Иначе → base.html (twa.js перенаправит с initData).
     """
     templates = request.app.state.templates
-    template = templates.get_template("base.html")
-    return HTMLResponse(template.render())
+
+    # Пробуем получить initData для hub-рендера
+    init_data = request.query_params.get("initData", "")
+    user = validate_init_data(init_data, settings.get_bot_token()) if init_data else None
+
+    if not user:
+        # Без initData — показываем base.html (twa.js обработает start_param или
+        # перенаправит обратно с initData для hub)
+        return HTMLResponse(templates.get_template("base.html").render())
+
+    # С initData — рендерим hub с доступными страницами
+    user_id = user.get("id")
+    pages = await get_accessible_pages(user_id) if user_id else []
+    roles = await get_user_roles(user_id) if user_id else set()
+
+    # Обогащаем страницы live-данными (пул ставок, события, ответы)
+    pages = await enrich_pages_for_hub(pages, user_id)
+
+    # Резолвим SVG-иконки для карточек (Simple Icons)
+    for p in pages:
+        icon_name = (p.get("config") or {}).get("icon") or _HUB_TYPE_ICONS.get(p["page_type"])
+        p["_icon"] = resolve_icon(icon_name) if icon_name else None
+
+    # Резолвим chat photo URLs для hub
+    for p in pages:
+        fid = p.get("_chat_photo_file_id")
+        if fid:
+            try:
+                p["_chat_photo_url"] = await _resolve_tg_file_url(fid)
+            except Exception:
+                p["_chat_photo_url"] = ""
+
+    # Орбитальная конфигурация для визуальных панелей
+    for i, p in enumerate(pages):
+        p["_orbital"] = compute_orbital(
+            p.get("page_type", "page"),
+            p.get("_meta") or {},
+            index=i,
+            config=p.get("config"),
+            chat_photo_url=p.get("_chat_photo_url", ""),
+        )
+
+    # Классификация: временные (активные события) vs постоянные
+    temporal_pages: list[dict] = []
+    permanent_pages: list[dict] = []
+    for p in pages:
+        meta = p.get("_meta") or {}
+        pt = p.get("page_type", "")
+        is_temporal = False
+        if pt == "prediction":
+            if meta.get("status") in ("open", "active") and meta.get("deadline"):
+                is_temporal = True
+        elif pt == "calendar":
+            if meta.get("next_entry"):
+                is_temporal = True
+        elif pt == "survey":
+            is_temporal = True  # опросы/формы — всегда временные
+        p["_is_temporal"] = is_temporal
+        (temporal_pages if is_temporal else permanent_pages).append(p)
+
+    # Контекст для sticky header
+    bar_ctx = await _build_bar_context(user_id, roles) if user_id else {}
+
+    # Промо-баннеры для hub
+    banners: list[dict] = []
+    try:
+        banners = await get_active_banners(roles)
+    except Exception:
+        logger.exception("Failed to load banners")
+
+    # Уникальные источники для фильтра
+    sources: dict[str, str] = {}
+    for page in pages:
+        sl = page.get("_source_label", "Общие")
+        st = page.get("_source_type", "public")
+        if sl not in sources:
+            sources[sl] = st
+
+    html = templates.get_template("hub.html").render(
+        user=user,
+        bar_user=user,
+        **bar_ctx,
+        roles=sorted(roles),
+        pages=pages,
+        temporal_pages=temporal_pages,
+        permanent_pages=permanent_pages,
+        banners=banners,
+        sources=sources,
+        total_pages=len(pages),
+        public_url=settings.public_url,
+    )
+    return HTMLResponse(html)
+
+
+@router.get("/profile", response_class=HTMLResponse)
+async def profile(request: Request):
+    """Профиль пользователя (баланс, роли, активность)."""
+    templates = request.app.state.templates
+
+    init_data = request.query_params.get("initData", "")
+    user = validate_init_data(init_data, settings.get_bot_token()) if init_data else None
+
+    if not user or not user.get("id"):
+        return HTMLResponse(templates.get_template("base.html").render())
+
+    user_id = user["id"]
+    roles = await get_user_roles(user_id)
+
+    # Баланс
+    balance_row = await fetch_one(
+        "SELECT balance, total_deposited, total_won, total_lost, total_withdrawn "
+        "FROM user_balances WHERE user_id = %s",
+        [str(user_id)],
+    )
+    balance = balance_row or {
+        "balance": 0, "total_deposited": 0, "total_won": 0,
+        "total_lost": 0, "total_withdrawn": 0,
+    }
+
+    # Количество ставок
+    bets_row = await fetch_one(
+        "SELECT COUNT(*) AS total FROM prediction_bets WHERE user_id = %s",
+        [str(user_id)],
+    )
+
+    # Количество ответов на опросы
+    surveys_row = await fetch_one(
+        "SELECT COUNT(*) AS total FROM web_form_submissions WHERE user_id = %s",
+        [str(user_id)],
+    )
+
+    # Последние транзакции (5 штук)
+    recent_tx = await fetch_all(
+        "SELECT amount, transaction_type, description, created_at "
+        "FROM balance_transactions WHERE user_id = %s "
+        "ORDER BY created_at DESC LIMIT 5",
+        [str(user_id)],
+    )
+
+    bar_ctx = await _build_bar_context(user_id, roles)
+
+    html = templates.get_template("profile.html").render(
+        user=user,
+        bar_user=user,
+        **bar_ctx,
+        roles=sorted(roles),
+        balance=balance,
+        bets_count=bets_row["total"] if bets_row else 0,
+        surveys_count=surveys_row["total"] if surveys_row else 0,
+        recent_tx=recent_tx,
+        role_labels=_ROLE_LABELS,
+    )
+    return HTMLResponse(html)
 
 
 @router.get("/p/{slug}", response_class=HTMLResponse)
@@ -64,6 +275,32 @@ async def render_page(slug: str, request: Request):
     page = await pages_svc.get_page(slug)
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
+
+    # Проверка доступа (initData из query param или header)
+    init_data = (
+        request.query_params.get("initData", "")
+        or request.headers.get("X-Init-Data", "")
+    )
+    config = page.get("config") or {}
+    has_access_rules = bool(config.get("access_rules") or config.get("allowed_users"))
+
+    user = None
+    if init_data:
+        user = validate_init_data(init_data, settings.get_bot_token())
+        if user and user.get("id"):
+            has_access = await check_page_access(user["id"], page)
+            if not has_access:
+                raise HTTPException(status_code=403, detail="Access denied")
+    elif has_access_rules:
+        # Страница защищена, но нет initData → отдаём base.html
+        # twa.js обнаружит /p/{slug} без initData и перезагрузит с initData
+        templates = request.app.state.templates
+        return HTMLResponse(templates.get_template("base.html").render())
+
+    # Контекст для sticky header (Блок 1)
+    bar_ctx: dict[str, Any] = {}
+    if user and user.get("id"):
+        bar_ctx = await _build_bar_context(user["id"])
 
     templates = request.app.state.templates
 
@@ -120,6 +357,8 @@ async def render_page(slug: str, request: Request):
     template = templates.get_template(template_name)
     html = template.render(
         page=page,
+        bar_user=user,
+        **bar_ctx,
         event=event_data,
         config=page.get("config", {}),
         public_url=settings.public_url,
@@ -828,7 +1067,7 @@ async def _check_chat_admin(user_id: int, chat_id: str) -> bool:
         WHERE user_id = %s AND chat_id = %s
           AND status IN ('administrator', 'creator')
         """,
-        [user_id, str(chat_id)],
+        [str(user_id), str(chat_id)],
     )
     return row is not None
 
@@ -999,13 +1238,19 @@ async def infra_data_proxy(slug: str, request: Request):
     if not page or page["page_type"] != "infra":
         raise HTTPException(status_code=404, detail="Page not found")
 
-    # Проверка доступа: config.allowed_users
-    allowed_users = page.get("config", {}).get("allowed_users", [])
-    if allowed_users:
-        init_data = request.headers.get("X-Init-Data", "")
+    # Проверка доступа через единую систему
+    init_data = request.headers.get("X-Init-Data", "")
+    if init_data:
         user = validate_init_data(init_data, settings.get_bot_token())
-        if not user or user.get("id") not in allowed_users:
+        if not user or not user.get("id"):
+            raise HTTPException(status_code=401, detail="Invalid initData")
+        if not await check_page_access(user["id"], page):
             raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        # Без initData — проверяем есть ли вообще ограничения
+        config = page.get("config") or {}
+        if config.get("access_rules") or config.get("allowed_users"):
+            raise HTTPException(status_code=401, detail="Authentication required")
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -1015,6 +1260,16 @@ async def infra_data_proxy(slug: str, request: Request):
     except Exception as e:
         logger.warning("infra_data_proxy: llmcore unavailable: %s", e)
     raise HTTPException(status_code=502, detail="LLM core unavailable")
+
+
+# ── Nodes Registry API ────────────────────────────────────────
+
+
+@router.get("/api/v1/nodes")
+async def get_nodes():
+    """Реестр публичных нод и маршрутов."""
+    from ..services import nodes as nodes_svc
+    return nodes_svc.get_full_config()
 
 
 # ── Telegram Webhook Proxy ──────────────────────────────────────
@@ -1050,3 +1305,110 @@ async def telegram_webhook_proxy_by_bot(bot_id: int, request: Request):
             return JSONResponse(content=r.json(), status_code=r.status_code)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# ── Админка баннеров ──────────────────────────────────────────────────────
+
+
+async def _require_owner(request: Request) -> dict[str, Any]:
+    """Проверка project_owner для доступа к админке."""
+    init_data = (
+        request.query_params.get("initData", "")
+        or request.headers.get("X-Init-Data", "")
+    )
+    user = validate_init_data(init_data, settings.get_bot_token()) if init_data else None
+    if not user or not user.get("id"):
+        raise HTTPException(status_code=401, detail="Auth required")
+    roles = await get_user_roles(user["id"])
+    if "project_owner" not in roles:
+        raise HTTPException(status_code=403, detail="Owner access required")
+    return user
+
+
+@router.get("/admin/banners", response_class=HTMLResponse)
+async def admin_banners(request: Request):
+    """Страница управления промо-баннерами (project_owner)."""
+    user = await _require_owner(request)
+    templates = request.app.state.templates
+    banners = await get_all_banners()
+
+    bar_ctx = await _build_bar_context(user["id"])
+    html = templates.get_template("banner_admin.html").render(
+        request=request,
+        user=user,
+        bar_user=user,
+        **bar_ctx,
+        banners=banners,
+    )
+    return HTMLResponse(html)
+
+
+@router.post("/admin/banners/create")
+async def admin_banner_create(request: Request):
+    """Создать новый баннер."""
+    user = await _require_owner(request)
+    form = await request.form()
+
+    tg_username = form.get("tg_username", "").strip()
+    title = form.get("title", "").strip()
+    link = form.get("link", "").strip()
+    description = form.get("description", "").strip()
+    priority = int(form.get("priority", 0))
+    target_roles_raw = form.get("target_roles", "").strip()
+    target_roles = [r.strip() for r in target_roles_raw.split(",") if r.strip()] if target_roles_raw else []
+
+    if not tg_username or not title or not link:
+        raise HTTPException(status_code=400, detail="username, title, link required")
+
+    init_data = request.query_params.get("initData", "")
+    await create_banner(
+        tg_username=tg_username,
+        title=title,
+        link=link,
+        created_by=user["id"],
+        description=description,
+        priority=priority,
+        target_roles=target_roles,
+    )
+    return RedirectResponse(
+        url=f"/admin/banners?initData={init_data}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/banners/{banner_id}/refresh-avatar")
+async def admin_banner_refresh_avatar(banner_id: int, request: Request):
+    """Обновить аватарку баннера."""
+    await _require_owner(request)
+    await update_banner_avatar(banner_id)
+    init_data = request.query_params.get("initData", "")
+    return RedirectResponse(
+        url=f"/admin/banners?initData={init_data}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/banners/{banner_id}/toggle")
+async def admin_banner_toggle(banner_id: int, request: Request):
+    """Включить/выключить баннер."""
+    await _require_owner(request)
+    form = await request.form()
+    active = form.get("active", "1") == "1"
+    await toggle_banner(banner_id, active)
+    init_data = request.query_params.get("initData", "")
+    return RedirectResponse(
+        url=f"/admin/banners?initData={init_data}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/banners/{banner_id}/delete")
+async def admin_banner_delete(banner_id: int, request: Request):
+    """Удалить баннер (мягкое удаление)."""
+    await _require_owner(request)
+    await delete_banner(banner_id)
+    init_data = request.query_params.get("initData", "")
+    return RedirectResponse(
+        url=f"/admin/banners?initData={init_data}",
+        status_code=303,
+    )

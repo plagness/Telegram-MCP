@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg" style="text-align: center; padding: 24px 20px;">
+    <div class="bee-profile-avatar" id="profile-avatar">
+        {{ user.first_name[0] if user.first_name else '?' }}
+    </div>
+    <div class="bee-profile-name">
+        {{ user.first_name }}{% if user.last_name %} {{ user.last_name }}{% endif %}
+    </div>
+    {% if user.username %}
+    <div class="bee-profile-username">@{{ user.username }}</div>
+    {% endif %}
+    {% if roles %}
+    <div class="bee-profile-roles" style="justify-content: center; margin-top: 10px;">
+        {% for role in roles %}
+        <span class="bee-hub-role-badge">{{ role_labels.get(role, role) }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+{# ── Баланс ── #}
+<div class="bee-card">
+    <div class="bee-card-title">&#128176; Баланс</div>
+    <div class="bee-profile-stats">
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ balance.balance }}</div>
+            <div class="bee-profile-stat__label">Текущий</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value bee-profile-stat--won">{{ balance.total_won }}</div>
+            <div class="bee-profile-stat__label">Выиграно</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value bee-profile-stat--lost">{{ balance.total_lost }}</div>
+            <div class="bee-profile-stat__label">Проиграно</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ balance.total_deposited }}</div>
+            <div class="bee-profile-stat__label">Пополнено</div>
+        </div>
+    </div>
+</div>
+
+{# ── Активность ── #}
+<div class="bee-card">
+    <div class="bee-card-title">&#128200; Активность</div>
+    <div class="bee-profile-stats bee-profile-stats--two">
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ bets_count }}</div>
+            <div class="bee-profile-stat__label">Ставок</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ surveys_count }}</div>
+            <div class="bee-profile-stat__label">Ответов</div>
+        </div>
+    </div>
+</div>
+
+{# ── Последние транзакции ── #}
+{% if recent_tx %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128203; Последние операции</div>
+    <div class="bee-profile-tx-list">
+        {% for tx in recent_tx %}
+        <div class="bee-profile-tx">
+            <div class="bee-profile-tx__info">
+                <span class="bee-profile-tx__type bee-profile-tx--{{ tx.transaction_type }}">
+                    {{ tx.transaction_type }}
+                </span>
+                {% if tx.description %}
+                <span class="bee-profile-tx__desc">{{ tx.description }}</span>
+                {% endif %}
+            </div>
+            <div class="bee-profile-tx__amount {% if tx.amount > 0 %}bee-profile-tx--positive{% else %}bee-profile-tx--negative{% endif %}">
+                {{ '+' if tx.amount > 0 else '' }}{{ tx.amount }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Пустое состояние ── #}
+{% if not recent_tx and bets_count == 0 and surveys_count == 0 %}
+<div class="bee-result">
+    <div class="bee-result-icon">&#128100;</div>
+    <div class="bee-result-title">Пока пусто</div>
+    <div class="bee-result-text">Ваша активность появится здесь.</div>
+</div>
+{% endif %}
+{% endblock %}

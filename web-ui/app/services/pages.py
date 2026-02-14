@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import secrets
 from typing import Any
 
 from ..db import execute, execute_returning, fetch_all, fetch_one
+
+logger = logging.getLogger(__name__)
 
 
 async def create_page(
@@ -23,7 +27,7 @@ async def create_page(
     """Создать новую страницу."""
     from psycopg.types.json import Json
 
-    return await execute_returning(
+    page = await execute_returning(
         """
         INSERT INTO web_pages (slug, page_type, title, config, template,
                                creator_id, bot_id, event_id, expires_at)
@@ -33,6 +37,36 @@ async def create_page(
         [slug, page_type, title, Json(config or {}), template,
          creator_id, bot_id, event_id, expires_at],
     )
+    # Fire-and-forget: сгенерировать эмодзи через LLM в фоне
+    asyncio.create_task(_generate_emojis_background(slug, title, page_type))
+    return page
+
+
+async def _generate_emojis_background(
+    slug: str, title: str, page_type: str
+) -> None:
+    """Фоновая генерация эмодзи через LLM и сохранение в config."""
+    try:
+        from .emoji_gen import generate_page_emojis
+
+        emojis = await generate_page_emojis(title, page_type)
+        if emojis:
+            await update_page_config(slug, {"emojis": emojis})
+            logger.info("Эмодзи сгенерированы для '%s': %s", slug, emojis)
+    except Exception:
+        logger.warning("Ошибка генерации эмодзи для '%s'", slug, exc_info=True)
+
+
+async def update_page_config(slug: str, patch: dict) -> bool:
+    """Обновить config JSONB страницы (merge)."""
+    from psycopg.types.json import Json
+
+    await execute(
+        "UPDATE web_pages SET config = config || %s::jsonb, updated_at = now() "
+        "WHERE slug = %s AND is_active = TRUE",
+        [Json(patch), slug],
+    )
+    return True
 
 
 async def get_page(slug: str) -> dict[str, Any] | None:

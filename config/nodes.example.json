@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "name": "vds-1",
+      "public_ip": "203.0.113.10",
+      "tailscale_ip": "100.64.0.10",
+      "domain": "tg.example.com",
+      "ssh_user": "root",
+      "ports": {
+        "socat": [8443]
+      },
+      "ram_gb": 2.0,
+      "active": true
+    },
+    {
+      "name": "vds-2",
+      "public_ip": "203.0.113.20",
+      "tailscale_ip": "100.64.0.20",
+      "domain": null,
+      "ssh_user": "root",
+      "ports": {
+        "socat": [8443]
+      },
+      "ram_gb": 4.0,
+      "active": true
+    },
+    {
+      "name": "k3s-node",
+      "public_ip": null,
+      "tailscale_ip": "100.64.0.1",
+      "domain": null,
+      "ssh_user": null,
+      "ports": {
+        "k3s_host": [8443, 30081, 30335, 30443]
+      },
+      "ram_gb": 8.0,
+      "active": true
+    }
+  ],
+  "routes": [
+    {
+      "domain": "tg.example.com",
+      "port": 8443,
+      "proxy_node": "vds-1",
+      "target_node": "k3s-node",
+      "target_port": 8443,
+      "service": "tgweb",
+      "ssl": true,
+      "description": "Telegram Mini App (HTTPS)"
+    }
+  ]
+}

@@ -2,14 +2,18 @@
 
 {% block title %}{{ page.title }}{% endblock %}
 
-{% block content %}
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
 <div class="bee-card bee-hex-bg">
     <div class="bee-title">{{ page.title }}</div>
     {% if config.description %}
     <div class="bee-subtitle">{{ config.description }}</div>
     {% endif %}
 </div>
+{% endblock %}
 
+{% block content %}
 {% for section in config.get('sections', []) %}
 {% set items = section.get('items', []) %}
 <div class="bee-card">

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     db_dsn: str = "postgresql://telegram:telegram@tgdb:5432/telegram"
     log_level: str = "info"
+    nodes_config_path: str = "/app/config/nodes.json"
 
     def get_bot_token(self) -> str:
         """Токен бота: BOT_TOKEN или TELEGRAM_BOT_TOKEN (fallback)."""

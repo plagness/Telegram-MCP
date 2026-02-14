@@ -1,6 +1,6 @@
 # MCP-инструменты
 
-MCP-сервер предоставляет **128 инструментов** для интеграции с LLM.
+MCP-сервер предоставляет **132 инструмента** для интеграции с LLM.
 
 Работает по двум протоколам:
 - **stdio** — стандартный MCP-транспорт для Claude и других LLM
@@ -231,7 +231,7 @@ curl http://127.0.0.1:3335/tools \
 |------------|----------|
 | `icons.resolve` | Проверить доступность SVG-иконки (3300+ брендов) |
 
-### Web-UI (6)
+### Web-UI (10)
 
 | Инструмент | Описание |
 |------------|----------|
@@ -241,6 +241,10 @@ curl http://127.0.0.1:3335/tools \
 | `webui.get_submissions` | Получить ответы формы |
 | `webui.create_prediction` | Создать страницу предсказания (shortcut) |
 | `webui.create_survey` | Создать опросник (shortcut) |
+| `webui.list_roles` | Список ролей (опционально `user_id`) |
+| `webui.grant_role` | Назначить роль `{user_id, role, granted_by, note}` |
+| `webui.revoke_role` | Отозвать роль `{user_id, role}` |
+| `webui.check_access` | Проверить доступ `{user_id, slug}` → `{has_access, reasons}` |
 
 ## Примеры вызовов
 

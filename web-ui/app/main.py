@@ -13,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .config import get_settings
 from .db import close_pool, init_pool
-from .routers import health, icons, pages, render
+from .routers import health, icons, pages, render, roles
 
 settings = get_settings()
 
@@ -56,6 +56,7 @@ app.include_router(health.router)
 app.include_router(icons.router)
 app.include_router(pages.router)
 app.include_router(render.router)
+app.include_router(roles.router)
 
 
 # Error handler — HTML-страница для веб-роутов, JSON для API

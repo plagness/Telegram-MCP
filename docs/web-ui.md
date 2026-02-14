@@ -202,6 +202,71 @@ curl -sk https://tg.example.com:8443/health
 5. JavaScript редиректит на `/p/predict-42`
 6. Сервер рендерит страницу предсказания с данными события
 
+## Hub (главный экран)
+
+При открытии Mini App без `start_param`, пользователь видит hub — каталог всех доступных страниц.
+
+**Как работает:**
+1. `twa.js` определяет отсутствие `start_param`
+2. Редирект на `/?initData=...` для серверного рендеринга
+3. Сервер валидирует initData, получает `user_id`
+4. `get_accessible_pages(user_id)` фильтрует страницы через `check_page_access()`
+5. `group_pages_for_hub(pages)` группирует: по чатам → системные → публичные
+6. Jinja2 рендерит `hub.html` с карточками
+
+**Элементы hub:**
+- Профиль пользователя (аватарка, имя, бейджи ролей)
+- Поиск по названиям страниц
+- Карточки страниц с иконками типов и описаниями
+- Группировка по категориям
+
+**Шаблон:** `web-ui/app/templates/hub.html`
+
+---
+
+## Контроль доступа
+
+Подробная документация: [access-control.md](access-control.md)
+
+Каждая страница может иметь `access_rules` в config:
+
+```json
+{
+  "access_rules": {
+    "public": false,
+    "allowed_users": [123456789],
+    "allowed_roles": ["project_owner", "tester"],
+    "allowed_chats": [-1001234567890]
+  }
+}
+```
+
+**OR-логика:** доступ если хотя бы одно условие выполняется.
+
+### API ролей (через tgapi proxy)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/v1/web/roles` | Список ролей |
+| `GET` | `/v1/web/roles/{user_id}` | Роли пользователя |
+| `POST` | `/v1/web/roles` | Назначить роль |
+| `DELETE` | `/v1/web/roles/{user_id}/{role}` | Отозвать роль |
+| `POST` | `/v1/web/roles/check-access` | Проверить доступ |
+
+---
+
+## Реестр нод
+
+Подробная документация: [network.md](network.md)
+
+Реестр публичных серверов хранится в `config/nodes.json` и монтируется в tgweb как volume.
+
+**API:** `GET /v1/web/nodes` — реестр нод (проксируется через tgapi).
+
+**Автоматика прокси:** `scripts/setup/vds_proxy.sh` — деплой socat systemd units на VDS.
+
+---
+
 ## API endpoints
 
 ### Управление (через tgapi proxy)
@@ -214,12 +279,17 @@ curl -sk https://tg.example.com:8443/health
 | `DELETE` | `/v1/web/pages/{slug}` | Удалить страницу |
 | `POST` | `/v1/web/pages/{slug}/links` | Создать индивидуальную ссылку |
 | `GET` | `/v1/web/pages/{slug}/submissions` | Ответы формы |
+| `GET` | `/v1/web/roles` | Список ролей |
+| `POST` | `/v1/web/roles` | Назначить роль |
+| `DELETE` | `/v1/web/roles/{user_id}/{role}` | Отозвать роль |
+| `POST` | `/v1/web/roles/check-access` | Проверить доступ |
+| `GET` | `/v1/web/nodes` | Реестр нод |
 
 ### Публичные (tgweb напрямую)
 
 | Метод | Путь | Описание |
 |-------|------|----------|
-| `GET` | `/` | Точка входа Mini App (start_param redirect) |
+| `GET` | `/` | Hub (каталог страниц) или start_param redirect |
 | `GET` | `/p/{slug}` | Рендеринг HTML-страницы |
 | `GET` | `/l/{token}` | Редирект по индивидуальной ссылке |
 | `POST` | `/p/{slug}/submit` | Отправка формы (с initData) |
@@ -393,12 +463,16 @@ curl -X POST http://localhost:8081/v1/web/pages/my-survey/links \
 
 | Инструмент | Описание |
 |------------|----------|
-| `webui.create_page` | Создать страницу (page/survey/prediction) |
+| `webui.create_page` | Создать страницу (page/survey/prediction/calendar) |
 | `webui.list_pages` | Список страниц |
 | `webui.create_link` | Создать индивидуальную ссылку |
 | `webui.get_submissions` | Получить ответы формы |
 | `webui.create_prediction` | Создать страницу предсказания (shortcut) |
 | `webui.create_survey` | Создать опросник (shortcut) |
+| `webui.list_roles` | Список ролей (опционально `user_id`) |
+| `webui.grant_role` | Назначить роль |
+| `webui.revoke_role` | Отозвать роль |
+| `webui.check_access` | Проверить доступ к странице |
 
 ## SDK методы
 
@@ -436,7 +510,7 @@ async with TelegramAPI("http://localhost:8081") as api:
 
 ## База данных
 
-Миграции: `db/init/10_web_ui.sql`, `db/init/11_calendar.sql`
+Миграции: `db/init/10_web_ui.sql`, `db/init/11_calendar.sql`, `db/init/12_access_control.sql`
 
 | Таблица | Назначение |
 |---------|------------|
@@ -447,9 +521,10 @@ async with TelegramAPI("http://localhost:8081") as api:
 | `calendars` | Календари (11_calendar.sql) |
 | `calendar_entries` | События календаря (11_calendar.sql) |
 | `calendar_history` | История изменений календаря (11_calendar.sql) |
+| `user_roles` | Глобальные роли пользователей (12_access_control.sql) |
 
 > Миграция выполняется автоматически при первом создании БД.
-> Для существующей БД: `psql -U telegram -d telegram < db/init/10_web_ui.sql`
+> Для существующей БД: `psql -U telegram -d telegram < db/init/12_access_control.sql`
 
 ## Структура файлов
 
@@ -462,13 +537,20 @@ web-ui/
 │   ├── auth.py          # Telegram initData HMAC-SHA256 валидация
 │   ├── routers/
 │   │   ├── health.py    # GET /health
+│   │   ├── icons.py     # SVG иконки (3300+ брендов)
 │   │   ├── pages.py     # CRUD API для страниц
-│   │   └── render.py    # GET /, GET /p/{slug}, GET /l/{token}, POST submit
+│   │   ├── render.py    # GET /, GET /p/{slug}, GET /l/{token}, POST submit, hub
+│   │   └── roles.py     # REST API управления ролями
 │   ├── services/
+│   │   ├── access.py    # check_page_access(), get_accessible_pages()
+│   │   ├── links.py     # Генерация токенов, создание ссылок
+│   │   ├── nodes.py     # Загрузка и кэш реестра нод
 │   │   ├── pages.py     # CRUD web_pages в БД
-│   │   └── links.py     # Генерация токенов, создание ссылок
+│   │   └── roles.py     # CRUD для user_roles
 │   ├── templates/
 │   │   ├── base.html           # Base с telegram-web-app.js SDK
+│   │   ├── hub.html            # Главный экран (каталог доступных страниц)
+│   │   ├── error.html          # Ошибки (404, 403)
 │   │   ├── calendar.html       # Календарь (сетка, поиск, детализация, эмодзи-пикер)
 │   │   ├── calendar_event.html # Карточка события (include)
 │   │   ├── prediction.html     # Polymarket UI

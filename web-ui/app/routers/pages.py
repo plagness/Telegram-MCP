@@ -104,6 +104,32 @@ async def create_link(slug: str, payload: CreateLinkIn):
     return {"ok": True, "link": link}
 
 
+@router.post("/backfill-emojis")
+async def backfill_emojis():
+    """Сгенерировать эмодзи для всех страниц без config.emojis."""
+    from ..db import fetch_all
+    from ..services.emoji_gen import generate_page_emojis
+
+    rows = await fetch_all(
+        "SELECT slug, title, page_type FROM web_pages "
+        "WHERE is_active = TRUE "
+        "ORDER BY created_at DESC",
+        [],
+    )
+    results = {"total": len(rows), "updated": 0, "failed": 0}
+    for row in rows:
+        emojis = await generate_page_emojis(row["title"], row["page_type"])
+        if emojis:
+            await pages_svc.update_page_config(row["slug"], {"emojis": emojis})
+            results["updated"] += 1
+        else:
+            results["failed"] += 1
+        # Пауза между вызовами LLM
+        import asyncio
+        await asyncio.sleep(2)
+    return {"ok": True, **results}
+
+
 @router.get("/{slug}/submissions")
 async def get_submissions(
     slug: str,

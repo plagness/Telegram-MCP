@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#FFC107">
     <title>{% block title %}Bee{% endblock %}</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20260209c">
+    <link rel="stylesheet" href="/static/style.css?v=20260213b">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -24,6 +24,29 @@
 
     <div id="app" class="bee-app"
          {% if config and config.theme %}style="{% for k, v in config.theme.items() %}--{{ k }}: {{ v }};{% endfor %}"{% endif %}>
+
+        {# ═══ Блок 1: Sticky Header (liquid glass) ═══ #}
+        <div class="bee-bar" id="bee-bar">
+            <div class="bee-bar__left">
+                {% block bar_left %}{% endblock %}
+            </div>
+            <div class="bee-bar__center">
+                {% if bar_user is defined and bar_user %}
+                <div class="bee-bar__avatar" id="bar-avatar">
+                    {{ bar_user.first_name[0] if bar_user.first_name else '?' }}
+                </div>
+                <span class="bee-bar__name">{{ bar_user.first_name }}{% if bar_user.last_name %} {{ bar_user.last_name }}{% endif %}</span>
+                {% endif %}
+            </div>
+            <div class="bee-bar__right">
+                {% block bar_right %}{% endblock %}
+            </div>
+        </div>
+
+        {# ═══ Блок 2: Контекстная зона (баннеры, поиск, фильтры) ═══ #}
+        {% block context %}{% endblock %}
+
+        {# ═══ Блок 3: Контент страницы ═══ #}
         {% block content %}{% endblock %}
     </div>
 
@@ -31,6 +54,7 @@
     <div id="toast-container"></div>
 
     <script src="https://unpkg.com/@lottiefiles/lottie-player@2/dist/lottie-player.js"></script>
+    <script src="/static/bee-glass.js"></script>
     <script src="/static/twa.js"></script>
     {% block scripts %}{% endblock %}
 </body>

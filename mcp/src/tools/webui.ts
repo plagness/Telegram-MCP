@@ -139,5 +139,62 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
         }),
       }),
     },
+
+    // ── Роли и доступ ──────────────────────────────────────
+    {
+      name: "webui.list_roles",
+      description: "Список глобальных ролей. Фильтр по user_id или role.",
+      parameters: z.object({
+        user_id: z.number().int().optional().describe("Фильтр по Telegram user ID"),
+        role: z.string().optional().describe("Фильтр по названию роли"),
+        limit: z.number().int().min(1).max(500).optional().default(100),
+        offset: z.number().int().min(0).optional().default(0),
+      }),
+      execute: async (params) => {
+        const qs = new URLSearchParams();
+        if (params.user_id !== undefined) qs.set("user_id", String(params.user_id));
+        if (params.role) qs.set("role", params.role);
+        qs.set("limit", String(params.limit));
+        qs.set("offset", String(params.offset));
+        return apiRequest(`/v1/web/roles?${qs.toString()}`);
+      },
+    },
+    {
+      name: "webui.grant_role",
+      description: "Назначить глобальную роль пользователю (project_owner, tester, backend_dev, moderator).",
+      parameters: z.object({
+        user_id: z.number().int().describe("Telegram user ID"),
+        role: z.string().describe("Роль: project_owner, tester, backend_dev, moderator"),
+        granted_by: z.number().int().optional().describe("Кто назначил (user_id)"),
+        note: z.string().optional().describe("Комментарий"),
+      }),
+      execute: async (params) => apiRequest("/v1/web/roles", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+    },
+    {
+      name: "webui.revoke_role",
+      description: "Отозвать глобальную роль у пользователя.",
+      parameters: z.object({
+        user_id: z.number().int().describe("Telegram user ID"),
+        role: z.string().describe("Роль для отзыва"),
+      }),
+      execute: async (params) => apiRequest(`/v1/web/roles/${params.user_id}/${params.role}`, {
+        method: "DELETE",
+      }),
+    },
+    {
+      name: "webui.check_access",
+      description: "Проверить доступ пользователя к странице. Возвращает has_access и причины.",
+      parameters: z.object({
+        user_id: z.number().int().describe("Telegram user ID"),
+        slug: z.string().describe("Slug страницы"),
+      }),
+      execute: async (params) => apiRequest("/v1/web/roles/check-access", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+    },
   ];
 }

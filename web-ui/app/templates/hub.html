@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+
+{% block title %}Bee Hub{% endblock %}
+
+{% set page_icons = {
+    'calendar': '\U0001f4c5',
+    'prediction': '\U0001f3af',
+    'dashboard': '\U0001f4ca',
+    'survey': '\U0001f4dd',
+    'leaderboard': '\U0001f3c6',
+    'llm': '\U0001f916',
+    'infra': '\U0001f5a5',
+    'page': '\U0001f4c4'
+} %}
+
+{% set page_labels = {
+    'calendar': '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c',
+    'prediction': '\u041f\u0440\u0435\u0434\u0441\u043a\u0430\u0437\u0430\u043d\u0438\u044f',
+    'dashboard': '\u0414\u0430\u0448\u0431\u043e\u0440\u0434',
+    'survey': '\u041e\u043f\u0440\u043e\u0441',
+    'leaderboard': '\u0420\u0435\u0439\u0442\u0438\u043d\u0433',
+    'llm': 'LLM',
+    'infra': '\u0418\u043d\u0444\u0440\u0430',
+    'page': '\u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430'
+} %}
+
+{% set source_type_icons = {
+    'chat': '\U0001f4cc',
+    'system': '\U0001f527',
+    'public': '\U0001f4cb'
+} %}
+
+{# ── Макрос карточки (переиспользуется в обеих секциях) ── #}
+{% macro hub_card(page, idx) %}
+{% set meta = page._meta if page._meta is defined else {} %}
+<a class="bee-hub-card" href="/p/{{ page.slug }}"
+   data-type="{{ page.page_type }}"
+   data-source="{{ page._source_label }}"
+   data-created="{{ page.created_at }}"
+   data-deadline="{{ meta.deadline or '' }}"
+   data-popularity="{{ meta.bet_count or meta.submission_count or meta.entry_count or 0 }}"
+   data-status="{{ meta.status or '' }}"
+   data-participated="{{ 'true' if (meta.user_bet or meta.user_submitted) else 'false' }}"
+   data-pool="{{ meta.total_pool or 0 }}"
+   data-bet-count="{{ meta.bet_count or 0 }}"
+   data-resolved-at="{{ meta.resolved_at or '' }}"
+   data-next-event="{{ meta.next_entry.start_at if meta.next_entry else '' }}"
+   data-submission-count="{{ meta.submission_count or 0 }}"
+   data-user-submitted="{{ 'true' if meta.user_submitted else 'false' }}"
+   data-temporal="{{ 'true' if page._is_temporal else 'false' }}"
+   data-search="{{ page.title | lower }} {{ page.slug | lower }} {{ (page._source_label or '') | lower }} {{ (page.page_type or '') | lower }}">
+
+    {# ── Визуальная панель (орбитальная система) ── #}
+    {% set vtype = page.page_type or 'page' %}
+    {% set o = page._orbital %}
+    <div class="bee-hub-card__visual{% if o.is_binary %} bee-hub-card__visual--binary{% endif %}"
+         id="hub-visual-{{ idx }}"
+         style="--orbit-phase: {{ o.orbit_phase }};
+                --activity: {{ o.activity }};
+                --urgency: {{ o.urgency }};
+                --star-scale: {{ o.star_scale }};
+                --glow-color: {{ o.glow_color }};
+                --orbit1-period: calc(6s - {{ o.activity }} * 3s);
+                --orbit2-period: calc(10s - {{ o.activity }} * 4s);
+                --orbit3-period: calc(14s - {{ o.activity }} * 5s);
+                --binary-period: calc(4s - {{ o.activity }} * 1.5s);">
+        <div class="bee-hub-card__visual-emojis{% if o.emojis.orbit1 is defined and o.emojis.orbit1 %} --has-orbit1{% endif %}{% if o.emojis.orbit2 is defined and o.emojis.orbit2 %} --has-orbit2{% endif %}">
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--star">
+                {%- if o.chat_photo_url -%}
+                <img src="{{ o.chat_photo_url }}" alt="" class="bee-hub-card__star-avatar"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                <span style="display:none">{{ o.emojis.star }}</span>
+                {%- else -%}
+                {{ o.emojis.star }}
+                {%- endif -%}
+            </span>
+            {% if o.emojis.star2 is defined and o.emojis.star2 %}
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--star2">{{ o.emojis.star2 }}</span>
+            {% endif %}
+            {% if o.emojis.orbit1 is defined and o.emojis.orbit1 %}
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit1">{{ o.emojis.orbit1 }}</span>
+            {% endif %}
+            {% if o.emojis.orbit2 is defined and o.emojis.orbit2 %}
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit2">{{ o.emojis.orbit2 }}</span>
+            {% endif %}
+            {% if o.emojis.orbit3 is defined and o.emojis.orbit3 %}
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit3">{{ o.emojis.orbit3 }}</span>
+            {% endif %}
+            {% if o.emojis.orbit4 is defined and o.emojis.orbit4 %}
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit4">{{ o.emojis.orbit4 }}</span>
+            {% endif %}
+            {% if o.emojis.orbit5 is defined and o.emojis.orbit5 %}
+            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit5">{{ o.emojis.orbit5 }}</span>
+            {% endif %}
+            {% if o.emojis.orbit4 is defined and o.emojis.orbit4 %}
+            <div class="bee-hub-card__trail bee-hub-card__trail--orbit3"></div>
+            {% endif %}
+        </div>
+        {% if vtype == 'prediction' and meta.total_pool %}
+        <div class="bee-hub-card__visual-metric">{{ meta.total_pool }} {{ meta.currency_symbol }}</div>
+        {% elif vtype == 'calendar' and meta.entry_count %}
+        <div class="bee-hub-card__visual-metric">{{ meta.entry_count }} соб.</div>
+        {% elif vtype == 'survey' and meta.submission_count %}
+        <div class="bee-hub-card__visual-metric">{{ meta.submission_count }} отв.</div>
+        {% endif %}
+        {% if page._icon %}
+        <img src="{{ page._icon.icon_url }}" alt="" class="bee-hub-card__visual-brand">
+        {% endif %}
+    </div>
+
+    <div class="bee-hub-card__body">
+        {# 1. Заголовок + статус #}
+        <div class="bee-hub-card__head">
+            <span class="bee-hub-card__title">{{ page.title }}</span>
+            {% if meta.status %}
+            <span class="bee-hub-card__status bee-hub-card__status--{{ meta.status }}" title="{{ meta.status }}"></span>
+            {% endif %}
+        </div>
+
+        {# 2. Источник с аватаркой #}
+        <div class="bee-hub-card__source">
+            {% if page._source_type == 'chat' and page._chat_photo_url %}
+            <img src="{{ page._chat_photo_url }}" alt="" class="bee-hub-card__source-avatar">
+            {% elif page._source_type == 'chat' %}
+            <span class="bee-hub-card__source-fallback">{{ (page._source_label or '?')[0] | upper }}</span>
+            {% else %}
+            {{ source_type_icons.get(page._source_type, '') }}
+            {% endif %}
+            {{ page._source_label }}
+        </div>
+
+        {# 3. Описание #}
+        {% if page.config and page.config.description %}
+        <div class="bee-hub-card__desc">{{ page.config.description }}</div>
+        {% endif %}
+
+        {# 4. Meta-row: тег + дата #}
+        <div class="bee-hub-card__meta-row">
+            <span class="bee-hub-badge bee-hub-badge--{{ page.page_type }}">
+                {{ page_labels.get(page.page_type, page.page_type) }}
+            </span>
+            {% if page.created_at %}
+            <span class="bee-hub-card__date">{{ page.created_at.strftime('%d.%m.%Y') if page.created_at else '' }}</span>
+            {% endif %}
+        </div>
+
+        {# 5. Виджеты по типу #}
+        {# ── Prediction виджеты ── #}
+        {% if meta.type == 'prediction' and meta.status != 'hub' %}
+        <div class="bee-hub-card__widgets">
+            <span class="bee-hub-widget">&#128176; {{ meta.total_pool }} {{ meta.currency_symbol }}</span>
+            <span class="bee-hub-widget">{{ meta.bet_count }} став.</span>
+            {% if meta.option_count %}
+            <span class="bee-hub-widget">{{ meta.option_count }} вар.</span>
+            {% endif %}
+        </div>
+        {% if meta.status == 'resolved' %}
+        <div class="bee-hub-card__status-text bee-hub-card__status-text--resolved">
+            &#10004; Победил: &laquo;{{ meta.winning_option or '—' }}&raquo;
+        </div>
+        {% elif meta.status == 'cancelled' %}
+        <div class="bee-hub-card__status-text bee-hub-card__status-text--cancelled">
+            &#10060; Отменено
+        </div>
+        {% elif meta.deadline %}
+        <div class="bee-hub-card__countdown" data-deadline="{{ meta.deadline }}" data-status="{{ meta.status }}"></div>
+        {% endif %}
+        {% if meta.user_bet %}
+        <div class="bee-hub-card__user-action">
+            &#10003; Ваша ставка: {{ meta.user_bet.amount }} {{ meta.currency_symbol }} на &laquo;{{ meta.user_bet.option_text }}&raquo;
+        </div>
+        {% endif %}
+        {% elif meta.type == 'prediction' and meta.status == 'hub' %}
+        {% if page.config and page.config.description %}
+        <div class="bee-hub-card__desc">{{ page.config.description }}</div>
+        {% endif %}
+        {% endif %}
+
+        {# ── Calendar виджеты ── #}
+        {% if meta.type == 'calendar' %}
+        <div class="bee-hub-card__widgets">
+            <span class="bee-hub-widget">{{ meta.entry_count }} событий</span>
+            {% if meta.next_entry %}
+            <span class="bee-hub-widget">&#8594; {{ meta.next_entry.title }}</span>
+            {% elif meta.last_entry %}
+            <span class="bee-hub-widget">&#127937; {{ meta.last_entry.title }}</span>
+            {% endif %}
+        </div>
+        {% if meta.next_entry and meta.next_entry.start_at %}
+        <div class="bee-hub-card__countdown" data-deadline="{{ meta.next_entry.start_at }}"
+             data-prefix="Через "></div>
+        {% elif meta.last_entry %}
+        <div class="bee-hub-card__status-text bee-hub-card__status-text--finished">
+            &#127937; Последнее: &laquo;{{ meta.last_entry.title }}&raquo;
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {# ── Survey виджеты ── #}
+        {% if meta.type == 'survey' %}
+        <div class="bee-hub-card__widgets">
+            <span class="bee-hub-widget">{{ meta.submission_count }} ответов</span>
+            {% if meta.user_submitted %}
+            <span class="bee-hub-widget bee-hub-widget--done">&#10003; Отправлено</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</a>
+{% endmacro %}
+
+{% block bar_left %}<button class="bee-bar__action" id="hub-menu-btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>{% endblock %}
+{% block bar_right %}<button class="bee-bar__action" id="hub-settings-btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M3 14.5c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>{% endblock %}
+
+{% block context %}
+{# ── Промо-баннер ── #}
+{% if banners %}
+{% set banner = banners[0] %}
+<a class="bee-promo" href="{{ banner.link }}" id="hub-promo"
+   target="_blank" rel="noopener">
+    {% if banner.avatar_file %}
+    <div class="bee-promo__bg" style="background-image:url({{ banner.avatar_file }})"></div>
+    {% endif %}
+    <div class="bee-promo__content">
+        {% if banner.avatar_file %}
+        <img class="bee-promo__avatar" src="{{ banner.avatar_file }}" alt="">
+        {% else %}
+        <div class="bee-promo__avatar bee-promo__avatar--placeholder">{{ banner.tg_username[0] | upper }}</div>
+        {% endif %}
+        <div class="bee-promo__text">
+            <div class="bee-promo__title">{{ banner.title }}</div>
+            <div class="bee-promo__username">@{{ banner.tg_username }}</div>
+        </div>
+        <span class="bee-promo__arrow">&#8250;</span>
+    </div>
+    <button class="bee-promo__close" id="promo-close" type="button">&times;</button>
+</a>
+{% endif %}
+
+{# ── Поиск + кнопка фильтров ── #}
+<div class="bee-hub-search-row">
+    <div class="bee-hub-search-wrap" id="hub-search-wrap">
+        <input type="text" class="bee-hub-search" id="hub-search"
+               placeholder="Поиск..." autocomplete="off">
+    </div>
+    <button class="bee-hub-filter-toggle" id="filter-toggle">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h5M11 4h3M2 8h8M14 8h0M2 12h3M9 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="4" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="8" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="12" r="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span class="bee-hub-filter-count hidden" id="filter-count">0</span>
+    </button>
+</div>
+
+{# ── Фильтры (сворачиваемые) ── #}
+<div class="bee-hub-filters collapsed" id="hub-filters">
+    <div class="bee-hub-filter-label">Тип</div>
+    <div class="bee-hub-filter-row" id="filter-type">
+        <button class="bee-hub-pill active" data-val="all">Все</button>
+        <button class="bee-hub-pill" data-val="prediction">&#127919; Предсказания</button>
+        <button class="bee-hub-pill" data-val="calendar">&#128197; Календарь</button>
+        <button class="bee-hub-pill" data-val="survey">&#128221; Опросы</button>
+        <button class="bee-hub-pill" data-val="dashboard">&#128202; Дашборд</button>
+        <button class="bee-hub-pill" data-val="infra">&#128421; Инфра</button>
+    </div>
+
+    {% if sources | length > 1 %}
+    <div class="bee-hub-filter-label">Источник</div>
+    <div class="bee-hub-filter-row" id="filter-source">
+        <button class="bee-hub-pill active" data-val="all">Все</button>
+        {% for src_label, src_type in sources.items() %}
+        <button class="bee-hub-pill" data-val="{{ src_label }}">
+            {{ source_type_icons.get(src_type, '') }} {{ src_label }}
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bee-hub-filter-label">Сортировка</div>
+    <div class="bee-hub-filter-row" id="filter-sort">
+        <button class="bee-hub-pill active" data-val="newest">Новые</button>
+        <button class="bee-hub-pill" data-val="deadline">Дедлайн &#8593;</button>
+        <button class="bee-hub-pill" data-val="popular">Популярные</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# ── Список карточек (две секции) ── #}
+<div class="bee-hub-list" id="hub-list">
+{% if pages %}
+
+{# ── Секция: Активные (временные) ── #}
+{% if temporal_pages %}
+<div class="bee-hub-section-header" id="section-temporal" data-section="temporal">
+    <span>&#9201;</span> Активные
+    <span class="bee-hub-section-header__count">{{ temporal_pages | length }}</span>
+</div>
+{% for page in temporal_pages %}
+{{ hub_card(page, loop.index) }}
+{% endfor %}
+{% endif %}
+
+{# ── Секция: Постоянные ── #}
+{% if permanent_pages %}
+<div class="bee-hub-section-header" id="section-permanent" data-section="permanent">
+    <span>&#128204;</span> Постоянные
+    <span class="bee-hub-section-header__count">{{ permanent_pages | length }}</span>
+</div>
+{% for page in permanent_pages %}
+{{ hub_card(page, 1000 + loop.index) }}
+{% endfor %}
+{% endif %}
+
+{% else %}
+<div class="bee-hub-empty">
+    <div class="bee-hub-empty-icon">&#128237;</div>
+    <div class="bee-hub-empty-text">Нет доступных страниц</div>
+    <div class="bee-hub-empty-hint">Страницы появятся когда вам будет выдан доступ</div>
+</div>
+{% endif %}
+</div>
+
+{# Нет результатов фильтра #}
+<div class="bee-hub-no-results hidden" id="hub-no-results">
+    <div class="bee-hub-empty-icon">&#128269;</div>
+    <div class="bee-hub-empty-text">Ничего не найдено</div>
+    <div class="bee-hub-empty-hint">Попробуйте изменить фильтры</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    // ── Фильтры ──────────────────────────────
+    var activeFilters = { type: 'all', source: 'all', sort: 'newest', search: '' };
+    var filtersEl = document.getElementById('hub-filters');
+    var toggleEl = document.getElementById('filter-toggle');
+    var countEl = document.getElementById('filter-count');
+    var listEl = document.getElementById('hub-list');
+    var noResultsEl = document.getElementById('hub-no-results');
+
+    // Тоггл панели фильтров
+    if (toggleEl && filtersEl) {
+        toggleEl.addEventListener('click', function() {
+            if (window.haptic) window.haptic('impact', 'light');
+            filtersEl.classList.toggle('collapsed');
+        });
+    }
+
+    // Пилы фильтров
+    function initPillGroup(containerId, filterKey) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var pills = container.querySelectorAll('.bee-hub-pill');
+        pills.forEach(function(pill) {
+            pill.addEventListener('click', function() {
+                if (window.haptic) window.haptic('selection');
+                pills.forEach(function(p) { p.classList.remove('active'); });
+                pill.classList.add('active');
+                activeFilters[filterKey] = pill.dataset.val;
+                applyFilters();
+            });
+        });
+    }
+    initPillGroup('filter-type', 'type');
+    initPillGroup('filter-source', 'source');
+    initPillGroup('filter-sort', 'sort');
+
+    // Поиск
+    var searchEl = document.getElementById('hub-search');
+    if (searchEl) {
+        searchEl.addEventListener('input', function() {
+            activeFilters.search = this.value.toLowerCase().trim();
+            applyFilters();
+        });
+    }
+
+    function applyFilters() {
+        var cards = Array.from(document.querySelectorAll('.bee-hub-card'));
+        var visibleCount = 0;
+
+        // Фильтрация
+        cards.forEach(function(card) {
+            var show = true;
+            if (activeFilters.type !== 'all' && card.dataset.type !== activeFilters.type) show = false;
+            if (activeFilters.source !== 'all' && card.dataset.source !== activeFilters.source) show = false;
+            if (activeFilters.search && (card.dataset.search || '').indexOf(activeFilters.search) < 0) show = false;
+            card.style.display = show ? '' : 'none';
+            if (show) visibleCount++;
+        });
+
+        // Сортировка (в пределах каждой секции)
+        ['temporal', 'permanent'].forEach(function(section) {
+            var sectionCards = cards.filter(function(c) {
+                return c.style.display !== 'none' && c.dataset.temporal === (section === 'temporal' ? 'true' : 'false');
+            });
+            sectionCards.sort(function(a, b) {
+                if (activeFilters.sort === 'deadline') {
+                    var aD = a.dataset.deadline ? new Date(a.dataset.deadline).getTime() : Infinity;
+                    var bD = b.dataset.deadline ? new Date(b.dataset.deadline).getTime() : Infinity;
+                    return aD - bD;
+                }
+                if (activeFilters.sort === 'popular') {
+                    return (parseInt(b.dataset.popularity) || 0) - (parseInt(a.dataset.popularity) || 0);
+                }
+                return (b.dataset.created || '').localeCompare(a.dataset.created || '');
+            });
+            sectionCards.forEach(function(card) { listEl.appendChild(card); });
+        });
+
+        // Видимость заголовков секций
+        var sectionHeaders = document.querySelectorAll('.bee-hub-section-header');
+        sectionHeaders.forEach(function(header) {
+            var sectionType = header.dataset.section;
+            var hasVisible = cards.some(function(c) {
+                return c.style.display !== 'none' &&
+                       c.dataset.temporal === (sectionType === 'temporal' ? 'true' : 'false');
+            });
+            header.style.display = hasVisible ? '' : 'none';
+        });
+
+        // "Ничего не найдено"
+        if (noResultsEl) {
+            noResultsEl.classList.toggle('hidden', visibleCount > 0 || cards.length === 0);
+        }
+
+        // Счётчик активных фильтров
+        var active = 0;
+        if (activeFilters.type !== 'all') active++;
+        if (activeFilters.source !== 'all') active++;
+        if (activeFilters.sort !== 'newest') active++;
+        if (activeFilters.search) active++;
+        if (countEl) {
+            countEl.textContent = active;
+            countEl.classList.toggle('hidden', active === 0);
+        }
+    }
+
+    // ── Таймер обратного отсчёта ─────────────
+    function updateCountdowns() {
+        var now = Date.now();
+        document.querySelectorAll('[data-deadline]').forEach(function(el) {
+            var dl = el.dataset.deadline;
+            if (!dl) return;
+            var diff = new Date(dl).getTime() - now;
+            var prefix = el.dataset.prefix || '&#9201; ';
+
+            if (diff <= 0) {
+                var status = el.dataset.status || '';
+                if (status === 'resolved') {
+                    el.innerHTML = '&#10004; Разрешено';
+                } else if (status === 'cancelled') {
+                    el.innerHTML = '&#10060; Отменено';
+                } else {
+                    el.innerHTML = '&#9201; Завершено';
+                }
+                el.classList.add('expired');
+                el.classList.remove('urgent');
+                return;
+            }
+
+            el.classList.remove('expired');
+            var d = Math.floor(diff / 86400000);
+            var h = Math.floor((diff % 86400000) / 3600000);
+            var m = Math.floor((diff % 3600000) / 60000);
+
+            if (d > 0) {
+                el.innerHTML = prefix + d + 'д ' + h + 'ч';
+            } else if (h > 0) {
+                el.innerHTML = prefix + h + 'ч ' + m + 'м';
+            } else {
+                el.innerHTML = prefix + m + 'м';
+            }
+
+            el.classList.toggle('urgent', diff < 3600000);
+        });
+    }
+    updateCountdowns();
+    setInterval(updateCountdowns, 30000);
+
+    // ── Metadata-driven visual effects ─────
+    function applyCardEffects() {
+        var now = Date.now();
+        var HOUR = 3600000;
+        var DAY = 86400000;
+
+        document.querySelectorAll('.bee-hub-card').forEach(function(card) {
+            var type = card.dataset.type;
+            var status = card.dataset.status;
+            var deadline = card.dataset.deadline;
+            var participated = card.dataset.participated === 'true';
+            var popularity = parseInt(card.dataset.popularity) || 0;
+            var created = card.dataset.created;
+
+            if (created) {
+                var age = now - new Date(created).getTime();
+                if (age > 0 && age < 24 * HOUR) {
+                    card.classList.add('bee-hub-card--new');
+                }
+            }
+
+            if (popularity >= 10) {
+                card.classList.add('bee-hub-card--trending');
+            }
+
+            if (participated) {
+                card.classList.add('bee-hub-card--participated');
+            }
+
+            if (type === 'prediction') {
+                var pool = parseInt(card.dataset.pool) || 0;
+                var betCount = parseInt(card.dataset.betCount) || 0;
+
+                if ((status === 'open' || status === 'active') && (pool >= 500 || betCount >= 10)) {
+                    card.classList.add('bee-hub-card--hot');
+                }
+
+                if (deadline && (status === 'open' || status === 'active')) {
+                    var diff = new Date(deadline).getTime() - now;
+                    if (diff > 0 && diff < HOUR) {
+                        card.classList.add('bee-hub-card--deadline-urgent');
+                    } else if (diff > 0 && diff < DAY) {
+                        card.classList.add('bee-hub-card--deadline-near');
+                    }
+                }
+
+                var resolvedAt = card.dataset.resolvedAt;
+                if (status === 'resolved' && resolvedAt) {
+                    var since = now - new Date(resolvedAt).getTime();
+                    if (since >= 0 && since < 2 * HOUR) {
+                        card.classList.add('bee-hub-card--just-resolved');
+                    }
+                }
+            }
+
+            if (type === 'calendar') {
+                var nextEvent = card.dataset.nextEvent;
+                if (nextEvent) {
+                    var until = new Date(nextEvent).getTime() - now;
+                    if (until > 0 && until < HOUR) {
+                        card.classList.add('bee-hub-card--event-soon');
+                    }
+                } else {
+                    card.classList.add('bee-hub-card--no-future');
+                }
+            }
+        });
+    }
+    applyCardEffects();
+
+    // ── Touch expand (mobile: long-press раскрытие орбит) ──
+    (function() {
+        var EXPAND_DELAY = 150;
+        var expandTimer = null;
+        var expandedCard = null;
+
+        function collapse() {
+            if (expandedCard) {
+                expandedCard.classList.remove('expanded');
+                expandedCard = null;
+            }
+        }
+
+        document.querySelectorAll('.bee-hub-card').forEach(function(card) {
+            card.addEventListener('touchstart', function(e) {
+                collapse();
+                expandTimer = setTimeout(function() {
+                    card.classList.add('expanded');
+                    expandedCard = card;
+                    if (window.haptic) window.haptic('impact', 'light');
+                }, EXPAND_DELAY);
+            }, { passive: true });
+
+            card.addEventListener('touchend', function() {
+                clearTimeout(expandTimer);
+                // Небольшая задержка чтобы анимация была видна
+                setTimeout(collapse, 300);
+            }, { passive: true });
+
+            card.addEventListener('touchmove', function() {
+                clearTimeout(expandTimer);
+                collapse();
+            }, { passive: true });
+        });
+    })();
+
+    // ── Промо-баннер dismiss ─────────────────
+    var promoEl = document.getElementById('hub-promo');
+    var promoClose = document.getElementById('promo-close');
+    if (promoEl && promoClose) {
+        var promoKey = 'promo_dismissed_' + (promoEl.href || '').replace(/\W/g, '_');
+        if (localStorage.getItem(promoKey)) {
+            promoEl.style.display = 'none';
+        }
+        promoClose.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            promoEl.style.display = 'none';
+            localStorage.setItem(promoKey, '1');
+        });
+    }
+
+    // ── Перехват кликов — initData ───────────
+    document.querySelectorAll('.bee-hub-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            if (window.haptic) window.haptic('impact', 'light');
+            var tgApp = window.Telegram && window.Telegram.WebApp;
+            if (tgApp && tgApp.initData) {
+                e.preventDefault();
+                var href = card.getAttribute('href');
+                var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                window.location.href = href + sep + 'initData=' + encodeURIComponent(tgApp.initData);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

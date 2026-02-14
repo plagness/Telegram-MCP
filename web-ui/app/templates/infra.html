@@ -45,14 +45,18 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
 <div class="bee-card bee-hex-bg">
     <div class="bee-title">{{ page.title }}</div>
     {% if config.get('description') %}
     <div class="bee-subtitle">{{ config['description'] }}</div>
     {% endif %}
 </div>
+{% endblock %}
 
+{% block content %}
 <div id="access-denied" class="bee-card" style="display:none">
     <div class="bee-card-title" style="color:var(--error)">Доступ ограничен</div>
     <div class="bee-subtitle">Эта страница доступна только авторизованным пользователям.</div>

@@ -149,6 +149,63 @@ async def calendar_entries_proxy(
     return {"ok": True, "entries": entries, "count": len(entries)}
 
 
+# --- Роли (прокси к tgweb /api/v1/roles) ---
+
+
+@router.get("/roles")
+async def list_roles(
+    user_id: int | None = Query(None),
+    role: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Список ролей."""
+    qs = f"?limit={limit}&offset={offset}"
+    if user_id is not None:
+        qs += f"&user_id={user_id}"
+    if role:
+        qs += f"&role={role}"
+    return await _proxy("GET", f"/api/v1/roles{qs}")
+
+
+@router.get("/roles/{user_id}")
+async def get_user_roles(user_id: int):
+    """Роли пользователя."""
+    return await _proxy("GET", f"/api/v1/roles/{user_id}")
+
+
+@router.post("/roles")
+async def grant_role(request: Request):
+    """Назначить роль."""
+    body = await request.json()
+    return await _proxy("POST", "/api/v1/roles", body)
+
+
+@router.delete("/roles/{user_id}/{role}")
+async def revoke_role(user_id: int, role: str):
+    """Отозвать роль."""
+    return await _proxy("DELETE", f"/api/v1/roles/{user_id}/{role}")
+
+
+@router.post("/roles/check-access")
+async def check_access(request: Request):
+    """Проверить доступ пользователя к странице."""
+    body = await request.json()
+    return await _proxy("POST", "/api/v1/roles/check-access", body)
+
+
+# --- Ноды (реестр публичных серверов) ---
+
+
+@router.get("/nodes")
+async def list_nodes():
+    """Реестр публичных нод."""
+    return await _proxy("GET", "/api/v1/nodes")
+
+
+# --- Календарь (прокси к tgapi /v1/calendar) ---
+
+
 @router.get("/calendar/{calendar_id}/upcoming")
 async def calendar_upcoming_proxy(
     calendar_id: int,
