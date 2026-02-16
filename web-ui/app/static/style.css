@@ -3759,3 +3759,126 @@ a { color: var(--accent-dark); }
 
 .bee-profile-tx--positive { color: var(--success, #4CAF50); }
 .bee-profile-tx--negative { color: var(--error, #F44336); }
+
+/* ═══ BeeKit: Bottom Sheet ═══ */
+
+.bee-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s}
+.bee-sheet-overlay.active{opacity:1;pointer-events:auto}
+
+.bee-sheet{position:fixed;bottom:0;left:0;right:0;z-index:1001;background:var(--tg-bg,#1c1c1e);border-radius:14px 14px 0 0;max-height:80vh;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.bee-sheet.active{transform:translateY(0)}
+
+.bee-sheet__handle{width:36px;height:4px;border-radius:2px;background:var(--tg-hint,#999);opacity:.3;margin:8px auto 0}
+
+.bee-sheet__header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px}
+.bee-sheet__title{font-size:17px;font-weight:600;color:var(--tg-text,#fff)}
+.bee-sheet__close{font-size:24px;color:var(--tg-hint,#999);cursor:pointer;padding:0 4px;line-height:1}
+
+.bee-sheet__toolbar{padding:0 16px 8px;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.bee-sheet__toolbar:empty{display:none}
+
+.bee-sheet__body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding:0 16px 16px}
+
+/* ═══ BeeKit: Accordion ═══ */
+
+.bee-accordion{border-radius:var(--radius-sm,8px);overflow:hidden}
+
+.bee-accordion__header{display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;color:var(--tg-text,#fff);font-weight:600;font-size:15px}
+
+.bee-accordion__arrow{font-size:12px;color:var(--tg-hint,#999);transition:transform .25s ease;display:inline-block}
+.bee-accordion--open .bee-accordion__arrow{transform:rotate(90deg)}
+
+.bee-accordion__body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.bee-accordion--open .bee-accordion__body{max-height:2000px}
+
+/* ═══ BeeKit: Stale Indicator ═══ */
+
+.bee-stale{position:sticky;top:48px;z-index:99;background:rgba(255,152,0,.15);color:var(--accent,#FFC107);text-align:center;font-size:12px;font-weight:500;padding:6px 12px;max-height:0;overflow:hidden;opacity:0;transition:max-height .3s ease,opacity .3s ease,padding .3s ease}
+.bee-stale--visible{max-height:40px;opacity:1;padding:6px 12px}
+
+/* ═══ BeeKit: Chip (filter pills) ═══ */
+
+.bee-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:14px;font-size:13px;font-weight:500;background:var(--tg-secondary-bg,rgba(128,128,128,.12));color:var(--tg-text,#fff);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;white-space:nowrap;transition:background .2s,color .2s}
+.bee-chip.active,.bee-chip--active{background:var(--accent,#FFC107);color:#000;font-weight:600}
+
+/* ═══ BeeKit: EChart container ═══ */
+
+.bee-echart{width:100%;min-height:200px}
+
+/* ═══ BeeFX: Skeleton Shimmer ═══ */
+
+@keyframes bee-shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+
+.bee-skel{background:linear-gradient(90deg,var(--tg-secondary-bg) 0%,rgba(255,255,255,0.06) 40%,var(--tg-secondary-bg) 60%);background-size:200% 100%;animation:bee-shimmer 1.4s ease-in-out infinite;border-radius:6px;display:block}
+.bee-skel--title{height:18px;width:45%;margin-bottom:12px}
+.bee-skel--line{height:13px;margin-bottom:8px}
+.bee-skel--line-sm{height:13px;width:70%;margin-bottom:8px}
+.bee-skel--value{height:28px;width:60px;margin:0 auto 4px}
+.bee-skel--label{height:11px;width:40px;margin:0 auto}
+.bee-skel--chart{height:180px;border-radius:8px}
+.bee-skel--avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0}
+.bee-skel-card:nth-child(2) .bee-skel{animation-delay:80ms}
+.bee-skel-card:nth-child(3) .bee-skel{animation-delay:160ms}
+
+/* ═══ BeeFX: Shiny Text ═══ */
+
+@keyframes bee-shine{0%,100%{background-position:100% center}50%{background-position:0% center}}
+
+.bee-shiny{background:linear-gradient(120deg,currentColor 40%,var(--accent,#FFC107) 50%,currentColor 60%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:bee-shine 3s ease-in-out infinite}
+
+/* ═══ BeeFX: Gradient Text ═══ */
+
+@keyframes bee-gradient-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+.bee-gradient-text{background:linear-gradient(135deg,var(--accent,#FFC107),#FF6B35,var(--accent,#FFC107));background-size:300% 300%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:bee-gradient-shift 4s ease infinite}
+
+/* ═══ BeeFX: Star Border ═══ */
+
+.bee-star-border{position:relative;z-index:0}
+.bee-star-border::before,.bee-star-border::after{content:'';position:absolute;width:300%;height:50%;background:radial-gradient(ellipse,var(--accent,#FFC107),transparent 60%);opacity:0.5;z-index:-1;pointer-events:none}
+.bee-star-border::before{top:-2px;left:-200%;animation:bee-star-top 4s linear infinite alternate}
+.bee-star-border::after{bottom:-2px;right:-200%;animation:bee-star-bottom 4s linear infinite alternate}
+@keyframes bee-star-top{0%{transform:translateX(0);opacity:0.5}100%{transform:translateX(100%);opacity:0}}
+@keyframes bee-star-bottom{0%{transform:translateX(0);opacity:0.5}100%{transform:translateX(-100%);opacity:0}}
+
+/* ═══ BeeFX: Glare on Touch ═══ */
+
+.bee-glare{position:relative;overflow:hidden}
+.bee-glare::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--glare-x,50%) var(--glare-y,50%),rgba(255,255,255,0.08) 0%,transparent 60%);opacity:0;transition:opacity .3s;pointer-events:none}
+.bee-glare:active::after{opacity:1}
+
+/* ═══ BeeFX: Glitch Text ═══ */
+
+.bee-glitch{position:relative;display:inline-block}
+.bee-glitch::before,.bee-glitch::after{content:attr(data-text);position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden}
+.bee-glitch::before{text-shadow:-2px 0 #ff00c1;animation:bee-glitch-a 2.5s infinite linear alternate-reverse}
+.bee-glitch::after{text-shadow:2px 0 #00fff9;animation:bee-glitch-b 3s infinite linear alternate-reverse}
+
+@keyframes bee-glitch-a{0%{clip-path:inset(10% 0 85% 0)}10%{clip-path:inset(22% 0 64% 0)}20%{clip-path:inset(75% 0 10% 0)}30%{clip-path:inset(5% 0 80% 0)}40%{clip-path:inset(50% 0 30% 0)}50%{clip-path:inset(15% 0 72% 0)}60%{clip-path:inset(45% 0 40% 0)}70%{clip-path:inset(80% 0 5% 0)}80%{clip-path:inset(25% 0 58% 0)}90%{clip-path:inset(60% 0 20% 0)}100%{clip-path:inset(33% 0 50% 0)}}
+@keyframes bee-glitch-b{0%{clip-path:inset(65% 0 15% 0)}10%{clip-path:inset(8% 0 78% 0)}20%{clip-path:inset(40% 0 42% 0)}30%{clip-path:inset(70% 0 12% 0)}40%{clip-path:inset(18% 0 68% 0)}50%{clip-path:inset(55% 0 28% 0)}60%{clip-path:inset(3% 0 88% 0)}70%{clip-path:inset(35% 0 48% 0)}80%{clip-path:inset(72% 0 8% 0)}90%{clip-path:inset(42% 0 38% 0)}100%{clip-path:inset(12% 0 72% 0)}}
+
+/* ═══ BeeFX: Fade-In / Blur Reveal ═══ */
+
+.bee-fade-in{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease}
+.bee-fade-in--blur{filter:blur(6px);transition:opacity .5s ease,transform .5s ease,filter .5s ease}
+.bee-fade-in--scale{transform:scale(0.95);transition:opacity .5s ease,transform .4s ease}
+.bee-fade-in--visible{opacity:1!important;transform:none!important;filter:none!important}
+
+/* Посимвольное раскрытие (BlurText port) */
+.bee-char{display:inline-block;opacity:0;filter:blur(8px);transform:translateY(-8px);transition:opacity .4s ease,filter .4s ease,transform .4s ease}
+.bee-char--slide{filter:none;transform:translateY(20px)}
+.bee-char--visible{opacity:1;filter:none;transform:none}
+
+/* ═══ BeeFX: Ripple ═══ */
+
+.bee-ripple{position:relative;overflow:hidden}
+.bee-ripple__wave{position:absolute;border-radius:50%;pointer-events:none;background:rgba(255,255,255,0.12);transform:scale(0);animation:bee-ripple-expand .5s ease-out forwards}
+@keyframes bee-ripple-expand{to{transform:scale(2.5);opacity:0}}
+
+/* ═══ BeeFX: Spotlight Card ═══ */
+
+[data-spotlight]{background-image:radial-gradient(circle at var(--spot-x,50%) var(--spot-y,50%),rgba(255,193,7,0.05) 0%,transparent 60%)}
+
+/* ═══ BeeFX: Accessibility ═══ */
+
+@media(prefers-reduced-motion:reduce){.bee-fade-in,.bee-char{opacity:1;transform:none;filter:none;transition:none}.bee-shiny,.bee-gradient-text{animation:none;-webkit-text-fill-color:unset;background:none}.bee-star-border::before,.bee-star-border::after{animation:none}.bee-skel{animation:none}.bee-ripple__wave{animation:none}.bee-glitch::before,.bee-glitch::after{animation:none}}

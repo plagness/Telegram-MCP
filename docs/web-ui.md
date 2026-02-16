@@ -13,6 +13,9 @@
 - **Stars Payments**: оплата через `Telegram.WebApp.openInvoice()`
 - **Direct Link Mini App**: кнопки в групповых чатах открывают Mini App внутри Telegram
 - **Календарь**: полнофункциональный календарь событий с поиском, фильтрами, эмодзи и аватарками создателей
+- **Owner-only дашборды**: LLM, Metrics, Arena, Planner, Infra, BCS, Channel, K8s — мониторинг модулей
+- **Bee Design System**: UI toolkit (BeeKit) + визуальные эффекты (BeeFX) + skeleton loading + ECharts
+- **Тесты**: 33 функциональных теста + 6 перформанс-бенчмарков (test-fx.html)
 
 ## Архитектура
 
@@ -419,6 +422,132 @@ curl -X POST http://localhost:8081/v1/web/pages \
 
 При `WEBUI_ENABLED=true` предсказания автоматически получают кнопку Mini App вместо callback.
 
+### llm -- LLM Dashboard
+
+Тип страницы `llm` для мониторинга llm-mcp системы.
+
+```json
+{
+  "page_type": "llm",
+  "title": "LLM",
+  "slug": "llm",
+  "config": {
+    "llm_core_url": "http://llmcore:8080",
+    "description": "Мониторинг LLM-кластера"
+  }
+}
+```
+
+Секции дашборда:
+- **Job Queue** — queued/running/done/failed с progress bar
+- **Costs** — расходы за today/week/month (USD)
+- **Fleet** — иерархия Host→Node с моделями, latency, stats, circuit breaker
+- **Running Jobs** — текущие активные задачи с моделью и устройством
+- **Issues** — проблемы на человеческом языке (offline hosts, stuck queue)
+
+Клиентский JS загружает данные через `BeeKit.poll()` с skeleton crossfade. Эффекты: `bee-shiny` на month cost, `countUp` на costs при первой загрузке.
+
+### infra -- Infrastructure Monitor
+
+Тип страницы `infra` — общий мониторинг кластера с интерактивным клиентским рендером.
+
+```json
+{
+  "page_type": "infra",
+  "title": "Infra",
+  "slug": "infra",
+  "config": {
+    "llm_core_url": "http://llmcore:8080",
+    "description": "Инфраструктура"
+  }
+}
+```
+
+Секции:
+- **Gauges** — Fleet availability (online/total), Load (jobs/capacity)
+- **Issues** — баннер с проблемами (offline hosts, circuit breakers, low success rate)
+- **Fleet** — иерархия Host→Node с expand/collapse, capacity bars, device stats
+- **Job Queue** — queued/running/done/failed
+- **Running Jobs** — активные задачи
+- **Costs** — расходы по периодам
+
+Клиентский JS загружает данные через fetch API и рендерит DOM. Bottom sheet показывает список моделей при клике на устройство. Автообновление каждые 5с.
+
+### metrics -- Market Data Dashboard
+
+```json
+{
+  "page_type": "metrics",
+  "title": "Metrics",
+  "slug": "metrics",
+  "config": {
+    "metrics_api_url": "http://metricsapi-service:8080",
+    "description": "Рыночные данные"
+  }
+}
+```
+
+Секции: FX & Crypto headlines (USD/RUB, EUR/RUB, BTC, Gold), Market Data list, Stock Indices ECharts bar chart + таблица, Infrastructure status.
+
+### arena -- Arena LLM Dashboard
+
+```json
+{
+  "page_type": "arena",
+  "title": "Arena",
+  "slug": "arena",
+  "config": {
+    "arena_core_url": "http://arenacore-service:8080"
+  }
+}
+```
+
+Секции: Health, Matches (total/today), Leaderboard, Species, Predictions, Presets (accordion).
+
+### planner -- Planner Dashboard
+
+```json
+{
+  "page_type": "planner",
+  "title": "Planner",
+  "slug": "planner",
+  "config": {
+    "planner_core_url": "http://plannercore-service:8080"
+  }
+}
+```
+
+Секции: Speed Mode, Budget (countUp), Tasks, Connected Modules, Schedules, Active Triggers (bee-star-border), Task Log (bottom sheet + chips).
+
+### bcs / channel / k8s -- Прочие дашборды
+
+Аналогичная структура. Каждый дашборд имеет свой `page_type`, `*_url` в config, шаблон и proxy-endpoint в `module_proxy.py`.
+
+---
+
+## Bee Design System
+
+Подробная документация: [web-ui/docs/UI-GUIDE.md](../web-ui/docs/UI-GUIDE.md)
+
+### Компоненты
+
+| Модуль | Файл | Описание |
+|--------|------|----------|
+| **BeeKit** | `bee-kit.js` | UI toolkit: poll (skeleton crossfade), sheet, stale, accordion, haptic |
+| **BeeFX** | `bee-fx.js` | Эффекты: countUp, revealText, fadeIn, spotlight, clickSpark, ripple |
+| **CSS** | `style.css` | Design system + skeleton + CSS-эффекты (shiny, gradient, star-border, glare, glitch) |
+| **ECharts** | `echarts.min.js` | Apache ECharts 6.0.0 (lazy-load, SVG renderer) |
+
+### Тесты
+
+Файл: `static/test-fx.html` — самодостаточный browser test runner.
+
+- 33 функциональных теста по 7 модулям
+- 6 перформанс-бенчмарков с порогами
+- Доступ: `https://<host>:8443/static/test-fx.html`
+
+---
+
 ## Индивидуальные ссылки
 
 Персональные ссылки привязывают доступ к конкретному пользователю:
@@ -531,35 +660,52 @@ async with TelegramAPI("http://localhost:8081") as api:
 ```
 web-ui/
 ├── app/
-│   ├── main.py          # FastAPI + Jinja2 + static + lifespan
-│   ├── config.py        # Settings: PUBLIC_URL, TGAPI_URL, BOT_TOKEN
-│   ├── db.py            # PostgreSQL pool (psycopg)
-│   ├── auth.py          # Telegram initData HMAC-SHA256 валидация
+│   ├── main.py              # FastAPI + Jinja2 + static + lifespan
+│   ├── config.py            # Settings: PUBLIC_URL, TGAPI_URL, BOT_TOKEN
+│   ├── db.py                # PostgreSQL pool (psycopg)
+│   ├── auth.py              # Telegram initData HMAC-SHA256 валидация
 │   ├── routers/
-│   │   ├── health.py    # GET /health
-│   │   ├── icons.py     # SVG иконки (3300+ брендов)
-│   │   ├── pages.py     # CRUD API для страниц
-│   │   ├── render.py    # GET /, GET /p/{slug}, GET /l/{token}, POST submit, hub
-│   │   └── roles.py     # REST API управления ролями
+│   │   ├── health.py        # GET /health
+│   │   ├── icons.py         # SVG иконки (3300+ брендов)
+│   │   ├── pages.py         # CRUD API для страниц
+│   │   ├── render.py        # GET /, GET /p/{slug}, GET /l/{token}, POST submit, hub
+│   │   ├── roles.py         # REST API управления ролями
+│   │   └── module_proxy.py  # Proxy к backend-модулям (llm, metrics, arena, planner, ...)
 │   ├── services/
-│   │   ├── access.py    # check_page_access(), get_accessible_pages()
-│   │   ├── links.py     # Генерация токенов, создание ссылок
-│   │   ├── nodes.py     # Загрузка и кэш реестра нод
-│   │   ├── pages.py     # CRUD web_pages в БД
-│   │   └── roles.py     # CRUD для user_roles
+│   │   ├── access.py        # check_page_access(), get_accessible_pages()
+│   │   ├── links.py         # Генерация токенов, создание ссылок
+│   │   ├── nodes.py         # Загрузка и кэш реестра нод
+│   │   ├── pages.py         # CRUD web_pages в БД
+│   │   └── roles.py         # CRUD для user_roles
 │   ├── templates/
-│   │   ├── base.html           # Base с telegram-web-app.js SDK
-│   │   ├── hub.html            # Главный экран (каталог доступных страниц)
-│   │   ├── error.html          # Ошибки (404, 403)
-│   │   ├── calendar.html       # Календарь (сетка, поиск, детализация, эмодзи-пикер)
-│   │   ├── calendar_event.html # Карточка события (include)
+│   │   ├── base.html           # Base layout (bee-kit, bee-fx, lottie)
+│   │   ├── hub.html            # Главный экран (каталог, mini-metrics, fade-in)
+│   │   ├── llm.html            # LLM Dashboard (costs, fleet, jobs)
+│   │   ├── metrics.html        # Market Data (FX, crypto, indices ECharts)
+│   │   ├── arena.html          # Arena LLM (matches, leaderboard)
+│   │   ├── planner.html        # Planner (budget, triggers, task log)
+│   │   ├── infra.html          # Infrastructure (gauges, fleet, crossfade)
+│   │   ├── bcs.html            # BCS (портфели, P&L)
+│   │   ├── channel.html        # Channel (каналы, статистика)
+│   │   ├── k8s.html            # K8s (кластер, поды)
+│   │   ├── calendar.html       # Календарь (сетка, поиск, детализация)
 │   │   ├── prediction.html     # Polymarket UI
 │   │   ├── survey.html         # Динамические формы
+│   │   ├── error.html          # Ошибки (404, 403)
 │   │   └── page.html           # Универсальная страница
 │   └── static/
-│       ├── style.css    # Telegram theme (--tg-theme-* CSS vars)
-│       ├── twa.js       # TWA bootstrap + start_param redirect + TON Connect
-│       └── tonconnect-manifest.json
+│       ├── style.css           # Bee Design System (~3900 строк)
+│       ├── bee-kit.js          # UI toolkit: poll, sheet, stale, accordion
+│       ├── bee-fx.js           # Визуальные эффекты (из react-bits)
+│       ├── bee-glass.js        # Liquid glass morphism
+│       ├── echarts.min.js      # Apache ECharts 6.0.0
+│       ├── twa.js              # TWA bootstrap + start_param + haptic
+│       ├── test-fx.html        # Тесты BeeFX + BeeKit (33 + 6 perf)
+│       ├── tonconnect-manifest.json
+│       └── icons/              # SVG-иконки (3300+ брендов)
+├── docs/
+│   ├── UI-GUIDE.md             # Bee Design System — руководство разработчика
+│   └── CHANGELOG.md            # Лог изменений web-ui
 ├── Dockerfile
 └── requirements.txt
 ```

@@ -8,6 +8,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/style.css?v=20260213b">
     {% block head %}{% endblock %}
+    {% block head_libs %}{% endblock %}
 </head>
 <body>
     <!-- Загрузочный экран с Lottie пчёлкой -->
@@ -53,9 +54,23 @@
     <!-- Toast-уведомления -->
     <div id="toast-container"></div>
 
+    <!-- Bottom Sheet (BeeKit) -->
+    <div class="bee-sheet-overlay" id="bee-sheet-overlay"></div>
+    <div class="bee-sheet" id="bee-sheet">
+        <div class="bee-sheet__handle"></div>
+        <div class="bee-sheet__header">
+            <div class="bee-sheet__title" id="bee-sheet-title"></div>
+            <div class="bee-sheet__close" id="bee-sheet-close">&times;</div>
+        </div>
+        <div class="bee-sheet__toolbar" id="bee-sheet-toolbar"></div>
+        <div class="bee-sheet__body" id="bee-sheet-body"></div>
+    </div>
+
     <script src="https://unpkg.com/@lottiefiles/lottie-player@2/dist/lottie-player.js"></script>
     <script src="/static/bee-glass.js"></script>
     <script src="/static/twa.js"></script>
+    <script src="/static/bee-kit.js"></script>
+    <script src="/static/bee-fx.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

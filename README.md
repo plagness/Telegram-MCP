@@ -1,7 +1,7 @@
 # Telegram-MCP
 
 [![Bot API](https://img.shields.io/badge/Bot%20API-9.4-00ACED.svg?logo=telegram)](https://core.telegram.org/bots/api)
-[![Version](https://img.shields.io/badge/version-2026.02.20-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
+[![Version](https://img.shields.io/badge/version-2026.02.21-blue.svg)](https://github.com/plagness/Telegram-MCP/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
@@ -120,6 +120,9 @@
 - **Страницы**: создание HTML-страниц, открываемых как Mini App в Telegram
 - **Опросники**: динамические формы с конфигурируемыми полями
 - **Prediction Markets**: Polymarket-style интерфейс с коэффициентами и суммой
+- **Owner-only дашборды**: LLM, Metrics, Arena, Planner, Infra, BCS, Channel, K8s
+- **Bee Design System**: UI toolkit (BeeKit) + визуальные эффекты (BeeFX) + skeleton loading
+- **Apache ECharts 6.0**: графики для дашбордов (SVG renderer, lazy-load)
 - **Индивидуальные ссылки**: уникальные токены для персонализации
 - **Telegram initData**: автоматическая авторизация через HMAC-SHA256
 - **TON Connect**: подключение кошелька для TON-платежей
@@ -309,10 +312,11 @@ Telegram-MCP/
 │   │   ├── config.py       # Settings
 │   │   ├── db.py           # PostgreSQL pool
 │   │   ├── auth.py         # Telegram initData HMAC-SHA256
-│   │   ├── routers/        # health, pages, render
-│   │   ├── services/       # pages, links
-│   │   ├── templates/      # base, calendar, prediction, survey, page
-│   │   └── static/         # style.css, twa.js, tonconnect-manifest.json
+│   │   ├── routers/        # health, pages, render, module_proxy
+│   │   ├── services/       # pages, links, access, roles
+│   │   ├── templates/      # base, hub, llm, metrics, arena, planner, infra, ...
+│   │   └── static/         # style.css, bee-kit.js, bee-fx.js, echarts, twa.js
+│   ├── docs/               # UI-GUIDE.md, CHANGELOG.md
 │   └── Dockerfile
 ├── sdk/                    # Python SDK
 │   └── telegram_api_client/
@@ -337,6 +341,7 @@ Telegram-MCP/
 - [docs/webhooks.md](docs/webhooks.md) — вебхуки и обновления
 - [docs/mcp.md](docs/mcp.md) — MCP-инструменты
 - [docs/web-ui.md](docs/web-ui.md) — Web-UI (Telegram Mini App)
+- [web-ui/docs/UI-GUIDE.md](web-ui/docs/UI-GUIDE.md) — Bee Design System (разработчикам)
 - [docs/formatting.md](docs/formatting.md) — форматирование сообщений Telegram
 - [docs/schema.md](docs/schema.md) — схема базы данных
 

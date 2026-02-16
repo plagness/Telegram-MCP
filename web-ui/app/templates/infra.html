@@ -14,17 +14,6 @@
 .infra-tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .infra-tap:active{opacity:.7}
 
-/* Bottom sheet */
-.infra-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;opacity:0;transition:opacity .25s;pointer-events:none}
-.infra-overlay.active{opacity:1;pointer-events:auto}
-.infra-sheet{position:fixed;bottom:0;left:0;right:0;z-index:1001;background:var(--tg-bg,#1c1c1e);border-radius:14px 14px 0 0;max-height:80vh;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
-.infra-sheet.active{transform:translateY(0)}
-.infra-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--tg-hint);opacity:.3;margin:8px auto 0}
-.infra-sheet-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px}
-.infra-sheet-title{font-size:16px;font-weight:600}
-.infra-sheet-x{width:28px;height:28px;border-radius:50%;background:var(--tg-secondary-bg,#2a2a2a);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--tg-hint)}
-.infra-sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1}
-
 /* Toolbar */
 .infra-toolbar{display:flex;gap:6px;padding:6px 16px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--tg-secondary-bg,#2a2a2a)}
 .infra-toolbar::-webkit-scrollbar{display:none}
@@ -67,8 +56,26 @@
     <div class="bee-subtitle" id="infra-error-text">Не удалось получить данные. Повтор через 10 секунд...</div>
 </div>
 
-<div id="infra-loading" class="bee-card" style="text-align:center;padding:32px 16px">
-    <div class="bee-subtitle">Загрузка данных...</div>
+<div id="infra-loading">
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:40%"></div>
+        <div class="bee-skel" style="height:8px;border-radius:4px;margin-bottom:12px"></div>
+        <div class="bee-skel" style="height:8px;border-radius:4px"></div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:45%"></div>
+        <div class="bee-stat-grid">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:25%"></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0"><div class="bee-skel bee-skel--avatar"></div><div style="flex:1"><div class="bee-skel bee-skel--line" style="width:50%"></div><div class="bee-skel bee-skel--line-sm"></div></div></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0"><div class="bee-skel bee-skel--avatar"></div><div style="flex:1"><div class="bee-skel bee-skel--line" style="width:60%"></div><div class="bee-skel bee-skel--line-sm" style="width:75%"></div></div></div>
+    </div>
 </div>
 
 <div id="infra-content" style="display:none">
@@ -106,10 +113,24 @@
     </div>
 </div>
 
-<!-- Fleet -->
+<!-- Issues -->
+<div class="bee-card" id="issues-card" style="display:none;border-left:3px solid var(--error)">
+    <div class="bee-card-title" style="color:var(--error)">Issues <span id="issues-count" style="font-weight:400"></span></div>
+    <div class="bee-list" id="issues-list"></div>
+</div>
+
+<!-- Fleet (Host→Node hierarchy) -->
 <div class="bee-card">
     <div class="bee-card-title">Fleet <span id="fleet-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
     <div class="bee-list" id="fleet-list"></div>
+</div>
+
+<!-- Workers -->
+<div class="bee-card" id="workers-card" style="display:none">
+    <div class="bee-card-title">Workers</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--success)" id="w-online">0</div><div class="bee-stat-label">online</div></div>
+    </div>
 </div>
 
 <!-- Job Queue -->
@@ -142,18 +163,6 @@
 
 </div><!-- /infra-content -->
 
-<!-- Bottom Sheet -->
-<div class="infra-overlay" id="sh-overlay"></div>
-<div class="infra-sheet" id="sh">
-    <div class="infra-sheet-handle"></div>
-    <div class="infra-sheet-hdr">
-        <div class="infra-sheet-title" id="sh-title">Models</div>
-        <div class="infra-sheet-x" id="sh-close">&times;</div>
-    </div>
-    <div id="sh-toolbar"></div>
-    <div class="infra-sheet-body" id="sh-body"></div>
-</div>
-
 <div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
 {% endblock %}
 
@@ -171,7 +180,26 @@
 
     function showAccessDenied() { $('infra-loading').style.display='none'; $('infra-error').style.display='none'; $('access-denied').style.display=''; }
     function showError(msg) { $('infra-loading').style.display='none'; $('infra-error-text').textContent=msg||'Не удалось получить данные. Повтор через 10 секунд...'; $('infra-error').style.display=''; }
-    function showContent() { $('infra-loading').style.display='none'; $('infra-error').style.display='none'; $('infra-content').style.display=''; }
+    function showContent() {
+        var loading = $('infra-loading');
+        var content = $('infra-content');
+        $('infra-error').style.display='none';
+        if (loading) {
+            loading.style.transition = 'opacity .2s ease';
+            loading.style.opacity = '0';
+            setTimeout(function() { loading.style.display = 'none'; }, 220);
+        }
+        if (content) {
+            content.style.opacity = '0';
+            content.style.transition = 'opacity .3s ease';
+            content.style.display = '';
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    content.style.opacity = '1';
+                });
+            });
+        }
+    }
 
     function fmt(n) { return '$' + Number(n).toFixed(2); }
 
@@ -259,22 +287,6 @@
         }
         return '<div class="infra-icon" style="width:'+sz+'px;height:'+sz+'px;background:'+info.c+'">'+inner+'</div>';
     }
-
-    // ── Sheet ──
-    function openSheet(title, toolbarHtml, bodyHtml) {
-        $('sh-title').textContent = title;
-        $('sh-toolbar').innerHTML = toolbarHtml || '';
-        $('sh-body').innerHTML = bodyHtml;
-        $('sh-overlay').classList.add('active');
-        $('sh').classList.add('active');
-        if (window.haptic) haptic('impact', 'light');
-    }
-    function closeSheet() {
-        $('sh-overlay').classList.remove('active');
-        $('sh').classList.remove('active');
-    }
-    $('sh-overlay').addEventListener('click', closeSheet);
-    $('sh-close').addEventListener('click', closeSheet);
 
     // ── All Models (агрегация) ──
     var allModelsSort = 'pop'; // pop | name | size | devices
@@ -367,10 +379,10 @@
         if (!list.length) html = '<div style="text-align:center;padding:24px;color:var(--tg-hint)">Нет моделей</div>';
 
         var total = buildModelIndex().length;
-        openSheet('All Models (' + total + ')', tb, html);
+        BeeKit.sheet.open('All Models (' + total + ')', html, tb);
 
         // Bind sort/filter
-        var chips = $('sh-toolbar').querySelectorAll('.infra-chip');
+        var chips = $('bee-sheet-toolbar').querySelectorAll('.infra-chip');
         for (var i=0; i<chips.length; i++) {
             chips[i].addEventListener('click', function(e) {
                 var el = e.currentTarget;
@@ -406,64 +418,132 @@
                 '<div class="infra-m-meta">'+mi.f+(size?' \u00B7 '+size:'')+'</div></div></div>';
         }
         var name = d.name || shortName(d.id);
-        openSheet(name+' \u2014 '+names.length+' models', '', html);
+        BeeKit.sheet.open(name+' \u2014 '+names.length+' models', html);
     }
     window._showDevModels = function(i) { showDevModels(i); };
 
     // ── Рендеринг ──
-    function renderGauges(devices, totalLoad) {
+    function renderGauges(hosts, totalLoad) {
+        var totalHosts = hosts.length;
         var online = 0;
-        for (var i=0; i<devices.length; i++) if(devices[i].status==='online') online++;
-        var fp = devices.length>0 ? Math.round(online*100/devices.length) : 0;
+        var totalSlots = 0;
+        for (var i=0; i<hosts.length; i++) {
+            if(hosts[i].status==='online') online++;
+            totalSlots += hosts[i].total_slots||0;
+        }
+        var fp = totalHosts>0 ? Math.round(online*100/totalHosts) : 0;
         $('g-fleet').style.width = fp+'%';
         $('g-fleet').style.background = fp>=80?'var(--success)':fp>=50?'var(--accent)':'var(--error)';
-        $('g-fleet-text').textContent = online+'/'+devices.length+' online';
+        $('g-fleet-text').textContent = online+'/'+totalHosts+' online';
 
-        var cap = Math.max(online*2, 1);
+        var cap = Math.max(totalSlots, 1);
         var lp = Math.min(Math.round(totalLoad*100/cap), 100);
         $('g-load').style.width = lp+'%';
         $('g-load').style.background = lp<=50?'var(--success)':lp<=80?'var(--accent)':'var(--error)';
-        $('g-load-text').textContent = totalLoad+' jobs / ~'+cap+' capacity';
+        $('g-load-text').textContent = totalLoad+' jobs / '+cap+' slots';
     }
 
-    function renderFleet(devices) {
-        lastDevices = devices;
+    function renderIssues(issues) {
+        var card = $('issues-card');
+        if (!issues || !issues.length) { card.style.display='none'; return; }
+        card.style.display='';
+        $('issues-count').textContent = '('+issues.length+')';
+        var html = '';
+        for (var i=0; i<issues.length; i++) {
+            html += '<div class="bee-list-item" style="padding:6px 0">' +
+                '<div class="bee-list-icon" style="color:var(--error);font-size:16px">&#9888;</div>' +
+                '<div class="bee-list-content"><div class="bee-list-subtitle">'+issues[i]+'</div></div></div>';
+        }
+        $('issues-list').innerHTML = html;
+    }
+
+    function renderHostFleet(hosts) {
         var el = $('fleet-list');
-        $('fleet-count').textContent = '('+devices.length+')';
-        if (!devices.length) {
+        $('fleet-count').textContent = '('+hosts.length+' hosts)';
+        if (!hosts.length) {
             el.innerHTML = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет устройств</div></div></div>';
             return;
         }
         var html = '';
-        for (var i=0; i<devices.length; i++) {
-            var d = devices[i];
-            var sc = d.status==='online'?'#4caf50':d.status==='offline'?'#f44336':'#ff9800';
-            var name = d.name || shortName(d.id);
-            var di = devIcon(name, d.id);
+        for (var i=0; i<hosts.length; i++) {
+            var h = hosts[i];
+            var sc = h.status==='online'?'#4caf50':h.status==='offline'?'#f44336':'#ff9800';
+            var di = devIcon(h.name, h.id);
+
+            // Host meta
             var meta = [];
-            if (d.platform) meta.push(d.platform);
-            if (d.latency_ms) meta.push(d.latency_ms+'ms');
-            if (d.last_seen) meta.push(timeAgo(d.last_seen));
+            if (h.platform) meta.push(h.platform);
+            if (h.stats && h.stats.avg_latency_ms) {
+                var alMs = h.stats.avg_latency_ms;
+                meta.push(alMs>=1000?(alMs/1000).toFixed(1)+'s':alMs+'ms');
+            }
+            if (h.last_seen) meta.push(timeAgo(h.last_seen));
 
-            var names = d.model_names||[];
-            if (typeof names==='string') try{names=JSON.parse(names);}catch(e){names=[];}
-            var btn = names.length > 0 ?
-                '<div class="infra-tap" onclick="window._showDevModels('+i+')" style="font-size:12px;color:var(--accent);margin-top:2px">'+d.models_count+' models \u203A</div>' : '';
+            // Stats line
+            var statsHtml = '';
+            if (h.stats && h.stats.total_jobs_7d > 0) {
+                var sr = h.stats.success_rate||0;
+                var srColor = sr>=95?'var(--success)':sr>=80?'var(--accent)':'var(--error)';
+                statsHtml = '<div style="display:flex;gap:8px;margin-top:3px;font-size:11px;color:var(--tg-hint)">' +
+                    '<span style="color:'+srColor+'">'+sr.toFixed(1)+'%</span>' +
+                    '<span>'+h.stats.done_jobs_7d+'/'+h.stats.total_jobs_7d+' 7d</span>' +
+                '</div>';
+            }
 
-            var badge = d.running_jobs > 0 ?
-                '<span class="bee-badge">'+d.running_jobs+' jobs</span>' :
+            // Circuit
+            var circuitHtml = '';
+            if (h.circuit && h.circuit !== 'ok') {
+                circuitHtml = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--error);margin-left:6px" title="circuit: '+h.circuit+'"></span>';
+            }
+
+            // Orchestration badge
+            var orchBadge = h.orchestration ? '<span class="bee-badge bee-badge--outline" style="font-size:10px;margin-left:4px">'+h.orchestration+'</span>' : '';
+
+            // Capacity bar
+            var slots = h.total_slots||0;
+            var used = h.total_running||0;
+            var capPct = slots>0 ? Math.round(used*100/slots) : 0;
+            var capColor = capPct<=50?'var(--success)':capPct<=80?'var(--accent)':'var(--error)';
+            var capBar = '<div class="infra-gauge" style="margin-top:4px"><div class="infra-gauge-fill" style="width:'+capPct+'%;background:'+capColor+'"></div></div>' +
+                '<div style="font-size:10px;color:var(--tg-hint);margin-top:1px">'+used+'/'+slots+' slots</div>';
+
+            // Badge
+            var badge = h.total_running > 0 ?
+                '<span class="bee-badge">'+h.total_running+' jobs</span>' :
                 '<span class="bee-badge bee-badge--outline">idle</span>';
 
-            html += '<div class="bee-list-item">' +
-                '<div style="position:relative">' + mkIcon(di, 32) +
-                    '<div style="position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:'+sc+';border:2px solid var(--tg-bg,#1c1c1e)"></div>' +
+            // Nodes
+            var nodesHtml = '';
+            var nodes = h.nodes||[];
+            for (var j=0; j<nodes.length; j++) {
+                var n = nodes[j];
+                var nsc = n.circuit && n.circuit !== 'ok' ? 'var(--error)' : 'var(--tg-hint)';
+                var roleBadge = '<span style="color:'+nsc+';font-weight:500">:'+n.port+'</span> ['+n.role+']';
+                var nMeta = [];
+                nMeta.push(n.models_count+' models');
+                if (n.latency_ms) nMeta.push(n.latency_ms+'ms');
+                if (n.running_jobs > 0) nMeta.push(n.running_jobs+' jobs');
+                else nMeta.push('idle');
+                nodesHtml += '<div style="padding:3px 0;font-size:12px;color:var(--tg-hint)">'+roleBadge+' \u2014 '+nMeta.join(' \u00B7 ')+'</div>';
+            }
+
+            html += '<div class="bee-list-item" style="flex-direction:column;align-items:stretch">' +
+                '<div class="infra-tap" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'" style="display:flex;align-items:center;width:100%">' +
+                    '<div style="position:relative;flex-shrink:0">' + mkIcon(di, 32) +
+                        '<div style="position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:'+sc+';border:2px solid var(--tg-bg,#1c1c1e)"></div>' +
+                    '</div>' +
+                    '<div class="bee-list-content" style="margin-left:10px">' +
+                        '<div class="bee-list-title">'+h.name+orchBadge+circuitHtml+'</div>' +
+                        '<div class="bee-list-subtitle">'+meta.join(' \u00B7 ')+'</div>' +
+                        statsHtml +
+                        capBar +
+                    '</div>' +
+                    '<div class="bee-list-right" style="flex-shrink:0">'+badge+'</div>' +
                 '</div>' +
-                '<div class="bee-list-content" style="margin-left:10px">' +
-                    '<div class="bee-list-title">'+name+'</div>' +
-                    '<div class="bee-list-subtitle">'+meta.join(' \u00B7 ')+'</div>' +
-                    btn +
+                '<div style="display:none;margin-left:42px;margin-top:4px;padding-bottom:4px;border-left:2px solid var(--tg-secondary-bg,#2a2a2a);padding-left:10px">' +
+                    nodesHtml +
                 '</div>' +
-                '<div class="bee-list-right">'+badge+'</div></div>';
+            '</div>';
         }
         el.innerHTML = html;
     }
@@ -491,19 +571,33 @@
     }
 
     function render(data) {
+        var hosts = data.hosts||[];
         var devices = data.devices||[];
+        lastDevices = devices;
+
         var online=0, totalModels=0, totalLoad=0;
-        for (var i=0;i<devices.length;i++) {
-            if(devices[i].status==='online') online++;
-            totalModels += devices[i].models_count||0;
-            totalLoad += devices[i].running_jobs||0;
+        for (var i=0;i<hosts.length;i++) {
+            if(hosts[i].status==='online') online++;
+            totalModels += hosts[i].total_models||0;
+            totalLoad += hosts[i].total_running||0;
         }
-        renderGauges(devices, totalLoad);
-        $('s-devices').textContent = devices.length;
+        renderGauges(hosts, totalLoad);
+        $('s-devices').textContent = hosts.length;
         $('s-online').textContent = online;
         $('s-models').textContent = totalModels;
         $('s-running').textContent = totalLoad;
-        renderFleet(devices);
+
+        renderIssues(data.issues);
+        renderHostFleet(hosts);
+
+        // Workers
+        var wo = data.workers_online||0;
+        if (wo > 0) {
+            $('workers-card').style.display='';
+            $('w-online').textContent = wo;
+        } else {
+            $('workers-card').style.display='none';
+        }
 
         var jobs = data.jobs||{};
         var queued=jobs.queued||0, running=jobs.running||0, done=jobs.done||0, failed=(jobs.error||0)+(jobs.failed||0);

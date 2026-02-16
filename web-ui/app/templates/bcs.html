@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading" class="bee-card" style="text-align:center;padding:32px 16px">
+    <div class="bee-subtitle">Загрузка данных...</div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
+<!-- Health -->
+<div class="bee-card">
+    <div class="bee-card-title">BCS Status</div>
+    <div class="bee-stat-grid bee-stat-grid--three">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-status" style="font-size:16px">-</div>
+            <div class="bee-stat-label">health</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-version" style="font-size:14px">-</div>
+            <div class="bee-stat-label">version</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-api" style="font-size:16px">-</div>
+            <div class="bee-stat-label">BCS API</div>
+        </div>
+    </div>
+</div>
+
+<!-- Portfolio -->
+<div class="bee-card" id="pf-card" style="display:none">
+    <div class="bee-card-title">Portfolio</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="pf-total" style="color:var(--accent)">-</div>
+            <div class="bee-stat-label">total value</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="pf-pnl">-</div>
+            <div class="bee-stat-label">P&amp;L</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="pf-pos">-</div>
+            <div class="bee-stat-label">positions</div>
+        </div>
+    </div>
+    <div class="bee-list" id="pf-list" style="margin-top:8px"></div>
+</div>
+
+<!-- Active Orders -->
+<div class="bee-card" id="ord-card" style="display:none">
+    <div class="bee-card-title">Active Orders <span id="ord-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="ord-list"></div>
+</div>
+
+<!-- Market Snapshot -->
+<div class="bee-card" id="snap-card" style="display:none">
+    <div class="bee-card-title">Market Snapshot</div>
+    <div class="bee-list" id="snap-list"></div>
+</div>
+
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var REFRESH = 30000;
+    var started = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function fmtNum(n, dec) {
+        if (n == null || isNaN(n)) return '-';
+        dec = dec != null ? dec : 2;
+        return Number(n).toLocaleString('ru-RU', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+    }
+
+    function render(data) {
+        // Health
+        var h = data.health || {};
+        $('h-status').textContent = h.status || 'unknown';
+        $('h-status').style.color = h.status === 'ok' ? 'var(--success)' : 'var(--error)';
+        $('h-version').textContent = h.version || '-';
+        $('h-api').textContent = h.bcs_api || h.api_status || '-';
+
+        // Portfolio
+        var pfData = data.portfolio || {};
+        var pf = pfData.content || pfData.portfolio || pfData.result || pfData;
+        if (pf && (pf.total_value || pf.positions || pf.equity)) {
+            $('pf-card').style.display = '';
+            $('pf-total').textContent = fmtNum(pf.total_value || pf.equity || 0);
+            var pnl = pf.pnl || pf.unrealized_pnl || pf.profit || 0;
+            $('pf-pnl').textContent = (pnl >= 0 ? '+' : '') + fmtNum(pnl);
+            $('pf-pnl').style.color = pnl >= 0 ? 'var(--success)' : 'var(--error)';
+
+            var positions = pf.positions || pf.items || [];
+            if (!Array.isArray(positions)) positions = [];
+            $('pf-pos').textContent = positions.length;
+
+            var pfhtml = '';
+            for (var i = 0; i < Math.min(positions.length, 15); i++) {
+                var p = positions[i];
+                var ppnl = p.pnl || p.unrealized_pnl || 0;
+                var pColor = ppnl >= 0 ? 'var(--success)' : 'var(--error)';
+                pfhtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (p.ticker || p.symbol || p.isin || '') + '</div>' +
+                    '<div class="bee-list-subtitle">' + (p.quantity || p.qty || 0) + ' pcs &middot; avg ' + fmtNum(p.avg_price || p.average_price || 0) + '</div>' +
+                    '</div>' +
+                    '<div class="bee-list-right"><span style="color:' + pColor + ';font-weight:600">' + (ppnl >= 0 ? '+' : '') + fmtNum(ppnl) + '</span></div></div>';
+            }
+            $('pf-list').innerHTML = pfhtml;
+        }
+
+        // Orders
+        var ordData = data.orders || {};
+        var orders = ordData.content || ordData.orders || ordData.result || [];
+        if (!Array.isArray(orders) && orders.orders) orders = orders.orders;
+        if (!Array.isArray(orders)) orders = [];
+        if (orders.length) {
+            $('ord-card').style.display = '';
+            $('ord-count').textContent = '(' + orders.length + ')';
+            var ohtml = '';
+            for (var i = 0; i < orders.length; i++) {
+                var o = orders[i];
+                var side = (o.side || o.direction || '').toLowerCase();
+                var sc = side === 'buy' ? 'var(--success)' : 'var(--error)';
+                ohtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-icon" style="color:' + sc + '">' + (side === 'buy' ? '&#9650;' : '&#9660;') + '</div>' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (o.ticker || o.symbol || '') + '</div>' +
+                    '<div class="bee-list-subtitle">' + side + ' ' + (o.quantity || o.qty || 0) + ' @ ' + fmtNum(o.price || 0) + '</div>' +
+                    '</div>' +
+                    '<div class="bee-list-right"><span class="bee-badge">' + (o.status || '') + '</span></div></div>';
+            }
+            $('ord-list').innerHTML = ohtml;
+        }
+
+        // Snapshot
+        var snapData = data.snapshot || {};
+        var snap = snapData.content || snapData.snapshot || snapData.result || snapData;
+        if (snap && typeof snap === 'object') {
+            var keys = Object.keys(snap).filter(function(k) { return typeof snap[k] === 'number' || (typeof snap[k] === 'object' && snap[k].value != null); });
+            if (keys.length) {
+                $('snap-card').style.display = '';
+                var shtml = '';
+                for (var i = 0; i < keys.length; i++) {
+                    var k = keys[i];
+                    var v = typeof snap[k] === 'object' ? snap[k].value : snap[k];
+                    shtml += '<div class="bee-list-item">' +
+                        '<div class="bee-list-content"><div class="bee-list-title">' + k + '</div></div>' +
+                        '<div class="bee-list-right"><span class="text-accent fw-bold">' + fmtNum(v) + '</span></div></div>';
+                }
+                $('snap-list').innerHTML = shtml;
+            }
+        }
+
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    function fetchData() {
+        fetch('/p/' + SLUG + '/bcs/data', { headers: { 'X-Init-Data': initData } })
+            .then(function(r) {
+                if (r.status === 403 || r.status === 401) { $('mod-loading').style.display = 'none'; $('mod-error').style.display = ''; $('mod-error-text').textContent = 'Доступ ограничен'; return null; }
+                if (!r.ok) { if (!started) { $('mod-error-text').textContent = 'Ошибка ' + r.status; $('mod-error').style.display = ''; $('mod-loading').style.display = 'none'; } return null; }
+                return r.json();
+            })
+            .then(function(data) {
+                if (!data) return;
+                if (!started) { $('mod-loading').style.display = 'none'; $('mod-content').style.display = ''; started = true; }
+                render(data);
+            })
+            .catch(function(e) { console.warn('bcs fetch:', e); if (!started) { $('mod-error-text').textContent = 'Ошибка сети'; $('mod-error').style.display = ''; $('mod-loading').style.display = 'none'; } });
+    }
+
+    fetchData();
+    setInterval(fetchData, REFRESH);
+})();
+</script>
+{% endblock %}

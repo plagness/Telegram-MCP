@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block head %}
+<style>
+.k8s-ns{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:500;background:var(--tg-secondary-bg,#2a2a2a);color:var(--tg-hint)}
+.k8s-ns-dot{width:6px;height:6px;border-radius:50%}
+</style>
+{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading" class="bee-card" style="text-align:center;padding:32px 16px">
+    <div class="bee-subtitle">Загрузка данных...</div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
+<!-- Cluster Overview -->
+<div class="bee-card">
+    <div class="bee-card-title">Cluster Overview</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="c-total" style="color:var(--accent)">-</div>
+            <div class="bee-stat-label">pods</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" style="color:var(--success)" id="c-running">-</div>
+            <div class="bee-stat-label">running</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="c-ns">-</div>
+            <div class="bee-stat-label">namespaces</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" style="color:var(--error)" id="c-issues">-</div>
+            <div class="bee-stat-label">issues</div>
+        </div>
+    </div>
+</div>
+
+<!-- Issues -->
+<div class="bee-card" id="issues-card" style="display:none;border-left:3px solid var(--error)">
+    <div class="bee-card-title" style="color:var(--error)">Issues</div>
+    <div class="bee-list" id="issues-list"></div>
+</div>
+
+<!-- Namespaces -->
+<div class="bee-card">
+    <div class="bee-card-title">Namespaces</div>
+    <div class="bee-chart" id="ns-chart"></div>
+</div>
+
+<!-- All Pods -->
+<div class="bee-card">
+    <div class="bee-card-title">Pods <span id="pods-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="pods-list"></div>
+</div>
+
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var REFRESH = 15000;
+    var started = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    var NS_COLORS = {
+        'ns-root': '#E74C3C', 'ns-telegram': '#3498DB', 'ns-llm': '#9B59B6',
+        'ns-arena': '#E67E22', 'ns-channel': '#2ECC71', 'ns-bcs': '#F1C40F',
+        'ns-metrics': '#1ABC9C', 'ns-planner': '#E91E63',
+        'kube-system': '#7F8C8D', 'default': '#95A5A6'
+    };
+
+    function nsColor(ns) { return NS_COLORS[ns] || '#6B7280'; }
+
+    function statusColor(st) {
+        st = (st || '').toLowerCase();
+        if (st === 'running') return 'var(--success)';
+        if (st === 'succeeded' || st === 'completed') return 'var(--tg-hint)';
+        if (st === 'pending') return 'var(--accent)';
+        return 'var(--error)';
+    }
+
+    function timeAgo(iso) {
+        if (!iso) return '';
+        var d = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (d < 3600) return Math.round(d / 60) + 'm';
+        if (d < 86400) return Math.round(d / 3600) + 'h';
+        return Math.round(d / 86400) + 'd';
+    }
+
+    function render(data) {
+        if (data.error) {
+            $('mod-error-text').textContent = data.error;
+            $('mod-error').style.display = '';
+        }
+
+        var summary = data.summary || {};
+        var byStatus = summary.by_status || {};
+        var byNs = summary.by_namespace || {};
+
+        $('c-total').textContent = summary.total || 0;
+        $('c-running').textContent = byStatus.Running || 0;
+        $('c-ns').textContent = summary.namespaces || 0;
+        $('c-issues').textContent = (data.issues || []).length;
+
+        // Issues
+        var issues = data.issues || [];
+        if (issues.length) {
+            $('issues-card').style.display = '';
+            var ihtml = '';
+            for (var i = 0; i < issues.length; i++) {
+                var iss = issues[i];
+                ihtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-icon" style="color:var(--error)">&#9888;</div>' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + iss.name + '</div>' +
+                    '<div class="bee-list-subtitle">' + iss.namespace + ' &middot; ' + iss.reason + (iss.restarts ? ' &middot; ' + iss.restarts + ' restarts' : '') + '</div>' +
+                    '</div></div>';
+            }
+            $('issues-list').innerHTML = ihtml;
+        } else {
+            $('issues-card').style.display = 'none';
+        }
+
+        // Namespace chart
+        var nsKeys = Object.keys(byNs).sort(function(a, b) { return byNs[b] - byNs[a]; });
+        var maxNs = nsKeys.length ? byNs[nsKeys[0]] : 1;
+        var nshtml = '';
+        for (var i = 0; i < nsKeys.length; i++) {
+            var ns = nsKeys[i];
+            var cnt = byNs[ns];
+            var pct = Math.round(cnt * 100 / maxNs);
+            nshtml += '<div class="bee-chart-row">' +
+                '<div class="bee-chart-label">' + ns + '</div>' +
+                '<div class="bee-chart-bar-track"><div class="bee-chart-bar-fill" style="width:' + pct + '%;background:' + nsColor(ns) + '">' +
+                '<span class="bee-chart-bar-value">' + cnt + '</span></div></div></div>';
+        }
+        $('ns-chart').innerHTML = nshtml;
+
+        // Pods
+        var pods = data.pods || [];
+        $('pods-count').textContent = '(' + pods.length + ')';
+        // Сортировка: проблемные сначала, потом по namespace
+        pods.sort(function(a, b) {
+            var aPri = a.status === 'Running' ? 1 : a.status === 'Succeeded' ? 2 : 0;
+            var bPri = b.status === 'Running' ? 1 : b.status === 'Succeeded' ? 2 : 0;
+            if (aPri !== bPri) return aPri - bPri;
+            return (a.namespace + a.name).localeCompare(b.namespace + b.name);
+        });
+
+        var phtml = '';
+        for (var i = 0; i < pods.length; i++) {
+            var p = pods[i];
+            var sc = statusColor(p.status);
+            var age = p.created ? timeAgo(p.created) : '';
+            phtml += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + sc + '">&#9679;</div>' +
+                '<div class="bee-list-content">' +
+                '<div class="bee-list-title">' + p.name + '</div>' +
+                '<div class="bee-list-subtitle">' +
+                '<span class="k8s-ns"><span class="k8s-ns-dot" style="background:' + nsColor(p.namespace) + '"></span>' + p.namespace + '</span>' +
+                ' &middot; ' + p.ready +
+                (p.restarts > 0 ? ' &middot; <span style="color:var(--error)">' + p.restarts + ' restarts</span>' : '') +
+                (age ? ' &middot; ' + age : '') +
+                '</div></div>' +
+                '<div class="bee-list-right"><span class="bee-badge' + (p.status === 'Running' ? '' : ' bee-badge--outline') + '">' + p.status + '</span></div></div>';
+        }
+        $('pods-list').innerHTML = phtml;
+
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    function fetchData() {
+        fetch('/p/' + SLUG + '/k8s/data', { headers: { 'X-Init-Data': initData } })
+            .then(function(r) {
+                if (r.status === 403 || r.status === 401) { $('mod-loading').style.display = 'none'; $('mod-error').style.display = ''; $('mod-error-text').textContent = 'Доступ ограничен'; return null; }
+                if (!r.ok) { if (!started) { $('mod-error-text').textContent = 'Ошибка ' + r.status; $('mod-error').style.display = ''; $('mod-loading').style.display = 'none'; } return null; }
+                return r.json();
+            })
+            .then(function(data) {
+                if (!data) return;
+                if (!started) { $('mod-loading').style.display = 'none'; $('mod-content').style.display = ''; started = true; }
+                render(data);
+            })
+            .catch(function(e) { console.warn('k8s fetch:', e); if (!started) { $('mod-error-text').textContent = 'Ошибка сети'; $('mod-error').style.display = ''; $('mod-loading').style.display = 'none'; } });
+    }
+
+    fetchData();
+    setInterval(fetchData, REFRESH);
+})();
+</script>
+{% endblock %}

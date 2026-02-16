@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading">
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:40%"></div>
+        <div class="bee-stat-grid">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:35%"></div>
+        <div class="bee-stat-grid">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+        <div class="bee-skel bee-skel--line" style="margin-top:8px;width:55%"></div>
+        <div class="bee-skel bee-skel--line" style="width:70%"></div>
+    </div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
+<!-- Health & Dependencies -->
+<div class="bee-card">
+    <div class="bee-card-title">System Health</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-status" style="font-size:16px">-</div>
+            <div class="bee-stat-label">status</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" style="color:var(--accent)" id="h-deps">-</div>
+            <div class="bee-stat-label">dependencies</div>
+        </div>
+    </div>
+    <div class="bee-list" id="deps-list" style="margin-top:8px"></div>
+</div>
+
+<!-- Active Matches -->
+<div class="bee-card">
+    <div class="bee-card-title">Matches <span id="m-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-stat-grid" id="m-stats"></div>
+    <div class="bee-list" id="m-list" style="margin-top:8px"></div>
+</div>
+
+<!-- Leaderboard -->
+<div class="bee-card" id="lb-card" style="display:none">
+    <div class="bee-card-title">Leaderboard <span id="lb-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div style="overflow-x:auto">
+        <table class="bee-table" id="lb-table">
+            <thead><tr><th>#</th><th>Model</th><th>ELO</th><th>Wins</th><th>Rate</th></tr></thead>
+            <tbody id="lb-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Species -->
+<div class="bee-card" id="sp-card" style="display:none">
+    <div class="bee-card-title">Species</div>
+    <div class="bee-list" id="sp-list"></div>
+</div>
+
+<!-- Pending Predictions -->
+<div class="bee-card" id="pred-card" style="display:none">
+    <div class="bee-card-title">Pending Predictions <span id="pred-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="pred-list"></div>
+</div>
+
+<!-- Presets (accordion) -->
+<div class="bee-card" id="presets-card" style="display:none">
+    <div data-bee-accordion>
+        <div class="bee-accordion__header">
+            Presets <span id="presets-count" style="font-weight:400;color:var(--tg-hint);margin-left:4px"></span>
+            <span class="bee-accordion__arrow">&#9656;</span>
+        </div>
+        <div class="bee-accordion__body">
+            <div class="bee-list" id="presets-list"></div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var REFRESH = 15000;
+    var started = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function timeAgo(iso) {
+        if (!iso) return '';
+        var d = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (d < 60) return Math.round(d) + 's';
+        if (d < 3600) return Math.round(d / 60) + 'm';
+        if (d < 86400) return Math.round(d / 3600) + 'h';
+        return Math.round(d / 86400) + 'd';
+    }
+
+    function render(data) {
+        // Health
+        var h = data.health || {};
+        $('h-status').textContent = h.status || 'unknown';
+        $('h-status').style.color = h.status === 'ok' ? 'var(--success)' : 'var(--error)';
+
+        // Dependencies
+        var deps = data.dependencies || {};
+        var depsList = deps.items || deps.dependencies || deps.checks || [];
+        if (!Array.isArray(depsList)) {
+            var arr = [];
+            for (var k in depsList) arr.push({name: k, status: depsList[k]});
+            depsList = arr;
+        }
+        $('h-deps').textContent = depsList.length;
+        var dhtml = '';
+        for (var i = 0; i < depsList.length; i++) {
+            var d = depsList[i];
+            var name = d.name || d.dependency_name || d.service || '';
+            var st = d.status || d.state || (d.ok === true ? 'ok' : d.ok === false ? 'fail' : 'unknown');
+            var sc = st === 'ok' || st === 'healthy' ? 'var(--success)' : 'var(--error)';
+            dhtml += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + sc + '">&#9679;</div>' +
+                '<div class="bee-list-content"><div class="bee-list-title">' + name + '</div></div>' +
+                '<div class="bee-list-right"><span class="bee-badge' + (st === 'ok' ? '' : ' bee-badge--outline') + '">' + st + '</span></div></div>';
+        }
+        $('deps-list').innerHTML = dhtml;
+
+        // Matches
+        var mData = data.matches || {};
+        var matches = mData.matches || mData.items || [];
+        if (!Array.isArray(matches)) matches = [];
+        $('m-count').textContent = '(' + matches.length + ')';
+
+        var running = 0, completed = 0, failed = 0;
+        for (var i = 0; i < matches.length; i++) {
+            var ms = (matches[i].status || '').toLowerCase();
+            if (ms === 'running' || ms === 'in_progress') running++;
+            else if (ms === 'completed' || ms === 'done') completed++;
+            else if (ms === 'failed' || ms === 'error') failed++;
+        }
+        $('m-stats').innerHTML =
+            '<div class="bee-stat"><div class="bee-stat-value" style="color:var(--accent)">' + running + '</div><div class="bee-stat-label">running</div></div>' +
+            '<div class="bee-stat"><div class="bee-stat-value">' + completed + '</div><div class="bee-stat-label">done</div></div>' +
+            '<div class="bee-stat"><div class="bee-stat-value" style="color:var(--error)">' + failed + '</div><div class="bee-stat-label">failed</div></div>';
+
+        var mhtml = '';
+        for (var i = 0; i < Math.min(matches.length, 10); i++) {
+            var m = matches[i];
+            var mst = m.status || '';
+            var sc = mst === 'running' || mst === 'in_progress' ? 'var(--accent)' : mst === 'completed' || mst === 'done' ? 'var(--success)' : 'var(--error)';
+            var parts = (m.participants || []).map(function(p) { return p.model || p.name || p; }).join(' vs ');
+            mhtml += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + sc + '">&#9679;</div>' +
+                '<div class="bee-list-content">' +
+                '<div class="bee-list-title">' + (m.preset || m.mode || 'match') + '</div>' +
+                '<div class="bee-list-subtitle">' + (parts || 'no participants') + (m.created_at ? ' &middot; ' + timeAgo(m.created_at) : '') + '</div>' +
+                '</div>' +
+                '<div class="bee-list-right"><span class="bee-badge">' + mst + '</span></div></div>';
+        }
+        if (!matches.length) mhtml = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет матчей</div></div></div>';
+        $('m-list').innerHTML = mhtml;
+
+        // Leaderboard
+        var lbData = data.leaderboard || {};
+        var lb = lbData.items || lbData.entries || lbData.models || lbData.leaderboard || [];
+        if (!Array.isArray(lb)) lb = [];
+        if (lb.length) {
+            $('lb-card').style.display = '';
+            $('lb-count').textContent = '(' + lb.length + ')';
+            var lbhtml = '';
+            for (var i = 0; i < Math.min(lb.length, 15); i++) {
+                var e = lb[i];
+                var elo = e.elo || e.rating || e.score || 0;
+                var wins = e.wins || e.win_count || 0;
+                var rate = e.win_rate != null ? (e.win_rate * 100).toFixed(1) + '%' : '-';
+                lbhtml += '<tr><td>' + (i + 1) + '</td><td>' + (e.model || e.name || '') + '</td>' +
+                    '<td class="value">' + Math.round(elo) + '</td><td>' + wins + '</td><td>' + rate + '</td></tr>';
+            }
+            $('lb-body').innerHTML = lbhtml;
+        }
+
+        // Species
+        var spData = data.species || {};
+        var species = spData.species || spData.items || [];
+        if (!Array.isArray(species)) species = [];
+        if (species.length) {
+            $('sp-card').style.display = '';
+            var sphtml = '';
+            for (var i = 0; i < Math.min(species.length, 10); i++) {
+                var s = species[i];
+                var elo = s.elo_rating || s.elo || 0;
+                sphtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-icon" style="font-size:20px">' + (s.emoji || '&#129302;') + '</div>' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (s.species_name || s.name || 'Unknown') + '</div>' +
+                    '<div class="bee-list-subtitle">ELO ' + Math.round(elo) + ' &middot; pop ' + (s.population || 0) +
+                    (s.total_matches ? ' &middot; ' + s.total_matches + ' matches' : '') + '</div>' +
+                    '</div></div>';
+            }
+            $('sp-list').innerHTML = sphtml;
+        }
+
+        // Pending Predictions
+        var predData = data.predictions || {};
+        var preds = predData.items || predData.predictions || [];
+        if (!Array.isArray(preds)) preds = [];
+        if (preds.length) {
+            $('pred-card').style.display = '';
+            $('pred-count').textContent = '(' + preds.length + ')';
+            var phtml = '';
+            for (var i = 0; i < Math.min(preds.length, 15); i++) {
+                var p = preds[i];
+                var conf = p.confidence != null ? Math.round(p.confidence * 100) + '%' : '-';
+                var verifyAt = p.verify_at ? p.verify_at.substring(0, 16).replace('T', ' ') : '';
+                phtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-icon" style="color:var(--accent)">&#128300;</div>' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (p.prediction_key || p.model_key || '') + '</div>' +
+                    '<div class="bee-list-subtitle">' + (p.model_key || '') + ' &middot; conf ' + conf +
+                    (verifyAt ? ' &middot; verify ' + verifyAt : '') + '</div>' +
+                    '</div></div>';
+            }
+            $('pred-list').innerHTML = phtml;
+        } else {
+            $('pred-card').style.display = 'none';
+        }
+
+        // Presets
+        var presData = data.presets || {};
+        var presets = presData.items || presData.presets || [];
+        if (!Array.isArray(presets)) presets = [];
+        if (presets.length) {
+            $('presets-card').style.display = '';
+            $('presets-count').textContent = '(' + presets.length + ')';
+            var prhtml = '';
+            for (var i = 0; i < presets.length; i++) {
+                var pr = presets[i];
+                var activeBadge = pr.active ? '<span class="bee-badge">active</span>' : '<span class="bee-badge bee-badge--outline">inactive</span>';
+                prhtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (pr.preset_key || pr.id || '') + '</div>' +
+                    '<div class="bee-list-subtitle">' + (pr.description || '') + (pr.version ? ' &middot; v' + pr.version : '') + '</div>' +
+                    '</div>' +
+                    '<div class="bee-list-right">' + activeBadge + '</div></div>';
+            }
+            $('presets-list').innerHTML = prhtml;
+            BeeKit.initAccordions();
+        } else {
+            $('presets-card').style.display = 'none';
+        }
+
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    BeeKit.poll('/p/' + SLUG + '/arena/data', REFRESH, {
+        onData: render,
+        onAccessDenied: function() {
+            $('mod-loading').style.display = 'none';
+            $('mod-error').style.display = '';
+            $('mod-error-text').textContent = 'Доступ ограничен';
+        },
+        initData: initData,
+        staleAfter: 3
+    });
+})();
+</script>
+{% endblock %}

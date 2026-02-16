@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading">
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:40%"></div>
+        <div class="bee-stat-grid">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:30%"></div>
+        <div class="bee-stat-grid bee-stat-grid--three">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:25%"></div>
+        <div class="bee-skel bee-skel--line" style="width:60%"></div>
+        <div class="bee-skel bee-skel--line" style="width:45%"></div>
+        <div class="bee-skel bee-skel--line-sm"></div>
+    </div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
+<!-- Speed Mode -->
+<div class="bee-card">
+    <div class="bee-card-title">Speed Mode</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="sp-mode" style="font-size:18px;text-transform:uppercase">-</div>
+            <div class="bee-stat-label">current</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="sp-status" style="font-size:16px">-</div>
+            <div class="bee-stat-label">health</div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget -->
+<div class="bee-card">
+    <div class="bee-card-title">Budget</div>
+    <div class="bee-stat-grid bee-stat-grid--three">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="b-day">-</div>
+            <div class="bee-stat-label">today</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="b-week">-</div>
+            <div class="bee-stat-label">week</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="b-month">-</div>
+            <div class="bee-stat-label">month</div>
+        </div>
+    </div>
+    <div id="b-bar" style="margin-top:8px"></div>
+</div>
+
+<!-- Tasks -->
+<div class="bee-card">
+    <div class="bee-card-title">Tasks <span id="t-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-stat-grid" id="t-stats"></div>
+    <div class="bee-list" id="t-list" style="margin-top:8px"></div>
+</div>
+
+<!-- Modules Health -->
+<div class="bee-card">
+    <div class="bee-card-title">Modules</div>
+    <div class="bee-list" id="mod-list"></div>
+</div>
+
+<!-- Schedules -->
+<div class="bee-card" id="sch-card" style="display:none">
+    <div class="bee-card-title">Schedules</div>
+    <div class="bee-list" id="sch-list"></div>
+</div>
+
+<!-- Triggers -->
+<div class="bee-card" id="trg-card" style="display:none">
+    <div class="bee-card-title">Triggers <span id="trg-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="trg-list"></div>
+</div>
+
+<!-- Task Log Button -->
+<div class="bee-card" id="log-card" style="display:none;text-align:center;padding:12px">
+    <button data-haptic="impact" id="log-btn" style="background:var(--tg-secondary-bg,#2a2a2a);color:var(--tg-text);border:none;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;width:100%">
+        Task Log ›
+    </button>
+</div>
+
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var REFRESH = 15000;
+    var started = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    var _fxDone = false;
+    var SPEED_COLORS = {idle: '#95A5A6', normal: 'var(--success)', active: 'var(--accent)', urgent: 'var(--error)'};
+
+    function fmt(n) { return '$' + Number(n || 0).toFixed(4); }
+
+    function render(data) {
+        // Speed
+        var sp = data.speed || {};
+        var mode = sp.mode || sp.speed || sp.current || 'unknown';
+        $('sp-mode').textContent = mode;
+        $('sp-mode').style.color = SPEED_COLORS[mode] || 'var(--tg-hint)';
+
+        // Health
+        var h = data.health || {};
+        $('sp-status').textContent = h.status || 'unknown';
+        $('sp-status').style.color = h.status === 'ok' ? 'var(--success)' : 'var(--error)';
+
+        // Budget (формат: {monthly: {spent_usd, limit_usd, usage_pct}, weekly: {...}})
+        var b = data.budget || {};
+        var monthly = b.monthly || {};
+        var weekly = b.weekly || {};
+        var spent = b.spent || b.used || {};
+        var bDay = spent.day || spent.today || b.today || 0;
+        var bWeek = weekly.spent_usd || spent.week || b.week || 0;
+        var bMonth = monthly.spent_usd || spent.month || b.month || 0;
+        if (!_fxDone) {
+            _fxDone = true;
+            BeeFX.countUp($('b-day'), 0, bDay, {prefix: '$', decimals: 4});
+            BeeFX.countUp($('b-week'), 0, bWeek, {prefix: '$', decimals: 4});
+            BeeFX.countUp($('b-month'), 0, bMonth, {prefix: '$', decimals: 4});
+        } else {
+            $('b-day').textContent = fmt(bDay);
+            $('b-week').textContent = fmt(bWeek);
+            $('b-month').textContent = fmt(bMonth);
+        }
+
+        var limit = monthly.limit_usd || b.limit || b.budget || b.monthly_limit || 0;
+        var used = monthly.spent_usd || spent.month || b.month || 0;
+        if (limit > 0) {
+            var pct = Math.min(Math.round(used * 100 / limit), 100);
+            var barColor = pct < 60 ? 'var(--success)' : pct < 85 ? 'var(--accent)' : 'var(--error)';
+            $('b-bar').innerHTML = '<div class="bee-progress bee-progress--lg"><div class="bee-progress-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+                '<div style="font-size:11px;color:var(--tg-hint);margin-top:2px">' + fmt(used) + ' / ' + fmt(limit) + '</div>';
+        }
+
+        // Tasks
+        var tData = data.tasks || {};
+        var tasks = tData.tasks || tData.items || [];
+        if (!Array.isArray(tasks)) tasks = [];
+        $('t-count').textContent = '(' + tasks.length + ')';
+
+        var pending = 0, running = 0, done = 0, failed = 0;
+        for (var i = 0; i < tasks.length; i++) {
+            var ts = (tasks[i].status || '').toLowerCase();
+            if (ts === 'pending' || ts === 'queued') pending++;
+            else if (ts === 'running' || ts === 'in_progress') running++;
+            else if (ts === 'done' || ts === 'completed') done++;
+            else if (ts === 'failed' || ts === 'error') failed++;
+        }
+        $('t-stats').innerHTML =
+            '<div class="bee-stat"><div class="bee-stat-value">' + pending + '</div><div class="bee-stat-label">pending</div></div>' +
+            '<div class="bee-stat"><div class="bee-stat-value" style="color:var(--accent)">' + running + '</div><div class="bee-stat-label">running</div></div>' +
+            '<div class="bee-stat"><div class="bee-stat-value">' + done + '</div><div class="bee-stat-label">done</div></div>' +
+            '<div class="bee-stat"><div class="bee-stat-value" style="color:var(--error)">' + failed + '</div><div class="bee-stat-label">failed</div></div>';
+
+        var thtml = '';
+        var activeTasks = tasks.filter(function(t) { var s = (t.status || '').toLowerCase(); return s !== 'done' && s !== 'completed'; });
+        for (var i = 0; i < Math.min(activeTasks.length, 10); i++) {
+            var t = activeTasks[i];
+            var tc = t.status === 'running' ? 'var(--accent)' : t.status === 'failed' ? 'var(--error)' : 'var(--tg-hint)';
+            thtml += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + tc + '">&#9679;</div>' +
+                '<div class="bee-list-content">' +
+                '<div class="bee-list-title">' + (t.title || t.description || t.id || '') + '</div>' +
+                '<div class="bee-list-subtitle">' + (t.source_module || '') + ' &middot; ' + (t.status || '') + '</div>' +
+                '</div></div>';
+        }
+        if (!activeTasks.length) thtml = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет активных задач</div></div></div>';
+        $('t-list').innerHTML = thtml;
+
+        // Modules
+        var mods = data.modules || {};
+        var modList = mods.modules || mods.items || [];
+        if (!Array.isArray(modList)) {
+            var arr = [];
+            for (var k in modList) arr.push({name: k, status: modList[k]});
+            modList = arr;
+        }
+        var mhtml = '';
+        for (var i = 0; i < modList.length; i++) {
+            var m = modList[i];
+            var name = m.display_name || m.name || m.module_name || m.module || '';
+            var st = m.health_status || (typeof m.status === 'string' ? m.status : (m.status && m.status.status) || (m.healthy ? 'ok' : 'unknown'));
+            var sc = st === 'ok' || st === 'healthy' || st === 'online' ? 'var(--success)' : st === 'degraded' ? 'var(--accent)' : 'var(--error)';
+            mhtml += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + sc + '">&#9679;</div>' +
+                '<div class="bee-list-content"><div class="bee-list-title">' + name + '</div></div>' +
+                '<div class="bee-list-right"><span class="bee-badge">' + st + '</span></div></div>';
+        }
+        if (!modList.length) mhtml = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет данных</div></div></div>';
+        $('mod-list').innerHTML = mhtml;
+
+        // Schedules
+        var schData = data.schedules || {};
+        var schedules = schData.schedules || schData.items || [];
+        if (!Array.isArray(schedules)) schedules = [];
+        if (schedules.length) {
+            $('sch-card').style.display = '';
+            var shtml = '';
+            for (var i = 0; i < Math.min(schedules.length, 10); i++) {
+                var s = schedules[i];
+                var enabledBadge = s.enabled === false ? ' <span class="bee-badge bee-badge--outline" style="font-size:10px">off</span>' : '';
+                var nextRun = s.next_run_at || s.next_run;
+                shtml += '<div class="bee-list-item">' +
+                    '<div class="bee-list-icon">&#128197;</div>' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (s.name || s.id || '') + enabledBadge + '</div>' +
+                    '<div class="bee-list-subtitle">' + (s.cron_expr || s.cron || '') +
+                    (s.source_module ? ' &middot; ' + s.source_module : '') +
+                    (nextRun ? ' &middot; next: ' + nextRun.substring(0, 16).replace('T', ' ') : '') + '</div>' +
+                    '</div></div>';
+            }
+            $('sch-list').innerHTML = shtml;
+        }
+
+        // Triggers
+        var trgData = data.triggers || {};
+        var triggers = trgData.triggers || trgData.items || [];
+        if (!Array.isArray(triggers)) triggers = [];
+        if (triggers.length) {
+            $('trg-card').style.display = '';
+            $('trg-count').textContent = '(' + triggers.length + ')';
+            var trghtml = '';
+            for (var i = 0; i < triggers.length; i++) {
+                var tr = triggers[i];
+                var trEnabled = tr.enabled === false ? '<span class="bee-badge bee-badge--outline" style="font-size:10px">off</span>' : '<span class="bee-badge" style="font-size:10px">on</span>';
+                var lastFired = tr.last_fired_at ? tr.last_fired_at.substring(0, 16).replace('T', ' ') : 'never';
+                var trgItemClass = tr.enabled !== false ? 'bee-list-item bee-star-border' : 'bee-list-item';
+                trghtml += '<div class="' + trgItemClass + '">' +
+                    '<div class="bee-list-icon" style="color:var(--accent)">&#9889;</div>' +
+                    '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (tr.name || tr.id || '') + '</div>' +
+                    '<div class="bee-list-subtitle">' + (tr.source_module || '') +
+                    ' &middot; cooldown ' + (tr.cooldown_sec || 0) + 's &middot; last: ' + lastFired + '</div>' +
+                    '</div>' +
+                    '<div class="bee-list-right">' + trEnabled + '</div></div>';
+            }
+            $('trg-list').innerHTML = trghtml;
+        } else {
+            $('trg-card').style.display = 'none';
+        }
+
+        // Task Log (хранить для sheet)
+        lastLog = data.log || {};
+
+        // Показать кнопку Task Log если есть данные
+        var logs = lastLog.logs || lastLog.items || [];
+        $('log-card').style.display = (Array.isArray(logs) && logs.length) ? '' : 'none';
+
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    // ── Task Log Sheet ──
+
+    var lastLog = {};
+    var logFilter = null; // null = все
+
+    function openTaskLog() {
+        var logs = lastLog.logs || lastLog.items || [];
+        if (!Array.isArray(logs)) logs = [];
+
+        // Собираем уникальные модули для фильтров
+        var modules = {};
+        for (var i = 0; i < logs.length; i++) {
+            var taskId = logs[i].task_id;
+            var action = logs[i].action || '';
+            var mod = action.split('.')[0] || 'system';
+            modules[mod] = (modules[mod] || 0) + 1;
+        }
+
+        var tb = '';
+        var modKeys = Object.keys(modules);
+        if (modKeys.length > 1) {
+            tb = '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+            tb += '<div class="bee-chip' + (!logFilter ? ' active' : '') + '" data-log-filter="">All</div>';
+            for (var j = 0; j < modKeys.length; j++) {
+                var mk = modKeys[j];
+                tb += '<div class="bee-chip' + (logFilter === mk ? ' active' : '') + '" data-log-filter="' + mk + '">' + mk + ' (' + modules[mk] + ')</div>';
+            }
+            tb += '</div>';
+        }
+
+        var filtered = logFilter ? logs.filter(function(l) { return (l.action || '').indexOf(logFilter) === 0; }) : logs;
+
+        var html = '';
+        for (var i = 0; i < filtered.length; i++) {
+            var l = filtered[i];
+            var costHtml = l.cost_usd ? ' &middot; $' + Number(l.cost_usd).toFixed(4) : '';
+            var time = l.created_at ? l.created_at.substring(11, 19) : '';
+            html += '<div class="bee-list-item" style="padding:8px 0">' +
+                '<div class="bee-list-content">' +
+                '<div class="bee-list-title" style="font-size:13px">' + (l.action || '') + '</div>' +
+                '<div class="bee-list-subtitle">' + time + costHtml +
+                (l.task_id ? ' &middot; task:' + l.task_id.substring(0, 8) : '') + '</div>' +
+                '</div></div>';
+        }
+        if (!filtered.length) html = '<div style="text-align:center;padding:20px;color:var(--tg-hint)">Нет записей</div>';
+
+        BeeKit.sheet.open('Task Log (' + filtered.length + ')', html, tb);
+
+        // Bind filter chips
+        var chips = document.querySelectorAll('#bee-sheet-toolbar .bee-chip');
+        for (var i = 0; i < chips.length; i++) {
+            chips[i].addEventListener('click', function(e) {
+                var f = e.currentTarget.getAttribute('data-log-filter');
+                logFilter = f || null;
+                openTaskLog();
+                if (window.haptic) haptic('selection');
+            });
+        }
+    }
+
+    $('log-btn').addEventListener('click', openTaskLog);
+
+    BeeKit.poll('/p/' + SLUG + '/planner/data', REFRESH, {
+        onData: render,
+        onAccessDenied: function() {
+            $('mod-loading').style.display = 'none';
+            $('mod-error').style.display = '';
+            $('mod-error-text').textContent = 'Доступ ограничен';
+        },
+        initData: initData,
+        staleAfter: 3
+    });
+})();
+</script>
+{% endblock %}

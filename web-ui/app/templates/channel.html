@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading" class="bee-card" style="text-align:center;padding:32px 16px">
+    <div class="bee-subtitle">Загрузка данных...</div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
+<!-- Health -->
+<div class="bee-card">
+    <div class="bee-card-title">Health</div>
+    <div class="bee-stat-grid bee-stat-grid--three">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-status" style="font-size:16px">-</div>
+            <div class="bee-stat-label">status</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-version" style="font-size:14px">-</div>
+            <div class="bee-stat-label">version</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="h-channels" style="color:var(--accent)">-</div>
+            <div class="bee-stat-label">channels</div>
+        </div>
+    </div>
+</div>
+
+<!-- Channels -->
+<div class="bee-card">
+    <div class="bee-card-title">Channels <span id="ch-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="ch-list"></div>
+</div>
+
+<!-- Top Tags -->
+<div class="bee-card" id="tags-card" style="display:none">
+    <div class="bee-card-title">Top Tags (7d)</div>
+    <div class="bee-chart" id="tags-chart"></div>
+</div>
+
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var REFRESH = 30000;
+    var started = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function timeAgo(iso) {
+        if (!iso) return '';
+        var d = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (d < 60) return Math.round(d) + 's';
+        if (d < 3600) return Math.round(d / 60) + 'm';
+        if (d < 86400) return Math.round(d / 3600) + 'h';
+        return Math.round(d / 86400) + 'd ago';
+    }
+
+    function render(data) {
+        var h = data.health || {};
+        $('h-status').textContent = h.status || 'unknown';
+        $('h-status').style.color = h.status === 'ok' ? 'var(--success)' : 'var(--error)';
+        $('h-version').textContent = h.version || '-';
+
+        // Channels (MCP может вернуть list напрямую или dict с вложенным list)
+        var chData = data.channels || {};
+        var channels = Array.isArray(chData) ? chData : (chData.content || chData.channels || chData.result || []);
+        if (!Array.isArray(channels) && channels.channels) channels = channels.channels;
+        if (!Array.isArray(channels)) channels = [];
+        $('h-channels').textContent = channels.length;
+        $('ch-count').textContent = '(' + channels.length + ')';
+
+        var html = '';
+        if (!channels.length) {
+            html = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет каналов</div></div></div>';
+        }
+        for (var i = 0; i < channels.length; i++) {
+            var ch = channels[i];
+            var name = ch.title || ch.username || 'unknown';
+            var uname = ch.username ? '@' + ch.username : '';
+            var fresh = ch.last_fetched_at;
+            var ago = fresh ? timeAgo(fresh) : 'never';
+            var freshColor = !fresh ? 'var(--error)' : (Date.now() - new Date(fresh).getTime()) < 86400000 ? 'var(--success)' : 'var(--accent)';
+
+            html += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + freshColor + '">&#9679;</div>' +
+                '<div class="bee-list-content">' +
+                '<div class="bee-list-title">' + name + '</div>' +
+                '<div class="bee-list-subtitle">' + uname + (ago ? ' &middot; ' + ago : '') + '</div>' +
+                '</div>' +
+                '<div class="bee-list-right">' +
+                (ch.last_message_id ? '<span class="bee-badge bee-badge--outline">#' + ch.last_message_id + '</span>' : '') +
+                '</div></div>';
+        }
+        $('ch-list').innerHTML = html;
+
+        // Tags
+        var tagData = data.tags || {};
+        var tags = Array.isArray(tagData) ? tagData : (tagData.content || tagData.tags || tagData.result || []);
+        if (!Array.isArray(tags) && tags.tags) tags = tags.tags;
+        if (!Array.isArray(tags)) tags = [];
+        if (tags.length) {
+            $('tags-card').style.display = '';
+            var maxVal = 1;
+            for (var j = 0; j < tags.length; j++) {
+                var c = tags[j].count || tags[j].total || 0;
+                if (c > maxVal) maxVal = c;
+            }
+            var chartHtml = '';
+            for (var j = 0; j < Math.min(tags.length, 15); j++) {
+                var t = tags[j];
+                var cnt = t.count || t.total || 0;
+                var pct = Math.round(cnt * 100 / maxVal);
+                chartHtml += '<div class="bee-chart-row">' +
+                    '<div class="bee-chart-label">' + (t.canonical || t.tag || t.name || '') + '</div>' +
+                    '<div class="bee-chart-bar-track"><div class="bee-chart-bar-fill" style="width:' + pct + '%">' +
+                    '<span class="bee-chart-bar-value">' + cnt + '</span></div></div></div>';
+            }
+            $('tags-chart').innerHTML = chartHtml;
+        }
+
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    function fetchData() {
+        fetch('/p/' + SLUG + '/channel/data', { headers: { 'X-Init-Data': initData } })
+            .then(function(r) {
+                if (r.status === 403 || r.status === 401) { $('mod-loading').style.display = 'none'; $('mod-error').style.display = ''; $('mod-error-text').textContent = 'Доступ ограничен'; return null; }
+                if (!r.ok) { if (!started) { $('mod-error-text').textContent = 'Ошибка ' + r.status; $('mod-error').style.display = ''; $('mod-loading').style.display = 'none'; } return null; }
+                return r.json();
+            })
+            .then(function(data) {
+                if (!data) return;
+                if (!started) { $('mod-loading').style.display = 'none'; $('mod-content').style.display = ''; started = true; }
+                render(data);
+            })
+            .catch(function(e) { console.warn('channel fetch:', e); if (!started) { $('mod-error-text').textContent = 'Ошибка сети'; $('mod-error').style.display = ''; $('mod-loading').style.display = 'none'; } });
+    }
+
+    fetchData();
+    setInterval(fetchData, REFRESH);
+})();
+</script>
+{% endblock %}

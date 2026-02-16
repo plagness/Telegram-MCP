@@ -1,0 +1,38 @@
+# ServiceAccount и RBAC для tgweb — доступ на чтение подов кластера.
+# Используется K8s дашбордом (k8s.html) для отображения статуса подов.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tgweb
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgweb
+    ns.module: telegram
+    ns.component: web-ui
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tgweb-pod-reader
+  labels:
+    app.kubernetes.io/name: tgweb
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tgweb-pod-reader
+  labels:
+    app.kubernetes.io/name: tgweb
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tgweb-pod-reader
+subjects:
+  - kind: ServiceAccount
+    name: tgweb
+    namespace: ns-telegram

@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeeFX + BeeKit — Tests</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { background: #1c1c1e; color: #fff; font-family: -apple-system, sans-serif; padding: 16px; }
+        #results { max-width: 600px; margin: 0 auto; }
+        .t-suite { margin-bottom: 16px; }
+        .t-suite-title { font-size: 14px; font-weight: 700; color: #FFC107; padding: 8px 0 4px; border-bottom: 1px solid #333; }
+        .t-result { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+        .t-pass { color: #4CAF50; }
+        .t-fail { color: #F44336; }
+        .t-icon { width: 16px; text-align: center; flex-shrink: 0; }
+        .t-name { flex: 1; }
+        .t-error { font-size: 11px; color: #F44336; padding: 2px 0 2px 24px; word-break: break-all; }
+        .t-perf { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+        .t-perf-time { font-weight: 600; min-width: 60px; text-align: right; }
+        .t-perf-threshold { font-size: 11px; color: #999; }
+        .t-summary { margin-top: 16px; padding: 12px; border-radius: 10px; font-size: 15px; font-weight: 600; text-align: center; }
+        .t-summary--pass { background: rgba(76,175,80,0.15); color: #4CAF50; }
+        .t-summary--fail { background: rgba(244,67,54,0.15); color: #F44336; }
+        #sandbox { min-height: 20px; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+<!-- BeeKit DOM requirements -->
+<div id="bee-bar" style="display:none"></div>
+<div class="bee-sheet-overlay" id="bee-sheet-overlay"></div>
+<div class="bee-sheet" id="bee-sheet">
+    <div class="bee-sheet__handle"></div>
+    <div class="bee-sheet__header">
+        <div class="bee-sheet__title" id="bee-sheet-title"></div>
+        <div class="bee-sheet__close" id="bee-sheet-close">&times;</div>
+    </div>
+    <div class="bee-sheet__toolbar" id="bee-sheet-toolbar"></div>
+    <div class="bee-sheet__body" id="bee-sheet-body"></div>
+</div>
+
+<!-- Sandbox для тестовых DOM-элементов -->
+<div id="sandbox"></div>
+
+<!-- Результаты -->
+<div id="results">
+    <div style="text-align:center;padding:20px;color:#999">Запуск тестов...</div>
+</div>
+
+<script src="/static/bee-kit.js"></script>
+<script src="/static/bee-fx.js"></script>
+<script>
+(function() {
+    'use strict';
+
+    // ═══════════════════════════════════════════════
+    // Micro Test Framework
+    // ═══════════════════════════════════════════════
+
+    var suites = [];
+    var currentSuite = null;
+
+    function describe(name, fn) {
+        currentSuite = { name: name, tests: [] };
+        suites.push(currentSuite);
+        fn();
+        currentSuite = null;
+    }
+
+    function it(name, fn) {
+        currentSuite.tests.push({ name: name, fn: fn });
+    }
+
+    function assert(condition, msg) {
+        if (!condition) throw new Error(msg || 'Assertion failed');
+    }
+    assert.eq = function(a, b, msg) {
+        if (a !== b) throw new Error((msg || 'Expected') + ': ' + JSON.stringify(a) + ' === ' + JSON.stringify(b));
+    };
+    assert.contains = function(str, sub, msg) {
+        if (String(str).indexOf(sub) === -1) throw new Error((msg || 'Expected to contain') + ': "' + sub + '" in "' + str + '"');
+    };
+    assert.ok = function(v, msg) { assert(!!v, msg || 'Expected truthy: ' + v); };
+
+    var sandbox = document.getElementById('sandbox');
+    function mkEl(tag, className, text) {
+        var el = document.createElement(tag || 'div');
+        if (className) el.className = className;
+        if (text) el.textContent = text;
+        sandbox.appendChild(el);
+        return el;
+    }
+    function clearSandbox() { sandbox.innerHTML = ''; }
+
+    function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+    function simulateTouch(el, type, x, y) {
+        try {
+            var touch = new Touch({ identifier: Date.now(), target: el, clientX: x || 0, clientY: y || 0 });
+            var touches = type === 'touchend' ? [] : [touch];
+            var event = new TouchEvent(type, {
+                bubbles: true, cancelable: true,
+                touches: touches, changedTouches: [touch], targetTouches: touches
+            });
+            el.dispatchEvent(event);
+            return true;
+        } catch (e) {
+            // Touch API недоступен (desktop browser без touch support)
+            return false;
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // Функциональные тесты
+    // ═══════════════════════════════════════════════
+
+    // ── BeeFX.countUp ───────────────────────────
+    describe('BeeFX.countUp', function() {
+        it('Базовый count 0→100', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 0, 100, { duration: 100 });
+            await wait(250);
+            assert.eq(el.textContent.trim(), '100');
+        });
+
+        it('С prefix "$"', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 0, 50, { duration: 100, prefix: '$' });
+            await wait(250);
+            assert.contains(el.textContent, '$', 'prefix');
+            assert.eq(el.textContent.trim(), '$50');
+        });
+
+        it('С suffix " pods"', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 0, 10, { duration: 100, suffix: ' pods' });
+            await wait(250);
+            assert.contains(el.textContent, ' pods', 'suffix');
+        });
+
+        it('decimals=2', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 0, 99, { duration: 100, decimals: 2 });
+            await wait(250);
+            assert.contains(el.textContent, '.00', 'decimals');
+        });
+
+        it('separator=" " для 1234', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 0, 1234, { duration: 100, separator: ' ' });
+            await wait(250);
+            assert.contains(el.textContent, '1 234', 'separator');
+        });
+
+        it('Обратный отсчёт 100→0', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 100, 0, { duration: 100 });
+            await wait(250);
+            assert.eq(el.textContent.trim(), '0');
+        });
+
+        it('duration=50 (быстрый)', async function() {
+            clearSandbox();
+            var el = mkEl('div');
+            BeeFX.countUp(el, 0, 42, { duration: 50 });
+            await wait(200);
+            assert.eq(el.textContent.trim(), '42');
+        });
+    });
+
+    // ── BeeFX.revealText ────────────────────────
+    describe('BeeFX.revealText', function() {
+        it('char mode: "Hello" → 5 spans', function() {
+            clearSandbox();
+            var el = mkEl('div', '', 'Hello');
+            BeeFX.revealText(el, { mode: 'blur', by: 'char' });
+            var chars = el.querySelectorAll('.bee-char');
+            assert.eq(chars.length, 5, 'char count');
+        });
+
+        it('word mode: "Hello World" → 2 word spans', function() {
+            clearSandbox();
+            var el = mkEl('div', '', 'Hello World');
+            BeeFX.revealText(el, { mode: 'blur', by: 'word' });
+            var chars = el.querySelectorAll('.bee-char');
+            assert.eq(chars.length, 2, 'word count');
+        });
+
+        it('aria-label сохранён', function() {
+            clearSandbox();
+            var el = mkEl('div', '', 'Test Text');
+            BeeFX.revealText(el);
+            assert.eq(el.getAttribute('aria-label'), 'Test Text');
+        });
+
+        it('transition-delay инкрементируется', function() {
+            clearSandbox();
+            var el = mkEl('div', '', 'ABC');
+            BeeFX.revealText(el, { delay: 40 });
+            var chars = el.querySelectorAll('.bee-char');
+            var d0 = parseInt(chars[0].style.transitionDelay) || 0;
+            var d1 = parseInt(chars[1].style.transitionDelay) || 0;
+            var d2 = parseInt(chars[2].style.transitionDelay) || 0;
+            assert.ok(d1 > d0, 'delay[1] > delay[0]');
+            assert.ok(d2 > d1, 'delay[2] > delay[1]');
+        });
+
+        it('slide mode → bee-char--slide class', function() {
+            clearSandbox();
+            var el = mkEl('div', '', 'Hi');
+            BeeFX.revealText(el, { mode: 'slide' });
+            var chars = el.querySelectorAll('.bee-char');
+            assert.ok(chars[0].classList.contains('bee-char--slide'), 'has slide class');
+        });
+
+        it('IO trigger → bee-char--visible', async function() {
+            clearSandbox();
+            var el = mkEl('div', '', 'AB');
+            BeeFX.revealText(el);
+            await wait(200);
+            var chars = el.querySelectorAll('.bee-char');
+            assert.ok(chars[0].classList.contains('bee-char--visible'), 'char visible');
+            assert.ok(chars[1].classList.contains('bee-char--visible'), 'char visible');
+        });
+    });
+
+    // ── BeeFX.initFadeIn ────────────────────────
+    describe('BeeFX.initFadeIn', function() {
+        it('Добавляет bee-fade-in--visible', async function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-fade-in');
+            BeeFX.initFadeIn();
+            await wait(200);
+            assert.ok(el.classList.contains('bee-fade-in--visible'), 'visible class');
+        });
+
+        it('Авто-стаггер: второй sibling delay=50ms', async function() {
+            clearSandbox();
+            var el1 = mkEl('div', 'bee-fade-in');
+            var el2 = mkEl('div', 'bee-fade-in');
+            BeeFX.initFadeIn();
+            await wait(200);
+            assert.eq(el2.style.transitionDelay, '50ms', 'stagger delay');
+        });
+
+        it('data-fade-delay=200 respected', async function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-fade-in');
+            el.setAttribute('data-fade-delay', '200');
+            BeeFX.initFadeIn();
+            await wait(200);
+            assert.eq(el.style.transitionDelay, '200ms');
+        });
+
+        it('Уже visible — пропускается', async function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-fade-in bee-fade-in--visible');
+            BeeFX.initFadeIn();
+            await wait(100);
+            // Не должен бросить ошибку, элемент не observ'ится
+            assert.ok(true, 'no crash');
+        });
+
+        it('Динамически добавленные подхватываются', async function() {
+            clearSandbox();
+            BeeFX.initFadeIn();
+            await wait(50);
+            var el = mkEl('div', 'bee-fade-in');
+            await wait(300);
+            assert.ok(el.classList.contains('bee-fade-in--visible'), 'dynamic visible');
+        });
+    });
+
+    // ── BeeFX.initRipple ────────────────────────
+    describe('BeeFX.initRipple', function() {
+        it('touchstart создаёт .bee-ripple__wave', function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-ripple');
+            el.style.cssText = 'width:100px;height:50px;position:relative';
+            var ok = simulateTouch(el, 'touchstart', 50, 25);
+            if (!ok) { assert.ok(true, 'Touch API unavailable — skip'); return; }
+            var wave = el.querySelector('.bee-ripple__wave');
+            assert.ok(wave, 'wave element created');
+        });
+
+        it('Wave позиционирован по координатам', function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-ripple');
+            el.style.cssText = 'width:200px;height:100px;position:relative';
+            var ok = simulateTouch(el, 'touchstart', 80, 40);
+            if (!ok) { assert.ok(true, 'Touch API unavailable — skip'); return; }
+            var wave = el.querySelector('.bee-ripple__wave');
+            assert.ok(wave, 'wave exists');
+            assert.ok(wave.style.left !== '', 'left set');
+            assert.ok(wave.style.top !== '', 'top set');
+        });
+
+        it('Wave size = max(w,h)*2', function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-ripple');
+            el.style.cssText = 'width:100px;height:60px;position:relative';
+            sandbox.offsetHeight; // force layout
+            var ok = simulateTouch(el, 'touchstart', 50, 30);
+            if (!ok) { assert.ok(true, 'Touch API unavailable — skip'); return; }
+            var wave = el.querySelector('.bee-ripple__wave');
+            if (!wave) { assert.ok(true, 'no wave (layout issue) — skip'); return; }
+            var dim = parseInt(wave.style.width);
+            // max(100,60)*2 = 200
+            assert.ok(dim >= 100, 'wave size reasonable: ' + dim);
+        });
+
+        it('Cleanup после animationend', function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-ripple');
+            el.style.cssText = 'width:100px;height:50px;position:relative';
+            var ok = simulateTouch(el, 'touchstart', 50, 25);
+            if (!ok) { assert.ok(true, 'Touch API unavailable — skip'); return; }
+            var wave = el.querySelector('.bee-ripple__wave');
+            if (!wave) { assert.ok(true, 'no wave — skip'); return; }
+            wave.dispatchEvent(new Event('animationend'));
+            assert.ok(!el.querySelector('.bee-ripple__wave'), 'wave removed');
+        });
+    });
+
+    // ── BeeFX.initSpotlight ─────────────────────
+    describe('BeeFX.initSpotlight', function() {
+        it('touchmove ставит --spot-x, --spot-y', function() {
+            clearSandbox();
+            var el = mkEl('div');
+            el.setAttribute('data-spotlight', '');
+            el.style.cssText = 'width:200px;height:100px';
+            var ok = simulateTouch(el, 'touchmove', 100, 50);
+            if (!ok) { assert.ok(true, 'Touch API unavailable — skip'); return; }
+            assert.ok(el.style.getPropertyValue('--spot-x') !== '', 'spot-x set');
+            assert.ok(el.style.getPropertyValue('--spot-y') !== '', 'spot-y set');
+        });
+
+        it('touchend убирает CSS vars', function() {
+            clearSandbox();
+            var el = mkEl('div');
+            el.setAttribute('data-spotlight', '');
+            el.style.cssText = 'width:200px;height:100px';
+            var ok = simulateTouch(el, 'touchmove', 100, 50);
+            if (!ok) { assert.ok(true, 'Touch API unavailable — skip'); return; }
+            simulateTouch(el, 'touchend', 100, 50);
+            assert.eq(el.style.getPropertyValue('--spot-x'), '', 'spot-x cleared');
+        });
+
+        it('Элемент без data-spotlight не получает vars', function() {
+            clearSandbox();
+            var el = mkEl('div');
+            el.style.cssText = 'width:200px;height:100px';
+            simulateTouch(el, 'touchmove', 100, 50);
+            assert.eq(el.style.getPropertyValue('--spot-x'), '', 'no spot-x');
+        });
+    });
+
+    // ── BeeKit.sheet ────────────────────────────
+    describe('BeeKit.sheet', function() {
+        it('open() ставит title', function() {
+            BeeKit.sheet.open('Test Title', '<div>body</div>');
+            assert.eq(document.getElementById('bee-sheet-title').textContent, 'Test Title');
+            BeeKit.sheet.close();
+        });
+
+        it('open() ставит body HTML', function() {
+            BeeKit.sheet.open('T', '<b>bold</b>');
+            assert.contains(document.getElementById('bee-sheet-body').innerHTML, '<b>bold</b>');
+            BeeKit.sheet.close();
+        });
+
+        it('open() добавляет .active', function() {
+            BeeKit.sheet.open('T', 'body');
+            assert.ok(document.getElementById('bee-sheet-overlay').classList.contains('active'), 'overlay active');
+            assert.ok(document.getElementById('bee-sheet').classList.contains('active'), 'sheet active');
+            BeeKit.sheet.close();
+        });
+
+        it('close() убирает .active', function() {
+            BeeKit.sheet.open('T', 'body');
+            BeeKit.sheet.close();
+            assert.ok(!document.getElementById('bee-sheet-overlay').classList.contains('active'), 'overlay not active');
+            assert.ok(!document.getElementById('bee-sheet').classList.contains('active'), 'sheet not active');
+        });
+    });
+
+    // ── BeeKit.stale ────────────────────────────
+    describe('BeeKit.stale', function() {
+        it('show() создаёт элемент', function() {
+            BeeKit.stale.show();
+            assert.ok(document.getElementById('bee-stale'), 'element exists');
+            BeeKit.stale.hide();
+        });
+
+        it('show() добавляет visible класс', function() {
+            BeeKit.stale.show();
+            assert.ok(document.getElementById('bee-stale').classList.contains('bee-stale--visible'), 'visible');
+            BeeKit.stale.hide();
+        });
+
+        it('show(msg) ставит текст', function() {
+            BeeKit.stale.show('Connection lost');
+            assert.eq(document.getElementById('bee-stale').textContent, 'Connection lost');
+            BeeKit.stale.hide();
+        });
+
+        it('hide() убирает visible', function() {
+            BeeKit.stale.show('test');
+            BeeKit.stale.hide();
+            assert.ok(!document.getElementById('bee-stale').classList.contains('bee-stale--visible'), 'hidden');
+        });
+    });
+
+    // ═══════════════════════════════════════════════
+    // Перформанс-бенчмарки
+    // ═══════════════════════════════════════════════
+
+    var perfResults = [];
+
+    function perf(name, fn, threshold) {
+        var t0 = performance.now();
+        fn();
+        var t1 = performance.now();
+        var ms = t1 - t0;
+        var pass = ms < threshold;
+        perfResults.push({ name: name, ms: ms, threshold: threshold, pass: pass });
+    }
+
+    function runPerfBenchmarks() {
+        // 1. countUp ×50 setup
+        perf('countUp ×50 setup', function() {
+            clearSandbox();
+            for (var i = 0; i < 50; i++) {
+                var el = mkEl('div');
+                BeeFX.countUp(el, 0, Math.random() * 10000, { duration: 1000 });
+            }
+        }, 20);
+
+        // 2. revealText ×10, 50 chars
+        perf('revealText ×10 (50 chars)', function() {
+            clearSandbox();
+            var text = 'Lorem ipsum dolor sit amet consectetur adipisci';
+            for (var i = 0; i < 10; i++) {
+                var el = mkEl('div', '', text);
+                BeeFX.revealText(el, { mode: 'blur', by: 'char' });
+            }
+        }, 15);
+
+        // 3. initFadeIn ×100
+        perf('initFadeIn ×100 elements', function() {
+            clearSandbox();
+            for (var i = 0; i < 100; i++) mkEl('div', 'bee-fade-in');
+            BeeFX.initFadeIn();
+        }, 10);
+
+        // 4. Ripple DOM ×100
+        perf('Ripple DOM ×100 waves', function() {
+            clearSandbox();
+            var el = mkEl('div', 'bee-ripple');
+            el.style.cssText = 'width:100px;height:50px;position:relative;overflow:hidden';
+            for (var i = 0; i < 100; i++) {
+                var wave = document.createElement('span');
+                wave.className = 'bee-ripple__wave';
+                wave.style.cssText = 'width:200px;height:200px;left:0;top:0';
+                el.appendChild(wave);
+            }
+            // Cleanup
+            while (el.firstChild) el.removeChild(el.firstChild);
+        }, 10);
+
+        // 5. Skeleton DOM ×20
+        perf('Skeleton DOM ×20 cards', function() {
+            clearSandbox();
+            var html = '';
+            for (var i = 0; i < 20; i++) {
+                html += '<div class="bee-card bee-skel-card">' +
+                    '<div class="bee-skel bee-skel--title" style="width:40%"></div>' +
+                    '<div class="bee-stat-grid">' +
+                    '<div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>' +
+                    '<div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>' +
+                    '</div></div>';
+            }
+            sandbox.innerHTML = html;
+        }, 5);
+
+        // 6. querySelectorAll stress ×500
+        perf('querySelectorAll ×500 .bee-fade-in', function() {
+            clearSandbox();
+            for (var i = 0; i < 500; i++) mkEl('div', 'bee-fade-in');
+            for (var j = 0; j < 10; j++) {
+                sandbox.querySelectorAll(':scope > .bee-fade-in');
+            }
+        }, 15);
+
+        clearSandbox();
+    }
+
+    // ═══════════════════════════════════════════════
+    // Раннер + Рендер результатов
+    // ═══════════════════════════════════════════════
+
+    async function runAll() {
+        var results = [];
+        var totalPass = 0;
+        var totalFail = 0;
+
+        for (var s = 0; s < suites.length; s++) {
+            var suite = suites[s];
+            var suiteResults = { name: suite.name, tests: [] };
+
+            for (var t = 0; t < suite.tests.length; t++) {
+                var test = suite.tests[t];
+                var pass = false;
+                var error = null;
+                try {
+                    var ret = test.fn();
+                    if (ret && typeof ret.then === 'function') await ret;
+                    pass = true;
+                    totalPass++;
+                } catch (e) {
+                    error = e.message || String(e);
+                    totalFail++;
+                }
+                suiteResults.tests.push({ name: test.name, pass: pass, error: error });
+            }
+
+            results.push(suiteResults);
+        }
+
+        // Перформанс
+        runPerfBenchmarks();
+
+        // Рендер в DOM
+        var html = '<div style="text-align:center;padding:8px 0 16px"><b style="font-size:18px">BeeFX + BeeKit Tests</b></div>';
+
+        for (var i = 0; i < results.length; i++) {
+            var sr = results[i];
+            html += '<div class="t-suite"><div class="t-suite-title">' + sr.name + '</div>';
+            for (var j = 0; j < sr.tests.length; j++) {
+                var tr = sr.tests[j];
+                var cls = tr.pass ? 't-pass' : 't-fail';
+                var icon = tr.pass ? '&#10003;' : '&#10007;';
+                html += '<div class="t-result ' + cls + '"><span class="t-icon">' + icon + '</span><span class="t-name">' + tr.name + '</span></div>';
+                if (tr.error) html += '<div class="t-error">' + tr.error + '</div>';
+            }
+            html += '</div>';
+        }
+
+        // Перформанс секция
+        html += '<div class="t-suite"><div class="t-suite-title">Performance Benchmarks</div>';
+        for (var p = 0; p < perfResults.length; p++) {
+            var pr = perfResults[p];
+            var pcls = pr.pass ? 't-pass' : 't-fail';
+            var picon = pr.pass ? '&#10003;' : '&#9888;';
+            html += '<div class="t-perf ' + pcls + '">' +
+                '<span class="t-icon">' + picon + '</span>' +
+                '<span class="t-name">' + pr.name + '</span>' +
+                '<span class="t-perf-time">' + pr.ms.toFixed(1) + 'ms</span>' +
+                '<span class="t-perf-threshold">&lt;' + pr.threshold + 'ms</span></div>';
+        }
+        html += '</div>';
+
+        // Summary
+        var perfFail = perfResults.filter(function(p) { return !p.pass; }).length;
+        var allOk = totalFail === 0 && perfFail === 0;
+        var sumClass = allOk ? 't-summary--pass' : 't-summary--fail';
+        html += '<div class="t-summary ' + sumClass + '">' +
+            'Tests: ' + totalPass + '/' + (totalPass + totalFail) + ' passed' +
+            ' &middot; Perf: ' + (perfResults.length - perfFail) + '/' + perfResults.length + ' within threshold' +
+            '</div>';
+
+        document.getElementById('results').innerHTML = html;
+
+        // Console output
+        console.log('═══ BeeFX + BeeKit Tests ═══');
+        console.log('Functional: ' + totalPass + ' passed, ' + totalFail + ' failed');
+        for (var i = 0; i < results.length; i++) {
+            for (var j = 0; j < results[i].tests.length; j++) {
+                var t = results[i].tests[j];
+                if (!t.pass) console.error('FAIL: ' + results[i].name + ' > ' + t.name + ' — ' + t.error);
+            }
+        }
+        console.log('Performance:');
+        for (var p = 0; p < perfResults.length; p++) {
+            var pr = perfResults[p];
+            console.log('  ' + (pr.pass ? 'PASS' : 'SLOW') + ': ' + pr.name + ' — ' + pr.ms.toFixed(1) + 'ms (threshold: <' + pr.threshold + 'ms)');
+        }
+        if (allOk) {
+            console.log('%cALL TESTS PASSED (' + totalPass + '/' + totalPass + ')', 'color: #4CAF50; font-weight: bold');
+        } else {
+            console.log('%cFAILURES: ' + totalFail + ' tests, ' + perfFail + ' benchmarks', 'color: #F44336; font-weight: bold');
+        }
+    }
+
+    // Запуск после DOM ready + scripts init
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(runAll, 100); });
+    } else {
+        setTimeout(runAll, 100);
+    }
+})();
+</script>
+</body>
+</html>

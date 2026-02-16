@@ -33,7 +33,7 @@
 {# ── Макрос карточки (переиспользуется в обеих секциях) ── #}
 {% macro hub_card(page, idx) %}
 {% set meta = page._meta if page._meta is defined else {} %}
-<a class="bee-hub-card" href="/p/{{ page.slug }}"
+<a class="bee-hub-card bee-fade-in" href="/p/{{ page.slug }}"
    data-type="{{ page.page_type }}"
    data-source="{{ page._source_label }}"
    data-created="{{ page.created_at }}"
@@ -600,6 +600,59 @@
             localStorage.setItem(promoKey, '1');
         });
     }
+
+    // ── Hub Mini-Metrics ──────────────────────
+    (function() {
+        var tgApp = window.Telegram && window.Telegram.WebApp;
+        var initData = tgApp ? tgApp.initData : '';
+        if (!initData) return;
+
+        var MINI_LABELS = {
+            k8s:     function(d) { return d.total ? d.running + '/' + d.total + ' pods' : ''; },
+            llm:     function(d) { return d.models ? d.models + 'm' + (d.running ? ' \u00b7 ' + d.running + 'j' : '') : ''; },
+            planner: function(d) { return d.limit ? '$' + d.spent + '/$' + d.limit : ''; },
+            arena:   function(d) { return d.matches != null ? d.matches + ' matches' : ''; },
+            channel: function(d) { return d.count != null ? d.count + ' ch' : ''; },
+            metrics: function(d) { return d.usd_rub ? 'USD ' + Number(d.usd_rub).toFixed(1) : ''; },
+            infra:   function(d) { return d.total ? d.online + '/' + d.total + ' nodes' : ''; }
+        };
+
+        fetch('/hub/mini-metrics', {
+            headers: { 'X-Init-Data': initData }
+        })
+        .then(function(r) { return r.ok ? r.json() : {}; })
+        .then(function(data) {
+            if (!data || typeof data !== 'object') return;
+            for (var key in MINI_LABELS) {
+                var d = data[key];
+                if (!d || typeof d !== 'object') continue;
+                var text = MINI_LABELS[key](d);
+                if (!text) continue;
+
+                var cards = document.querySelectorAll('.bee-hub-card[data-type="' + key + '"]');
+                cards.forEach(function(card) {
+                    var body = card.querySelector('.bee-hub-card__body');
+                    if (!body) return;
+                    var widgets = card.querySelector('.bee-hub-card__widgets');
+                    if (!widgets) {
+                        widgets = document.createElement('div');
+                        widgets.className = 'bee-hub-card__widgets';
+                        var metaRow = body.querySelector('.bee-hub-card__meta-row');
+                        if (metaRow) {
+                            metaRow.parentNode.insertBefore(widgets, metaRow.nextSibling);
+                        } else {
+                            body.appendChild(widgets);
+                        }
+                    }
+                    var pill = document.createElement('span');
+                    pill.className = 'bee-hub-widget';
+                    pill.textContent = text;
+                    widgets.appendChild(pill);
+                });
+            }
+        })
+        .catch(function() { /* ignore */ });
+    })();
 
     // ── Перехват кликов — initData ───────────
     document.querySelectorAll('.bee-hub-card').forEach(function(card) {

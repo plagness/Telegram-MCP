@@ -2,6 +2,10 @@
 
 {% block title %}{{ page.title }}{% endblock %}
 
+{% block head_libs %}
+<script src="/static/echarts.min.js"></script>
+{% endblock %}
+
 {% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
 
 {% block context %}
@@ -14,156 +18,362 @@
 {% endblock %}
 
 {% block content %}
+<div id="mod-loading">
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:35%"></div>
+        <div class="bee-stat-grid">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:40%"></div>
+        <div class="bee-stat-grid bee-stat-grid--three">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+        <div class="bee-skel bee-skel--chart" style="margin-top:8px"></div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:25%"></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0"><div class="bee-skel bee-skel--avatar"></div><div style="flex:1"><div class="bee-skel bee-skel--line" style="width:50%"></div><div class="bee-skel bee-skel--line-sm"></div></div></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0"><div class="bee-skel bee-skel--avatar"></div><div style="flex:1"><div class="bee-skel bee-skel--line" style="width:65%"></div><div class="bee-skel bee-skel--line-sm" style="width:80%"></div></div></div>
+    </div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
 <!-- Job Queue -->
 <div class="bee-card">
     <div class="bee-card-title">Job Queue</div>
     <div class="bee-stat-grid">
-        <div class="bee-stat">
-            <div class="bee-stat-value" id="stat-queued">{{ llm.get('jobs', {}).get('queued', 0) }}</div>
-            <div class="bee-stat-label">queued</div>
-        </div>
-        <div class="bee-stat">
-            <div class="bee-stat-value" style="color:var(--accent)" id="stat-running">{{ llm.get('jobs', {}).get('running', 0) }}</div>
-            <div class="bee-stat-label">running</div>
-        </div>
-        <div class="bee-stat">
-            <div class="bee-stat-value" id="stat-done">{{ llm.get('jobs', {}).get('done', 0) }}</div>
-            <div class="bee-stat-label">done</div>
-        </div>
-        <div class="bee-stat">
-            <div class="bee-stat-value" style="color:#f44336" id="stat-failed">{{ (llm.get('jobs', {}).get('error', 0) + llm.get('jobs', {}).get('failed', 0)) }}</div>
-            <div class="bee-stat-label">failed</div>
-        </div>
+        <div class="bee-stat"><div class="bee-stat-value" id="j-queued">-</div><div class="bee-stat-label">queued</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--accent)" id="j-running">-</div><div class="bee-stat-label">running</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" id="j-done">-</div><div class="bee-stat-label">done</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--error)" id="j-failed">-</div><div class="bee-stat-label">failed</div></div>
     </div>
-    {% set jobs = llm.get('jobs', {}) %}
-    {% set total = jobs.get('queued', 0) + jobs.get('running', 0) + jobs.get('done', 0) + jobs.get('error', 0) %}
-    {% if total > 0 %}
-    {% set pct = (jobs.get('done', 0) * 100 / total)|round|int %}
-    <div class="bee-progress bee-progress--lg" style="margin-top:8px">
-        <div class="bee-progress-fill" id="progress-done" style="width:{{ pct }}%"></div>
-    </div>
-    {% endif %}
+    <div class="bee-progress bee-progress--lg" style="margin-top:8px"><div class="bee-progress-fill" id="j-progress" style="width:0%"></div></div>
 </div>
 
 <!-- Costs -->
 <div class="bee-card">
     <div class="bee-card-title">Costs (USD)</div>
     <div class="bee-stat-grid bee-stat-grid--three">
-        <div class="bee-stat">
-            <div class="bee-stat-value" id="cost-day">${{ "%.4f"|format(llm.get('costs', {}).get('today', 0)) }}</div>
-            <div class="bee-stat-label">today</div>
-        </div>
-        <div class="bee-stat">
-            <div class="bee-stat-value" id="cost-week">${{ "%.4f"|format(llm.get('costs', {}).get('week', 0)) }}</div>
-            <div class="bee-stat-label">week</div>
-        </div>
-        <div class="bee-stat">
-            <div class="bee-stat-value" id="cost-month">${{ "%.4f"|format(llm.get('costs', {}).get('month', 0)) }}</div>
-            <div class="bee-stat-label">month</div>
-        </div>
+        <div class="bee-stat"><div class="bee-stat-value" id="c-day">-</div><div class="bee-stat-label">today</div></div>
+        <div class="bee-stat"><div class="bee-stat-value" id="c-week">-</div><div class="bee-stat-label">week</div></div>
+        <div class="bee-stat"><div class="bee-stat-value bee-shiny" id="c-month">-</div><div class="bee-stat-label">month</div></div>
     </div>
+    <div class="bee-echart" id="costs-chart" style="min-height:180px;margin-top:8px"></div>
+</div>
+
+<!-- Issues -->
+<div class="bee-card" id="issues-card" style="display:none;border-left:3px solid var(--error)">
+    <div class="bee-card-title" style="color:var(--error)">Issues <span id="issues-count"></span></div>
+    <div class="bee-list" id="issues-list"></div>
 </div>
 
 <!-- Fleet -->
-{% set devices = llm.get('devices', []) %}
-{% if devices %}
 <div class="bee-card">
-    <div class="bee-card-title">Fleet ({{ devices|length }})</div>
-    <div class="bee-list" id="fleet-list">
-        {% for dev in devices %}
-        <div class="bee-list-item">
-            <div class="bee-list-icon">
-                {% if dev.status == 'online' %}
-                <span style="color:#4caf50">&#9679;</span>
-                {% elif dev.status == 'offline' %}
-                <span style="color:#f44336">&#9679;</span>
-                {% else %}
-                <span style="color:#ff9800">&#9679;</span>
-                {% endif %}
-            </div>
-            <div class="bee-list-content">
-                <div class="bee-list-title">{{ dev.name or dev.id }}</div>
-                <div class="bee-list-subtitle">
-                    {{ dev.models_count }} models
-                    {% if dev.latency_ms %} &middot; {{ dev.latency_ms }}ms{% endif %}
-                </div>
-            </div>
-            <div class="bee-list-right">
-                {% if dev.running_jobs > 0 %}
-                <span class="bee-badge">{{ dev.running_jobs }} jobs</span>
-                {% else %}
-                <span class="bee-badge bee-badge--outline">idle</span>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+    <div class="bee-card-title">Fleet <span id="fleet-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="fleet-list"></div>
+</div>
+
+<!-- Workers -->
+<div class="bee-card" id="workers-card" style="display:none">
+    <div class="bee-card-title">Workers</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat"><div class="bee-stat-value" style="color:var(--success)" id="w-online">0</div><div class="bee-stat-label">online</div></div>
     </div>
 </div>
-{% endif %}
 
 <!-- Running Jobs -->
-{% set running = llm.get('running_jobs', []) %}
-{% if running %}
-<div class="bee-card">
-    <div class="bee-card-title">Running ({{ running|length }})</div>
-    <div class="bee-list" id="running-list">
-        {% for job in running %}
-        <div class="bee-list-item">
-            <div class="bee-list-icon">
-                {% if 'benchmark' in job.kind %}&#127937;{% elif 'embed' in job.kind %}&#129513;{% elif 'chat' in job.kind or 'generate' in job.kind %}&#128172;{% else %}&#9889;{% endif %}
-            </div>
-            <div class="bee-list-content">
-                <div class="bee-list-title">{{ job.model or job.kind }}</div>
-                <div class="bee-list-subtitle">{{ job.device_id or 'cloud' }}</div>
-            </div>
-            <div class="bee-list-right">
-                <span class="bee-badge bee-badge--outline">{{ job.kind.split('.')[-1] }}</span>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
+<div class="bee-card" id="running-card" style="display:none">
+    <div class="bee-card-title">Running <span id="running-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-list" id="running-list"></div>
 </div>
-{% endif %}
 
-<!-- Models count -->
-{% if llm.get('models_count') %}
-<div class="bee-card">
+<!-- Models -->
+<div class="bee-card" id="models-card" style="display:none">
     <div class="bee-card-title">Models</div>
     <div class="bee-stat-grid">
-        <div class="bee-stat">
-            <div class="bee-stat-value">{{ llm.get('models_count', 0) }}</div>
-            <div class="bee-stat-label">registered</div>
-        </div>
+        <div class="bee-stat"><div class="bee-stat-value" id="m-count">-</div><div class="bee-stat-label">registered</div></div>
     </div>
 </div>
-{% endif %}
 
-<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at">
-    {% if llm.get('updated_at') %}Updated: {{ llm['updated_at'][:19] }}{% endif %}
 </div>
 
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
-    var REFRESH_MS = 5000;
-    var LLM_CORE = '{{ llm_core_url }}';
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var costsChart = null;
+    var _fxDone = false;
 
-    function fmt(n) {
-        return '$' + Number(n).toFixed(4);
+    function $(id) { return document.getElementById(id); }
+    function fmt(n) { return '$' + Number(n || 0).toFixed(4); }
+
+    function timeAgo(iso) {
+        if (!iso) return '';
+        var d = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (d < 60) return Math.round(d) + 's';
+        if (d < 3600) return Math.round(d / 60) + 'm';
+        if (d < 86400) return Math.round(d / 3600) + 'h';
+        return Math.round(d / 86400) + 'd';
     }
 
-    function refresh() {
-        fetch(window.location.href, { headers: { 'Accept': 'text/html' } })
-            .then(function() {})
-            .catch(function() {});
+    function shortName(id) { return id ? id.split('.')[0] : '?'; }
+
+    // ── Costs EChart ──
+
+    function renderCostsChart(breakdown) {
+        if (!breakdown || !breakdown.by_provider) return;
+
+        var providers = breakdown.by_provider || [];
+        if (!providers.length) return;
+
+        if (!costsChart) {
+            var dom = $('costs-chart');
+            if (!dom || typeof echarts === 'undefined') return;
+            costsChart = echarts.init(dom, null, {renderer: 'svg'});
+            window.addEventListener('resize', function() { if (costsChart) costsChart.resize(); });
+        }
+
+        var names = [];
+        var costs = [];
+        var jobs = [];
+        var colors = ['#FFC107', '#4CAF50', '#2196F3', '#FF5722', '#9C27B0', '#607D8B'];
+
+        for (var i = 0; i < providers.length; i++) {
+            var p = providers[i];
+            names.push(p.provider || 'unknown');
+            costs.push(+(p.cost || 0).toFixed(4));
+            jobs.push(p.jobs || 0);
+        }
+
+        var tgText = getComputedStyle(document.body).getPropertyValue('--tg-text').trim() || '#fff';
+        var tgHint = getComputedStyle(document.body).getPropertyValue('--tg-hint').trim() || '#999';
+
+        costsChart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 10, right: 10, top: 10, bottom: 24, containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: names,
+                axisLabel: { color: tgHint, fontSize: 11 },
+                axisLine: { show: false },
+                axisTick: { show: false }
+            },
+            yAxis: [
+                { type: 'value', show: false },
+                { type: 'value', show: false }
+            ],
+            series: [
+                {
+                    name: 'Cost',
+                    type: 'bar',
+                    data: costs,
+                    itemStyle: { color: '#FFC107', borderRadius: [4, 4, 0, 0] },
+                    barMaxWidth: 32,
+                    label: { show: true, position: 'top', formatter: '${c}', color: tgText, fontSize: 10 }
+                },
+                {
+                    name: 'Jobs',
+                    type: 'bar',
+                    yAxisIndex: 1,
+                    data: jobs,
+                    itemStyle: { color: 'rgba(255,255,255,0.15)', borderRadius: [4, 4, 0, 0] },
+                    barMaxWidth: 32,
+                    label: { show: true, position: 'top', formatter: '{c}j', color: tgHint, fontSize: 10 }
+                }
+            ]
+        });
     }
 
-    // Автообновление через перезагрузку страницы каждые 5 сек
-    setInterval(function() {
-        window.location.reload();
-    }, REFRESH_MS);
+    // ── Fleet ──
+
+    function renderFleet(hosts) {
+        var el = $('fleet-list');
+        if (!hosts || !hosts.length) {
+            $('fleet-count').textContent = '';
+            el.innerHTML = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет хостов</div></div></div>';
+            return;
+        }
+        $('fleet-count').textContent = '(' + hosts.length + ' hosts)';
+
+        var html = '';
+        for (var i = 0; i < hosts.length; i++) {
+            var h = hosts[i];
+            var sc = h.status === 'online' ? 'var(--success)' : h.status === 'offline' ? 'var(--error)' : 'var(--accent)';
+
+            var meta = [];
+            meta.push((h.total_models || 0) + ' models');
+            meta.push((h.nodes || []).length + ' node' + ((h.nodes || []).length !== 1 ? 's' : ''));
+            if (h.stats && h.stats.total_jobs_7d > 0) {
+                var sr = h.stats.success_rate || 0;
+                var srColor = sr >= 95 ? 'var(--success)' : sr >= 80 ? 'var(--accent)' : 'var(--error)';
+                meta.push('<span style="color:' + srColor + '">' + sr.toFixed(1) + '%</span>');
+            }
+
+            var orchBadge = h.orchestration ? ' <span class="bee-badge bee-badge--outline" style="font-size:10px">' + h.orchestration + '</span>' : '';
+            var circuitHtml = h.circuit && h.circuit !== 'ok' ? ' <span style="color:var(--error)">&#9888;</span>' : '';
+            var badge = h.total_running > 0 ?
+                '<span class="bee-badge">' + h.total_running + ' jobs</span>' :
+                '<span class="bee-badge bee-badge--outline">idle</span>';
+
+            var nodesHtml = '';
+            var nodes = h.nodes || [];
+            for (var j = 0; j < nodes.length; j++) {
+                var n = nodes[j];
+                var nsc = n.circuit && n.circuit !== 'ok' ? 'var(--error)' : 'var(--tg-hint)';
+                var nMeta = (n.models_count || 0) + ' models';
+                if (n.latency_ms) nMeta += ' · ' + n.latency_ms + 'ms';
+                nMeta += n.running_jobs > 0 ? ' · ' + n.running_jobs + ' jobs' : ' · idle';
+                nodesHtml += '<div style="padding:2px 0;font-size:12px;color:var(--tg-hint)">' +
+                    '<span style="color:' + nsc + ';font-weight:500">:' + n.port + '</span> [' + n.role + '] — ' + nMeta + '</div>';
+            }
+
+            html += '<div class="bee-list-item" style="flex-direction:column;align-items:stretch">' +
+                '<div style="display:flex;align-items:center;width:100%;cursor:pointer;-webkit-tap-highlight-color:transparent" data-haptic="selection" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">' +
+                    '<div class="bee-list-icon" style="color:' + sc + '">&#9679;</div>' +
+                    '<div class="bee-list-content">' +
+                        '<div class="bee-list-title">' + (h.name || h.id) + orchBadge + circuitHtml + '</div>' +
+                        '<div class="bee-list-subtitle">' + meta.join(' · ') + '</div>' +
+                    '</div>' +
+                    '<div class="bee-list-right">' + badge + '</div>' +
+                '</div>' +
+                '<div style="display:none;margin-left:36px;margin-top:4px;padding-left:10px;border-left:2px solid var(--tg-secondary-bg,#2a2a2a)">' +
+                    nodesHtml +
+                '</div></div>';
+        }
+        el.innerHTML = html;
+    }
+
+    // ── Issues ──
+
+    function renderIssues(issues) {
+        if (!issues || !issues.length) {
+            $('issues-card').style.display = 'none';
+            return;
+        }
+        $('issues-card').style.display = '';
+        $('issues-count').textContent = '(' + issues.length + ')';
+        var html = '';
+        for (var i = 0; i < issues.length; i++) {
+            html += '<div class="bee-list-item" style="padding:6px 0">' +
+                '<div class="bee-list-icon" style="color:var(--error);font-size:16px">&#9888;</div>' +
+                '<div class="bee-list-content"><div class="bee-list-subtitle">' + issues[i] + '</div></div></div>';
+        }
+        $('issues-list').innerHTML = html;
+    }
+
+    // ── Running Jobs ──
+
+    function renderRunning(jobs) {
+        if (!jobs || !jobs.length) {
+            $('running-card').style.display = 'none';
+            return;
+        }
+        $('running-card').style.display = '';
+        $('running-count').textContent = '(' + jobs.length + ')';
+        var KIND_ICONS = {benchmark: '&#127937;', embed: '&#129513;', chat: '&#128172;', generate: '&#128172;'};
+        var html = '';
+        for (var i = 0; i < jobs.length; i++) {
+            var j = jobs[i];
+            var kind = (j.kind || '').split('.').pop();
+            var icon = KIND_ICONS[kind] || '&#9889;';
+            var ago = timeAgo(j.updated_at);
+            html += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon">' + icon + '</div>' +
+                '<div class="bee-list-content">' +
+                    '<div class="bee-list-title">' + (j.model || j.kind || 'unknown') + '</div>' +
+                    '<div class="bee-list-subtitle">' + shortName(j.device_id || 'cloud') + (kind ? ' · ' + kind : '') + (ago ? ' · ' + ago : '') + '</div>' +
+                '</div></div>';
+        }
+        $('running-list').innerHTML = html;
+    }
+
+    // ── Main render ──
+
+    function render(data) {
+        var dash = data.dashboard || {};
+        var jobs = dash.jobs || {};
+
+        // Job Queue
+        var queued = jobs.queued || 0, running = jobs.running || 0, done = jobs.done || 0;
+        var failed = (jobs.error || 0) + (jobs.failed || 0);
+        $('j-queued').textContent = queued;
+        $('j-running').textContent = running;
+        $('j-done').textContent = done;
+        $('j-failed').textContent = failed;
+        var total = queued + running + done + failed;
+        $('j-progress').style.width = (total > 0 ? Math.round(done * 100 / total) : 0) + '%';
+
+        // Costs
+        var costs = dash.costs || {};
+        if (!_fxDone) {
+            _fxDone = true;
+            BeeFX.countUp($('c-day'), 0, costs.today || 0, {prefix: '$', decimals: 4});
+            BeeFX.countUp($('c-week'), 0, costs.week || 0, {prefix: '$', decimals: 4});
+            BeeFX.countUp($('c-month'), 0, costs.month || 0, {prefix: '$', decimals: 4});
+        } else {
+            $('c-day').textContent = fmt(costs.today);
+            $('c-week').textContent = fmt(costs.week);
+            $('c-month').textContent = fmt(costs.month);
+        }
+
+        // Costs breakdown chart
+        renderCostsChart(data.costs_breakdown);
+
+        // Issues
+        renderIssues(dash.issues);
+
+        // Fleet
+        renderFleet(dash.hosts);
+
+        // Workers
+        var wo = dash.workers_online || 0;
+        $('workers-card').style.display = wo > 0 ? '' : 'none';
+        if (wo > 0) $('w-online').textContent = wo;
+
+        // Running
+        renderRunning(dash.running_jobs);
+
+        // Models
+        var mc = dash.models_count || 0;
+        $('models-card').style.display = mc > 0 ? '' : 'none';
+        $('m-count').textContent = mc;
+
+        // Timestamp
+        if (dash.updated_at) {
+            $('updated-at').textContent = 'Updated: ' + dash.updated_at.substring(0, 19).replace('T', ' ');
+        }
+    }
+
+    // ── Fetch ──
+
+    BeeKit.poll('/p/' + SLUG + '/llm/data', 5000, {
+        onData: render,
+        onAccessDenied: function() {
+            $('mod-loading').style.display = 'none';
+            $('mod-error').style.display = '';
+            $('mod-error-text').textContent = 'Доступ ограничен';
+        },
+        initData: initData,
+        staleAfter: 5
+    });
 })();
 </script>
 {% endblock %}

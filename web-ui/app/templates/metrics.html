@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block head_libs %}
+<script src="/static/echarts.min.js"></script>
+{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading">
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:40%"></div>
+        <div class="bee-stat-grid">
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+        </div>
+    </div>
+    <div class="bee-card bee-skel-card">
+        <div class="bee-skel bee-skel--title" style="width:35%"></div>
+        <div class="bee-skel bee-skel--chart" style="margin-top:8px"></div>
+        <div class="bee-skel bee-skel--line" style="width:60%;margin-top:12px"></div>
+        <div class="bee-skel bee-skel--line" style="width:80%"></div>
+        <div class="bee-skel bee-skel--line-sm"></div>
+    </div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<div id="mod-content" style="display:none">
+
+<!-- FX & Crypto -->
+<div class="bee-card">
+    <div class="bee-card-title">FX &amp; Crypto</div>
+    <div class="bee-stat-grid">
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="fx-usd" style="font-size:16px">-</div>
+            <div class="bee-stat-label">USD/RUB</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="fx-eur" style="font-size:16px">-</div>
+            <div class="bee-stat-label">EUR/RUB</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value bee-shiny" id="fx-btc" style="font-size:16px">-</div>
+            <div class="bee-stat-label">BTC</div>
+        </div>
+        <div class="bee-stat">
+            <div class="bee-stat-value" id="fx-gold" style="font-size:16px">-</div>
+            <div class="bee-stat-label">Gold</div>
+        </div>
+    </div>
+</div>
+
+<!-- All Metrics -->
+<div class="bee-card" id="metrics-card" style="display:none">
+    <div class="bee-card-title">Market Data</div>
+    <div class="bee-list" id="metrics-list"></div>
+</div>
+
+<!-- Stock Indices (ECharts) -->
+<div class="bee-card" id="indices-card" style="display:none">
+    <div class="bee-card-title">Stock Indices <span id="idx-count" style="font-weight:400;color:var(--tg-hint)"></span></div>
+    <div class="bee-echart" id="indices-chart" style="min-height:260px"></div>
+    <div style="overflow-x:auto;margin-top:8px">
+        <table class="bee-table" id="indices-table">
+            <thead><tr><th>Index</th><th>Value</th><th>Change</th></tr></thead>
+            <tbody id="indices-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Infrastructure -->
+<div class="bee-card" id="infra-card" style="display:none">
+    <div class="bee-card-title">Infrastructure</div>
+    <div class="bee-list" id="infra-list"></div>
+</div>
+
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var idxChart = null;
+    var _fxDone = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function fmtNum(n, dec) {
+        if (n == null || isNaN(n)) return '-';
+        dec = dec != null ? dec : 2;
+        return Number(n).toLocaleString('ru-RU', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+    }
+
+    // Snapshot формат: плоский объект {btc_usd: 97000, usd_rub: 89.5, ...}
+    var HEADLINE_KEYS = {
+        usd_rub: {id: 'fx-usd', dec: 2},
+        eur_rub: {id: 'fx-eur', dec: 2},
+        btc_usd: {id: 'fx-btc', dec: 0, prefix: '$'},
+        gold_usd: {id: 'fx-gold', dec: 0, prefix: '$'}
+    };
+
+    var METRIC_LABELS = {
+        btc_usd: 'BTC/USD', usd_rub: 'USD/RUB', eur_rub: 'EUR/RUB',
+        cny_rub: 'CNY/RUB', gold_usd: 'Gold/USD', urals_usd: 'Urals/USD',
+        moex: 'MOEX', spb: 'SPB'
+    };
+
+    function renderMetrics(m) {
+        if (!m || typeof m !== 'object') return;
+
+        // Headlines
+        for (var key in HEADLINE_KEYS) {
+            var cfg = HEADLINE_KEYS[key];
+            var val = m[key];
+            if (val != null && !_fxDone) {
+                BeeFX.countUp($(cfg.id), 0, val, {prefix: cfg.prefix || '', decimals: cfg.dec != null ? cfg.dec : 2, separator: ' '});
+            } else {
+                $(cfg.id).textContent = val != null ? (cfg.prefix || '') + fmtNum(val, cfg.dec) : '-';
+            }
+        }
+        if (!_fxDone) _fxDone = true;
+
+        // All metrics list
+        var keys = Object.keys(m).filter(function(k) { return k !== 'ts' && typeof m[k] === 'number'; });
+        if (keys.length) {
+            $('metrics-card').style.display = '';
+            var html = '';
+            for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var label = METRIC_LABELS[k] || k.replace(/_/g, '/').toUpperCase();
+                html += '<div class="bee-list-item">' +
+                    '<div class="bee-list-content"><div class="bee-list-title">' + label + '</div></div>' +
+                    '<div class="bee-list-right"><span style="font-weight:600">' + fmtNum(m[k]) + '</span></div></div>';
+            }
+            $('metrics-list').innerHTML = html;
+        }
+    }
+
+    function renderIndices(iData) {
+        var indices = (iData && iData.indices) || [];
+        if (!Array.isArray(indices) || !indices.length) return;
+
+        $('indices-card').style.display = '';
+        $('idx-count').textContent = '(' + indices.length + ')';
+
+        // Приоритетная сортировка
+        var priority = ['MOEX', 'IMOEX', 'RTS', 'SPX', 'IXIC', 'DJI', 'DAX', 'N225'];
+        indices.sort(function(a, b) {
+            var ai = priority.indexOf(a.symbol || ''); if (ai === -1) ai = 999;
+            var bi = priority.indexOf(b.symbol || ''); if (bi === -1) bi = 999;
+            return ai - bi;
+        });
+
+        // ECharts bar chart (top 12 по change%)
+        var withChange = indices.filter(function(i) { return i.change_pct != null; });
+        if (withChange.length && typeof echarts !== 'undefined') {
+            withChange.sort(function(a, b) { return Math.abs(b.change_pct) - Math.abs(a.change_pct); });
+            var top = withChange.slice(0, 12);
+
+            if (!idxChart) {
+                idxChart = echarts.init($('indices-chart'), null, {renderer: 'svg'});
+                window.addEventListener('resize', function() { if (idxChart) idxChart.resize(); });
+            }
+
+            var tgHint = getComputedStyle(document.body).getPropertyValue('--tg-hint').trim() || '#999';
+
+            idxChart.setOption({
+                tooltip: { trigger: 'axis' },
+                grid: { left: 8, right: 8, top: 8, bottom: 24, containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: top.map(function(i) { return i.symbol || i.name; }),
+                    axisLabel: { color: tgHint, fontSize: 10, rotate: 45 },
+                    axisLine: { show: false }, axisTick: { show: false }
+                },
+                yAxis: { type: 'value', show: false },
+                series: [{
+                    type: 'bar',
+                    data: top.map(function(i) {
+                        return {
+                            value: +(i.change_pct || 0).toFixed(2),
+                            itemStyle: { color: i.change_pct >= 0 ? '#4CAF50' : '#F44336', borderRadius: [3, 3, 0, 0] }
+                        };
+                    }),
+                    barMaxWidth: 28,
+                    label: { show: true, position: 'top', formatter: '{c}%', fontSize: 9, color: tgHint }
+                }]
+            });
+        }
+
+        // Таблица
+        var ihtml = '';
+        for (var i = 0; i < indices.length; i++) {
+            var idx = indices[i];
+            var val = idx.value != null ? fmtNum(idx.value) : '-';
+            var ch = idx.change_pct;
+            var chCell = '-';
+            if (ch != null) {
+                var cc = ch >= 0 ? 'var(--success)' : 'var(--error)';
+                chCell = '<span style="color:' + cc + '">' + (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%</span>';
+            }
+            ihtml += '<tr><td>' + (idx.name || idx.symbol || '') + '</td><td class="value">' + val + '</td><td>' + chCell + '</td></tr>';
+        }
+        $('indices-body').innerHTML = ihtml;
+    }
+
+    function renderInfra(infData) {
+        var services = (infData && infData.services) || [];
+        if (!Array.isArray(services) || !services.length) return;
+
+        $('infra-card').style.display = '';
+        var html = '';
+        for (var i = 0; i < services.length; i++) {
+            var s = services[i];
+            var st = s.status || (s.available ? 'ok' : 'down');
+            var sc = st === 'ok' || st === 'up' ? 'var(--success)' : 'var(--error)';
+            var lat = s.latency_ms;
+            html += '<div class="bee-list-item">' +
+                '<div class="bee-list-icon" style="color:' + sc + '">&#9679;</div>' +
+                '<div class="bee-list-content"><div class="bee-list-title">' + (s.name || '') + '</div>' +
+                (lat ? '<div class="bee-list-subtitle">' + lat + 'ms</div>' : '') +
+                '</div><div class="bee-list-right"><span class="bee-badge">' + st + '</span></div></div>';
+        }
+        $('infra-list').innerHTML = html;
+    }
+
+    function render(data) {
+        renderMetrics(data.metrics);
+        renderIndices(data.indices);
+        renderInfra(data.infra);
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    BeeKit.poll('/p/' + SLUG + '/metrics/data', 60000, {
+        onData: render,
+        onAccessDenied: function() {
+            $('mod-loading').style.display = 'none';
+            $('mod-error').style.display = '';
+            $('mod-error-text').textContent = 'Доступ ограничен';
+        },
+        initData: initData,
+        staleAfter: 3
+    });
+})();
+</script>
+{% endblock %}

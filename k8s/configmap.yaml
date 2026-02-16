@@ -14,6 +14,11 @@ data:
 
   # Внешние сервисы (cross-namespace DNS)
   LLM_CORE_URL: http://llmcore.ns-llm.svc.cluster.local:8080
+  ARENA_CORE_URL: http://arenacore.ns-arena.svc.cluster.local:8082
+  PLANNER_CORE_URL: http://plannercore.ns-planner.svc.cluster.local:8085
+  METRICS_API_URL: http://metricsapi-service.ns-metrics.svc.cluster.local:8083
+  CHANNEL_MCP_URL: http://chmcp-service.ns-channel.svc.cluster.local:3333
+  BCS_MCP_URL: http://bcsmcp.ns-bcs.svc.cluster.local:3333
 
   # Конфигурация приложения
   LOG_LEVEL: info

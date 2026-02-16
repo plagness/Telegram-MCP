@@ -6,6 +6,113 @@
 
 ---
 
+## [2026.02.21] - 2026-02-16
+
+### Добавлено
+
+#### Bee Design System — UI toolkit + визуальные эффекты
+
+Полная система переиспользуемых компонентов для Telegram Mini App. Два JS-модуля, набор CSS-эффектов, skeleton loading, Apache ECharts.
+
+**bee-kit.js** — UI toolkit:
+- `BeeKit.poll()` — data polling с skeleton crossfade, stale detection, auto-retry
+- `BeeKit.sheet` — bottom sheet с toolbar (фильтры, сортировка)
+- `BeeKit.stale` — stale data indicator banner
+- `BeeKit.initAccordions()` — auto-init для `[data-bee-accordion]`
+- `[data-haptic]` — автоматический haptic feedback
+
+**bee-fx.js** — визуальные эффекты (портировано из react-bits в vanilla JS):
+- `BeeFX.countUp()` — анимация чисел (из CountUp.jsx)
+- `BeeFX.revealText()` — посимвольное раскрытие (из BlurText + SplitText)
+- `BeeFX.initFadeIn()` — каскадное появление с IntersectionObserver
+- `BeeFX.initSpotlight()` — подсветка за пальцем (из SpotlightCard.jsx)
+- `BeeFX.clickSpark()` — Canvas искры при тапе (из ClickSpark.jsx)
+- `BeeFX.initRipple()` — Material Design ripple feedback
+
+**CSS-эффекты** (портированы из react-bits в чистый CSS):
+- `.bee-shiny` — shimmer на тексте (из ShinyText.jsx)
+- `.bee-gradient-text` — градиентный текст (из GradientText.jsx)
+- `.bee-star-border` — анимированная рамка (из StarBorder.jsx)
+- `.bee-glare` — блик при касании
+- `.bee-glitch` — glitch эффект для ошибок (из GlitchText.jsx)
+- `.bee-fade-in` — entry animations с авто-стаггером
+- `.bee-ripple` — touch ripple container
+
+**Skeleton Loading**:
+- Анимированные shimmer-плейсхолдеры вместо текста загрузки
+- Компоненты: `--title`, `--line`, `--value`, `--label`, `--chart`, `--avatar`
+- Плавный crossfade skeleton → content (double rAF)
+- Стаггер для нескольких skeleton-карточек
+
+**Apache ECharts 6.0.0**:
+- Lazy-load через `{% block head_libs %}`
+- SVG renderer для мобильных
+- Графики: costs bar chart (LLM), stock indices bar chart (Metrics)
+
+#### 6 owner-only дашбордов (Mini App)
+
+- **Metrics** (`metrics.html`) — FX & Crypto headlines, market data list, stock indices ECharts
+- **Arena** (`arena.html`) — health, matches, leaderboard, species, predictions, presets (accordion)
+- **Planner** (`planner.html`) — speed mode, budget, tasks, modules, schedules, triggers, task log (sheet + chips)
+- **BCS** (`bcs.html`) — портфели, позиции, P&L
+- **Channel** (`channel.html`) — каналы, статистика, последние посты
+- **K8s** (`k8s.html`) — кластер, namespace'ы, поды
+
+**Визуальные эффекты на дашбордах:**
+- `bee-shiny` на BTC-цене и month cost
+- `countUp` на costs/budget при первой загрузке (`_fxDone` паттерн)
+- `bee-star-border` на активных триггерах
+- `bee-fade-in` на карточках hub
+- Crossfade skeleton → content на infra dashboard
+
+#### Module Proxy (module_proxy.py)
+
+- Новый роутер для cross-namespace запросов к backend-модулям (llm-mcp, metrics, arena, planner, bcs, channel)
+- `_fetch_*_data()` + `GET /p/{slug}/*/data` endpoint pattern
+- Owner-only access через initData проверку
+
+#### Тесты (test-fx.html)
+
+- Самодостаточная HTML-страница с встроенным micro test runner
+- 33 функциональных теста (countUp, revealText, initFadeIn, initRipple, initSpotlight, sheet, stale)
+- 6 перформанс-бенчмарков с порогами (countUp×50, revealText×10, initFadeIn×100, Ripple×100, Skeleton×20, querySelectorAll×500)
+- Touch event simulation для мобильных эффектов
+- Console + visual output
+
+#### Документация
+
+- **`web-ui/docs/UI-GUIDE.md`** — полное руководство разработчика Bee UI системы
+- **`web-ui/docs/CHANGELOG.md`** — лог изменений web-ui
+
+### Изменено
+
+- `hub.html` → mini-metrics на карточках модулей, bee-fade-in каскад
+- `llm.html` → client-side fetch+render вместо server-side reload
+- `metrics.html` → /v1/metrics/snapshot через module_proxy
+- `infra.html` → crossfade skeleton → content
+- `base.html` → bee-kit.js + bee-fx.js в порядке загрузки скриптов
+- `style.css` → skeleton, все CSS-эффекты, bee-kit/fx стили
+- VERSION: `2026.02.20` → `2026.02.21`
+
+---
+
+## [2026.02.20] - 2026-02-14
+
+### Добавлено
+
+#### Hub v2 — переработка главного экрана
+
+- **Orbital emoji system** — динамические иконки модулей
+- **Access control** — проверка доступа к страницам через access_rules
+- **3-tier layout** — стандартизация структуры (context → content → scripts)
+
+### Изменено
+
+- Санитизация кода — удаление реальных доменов, ID, путей
+- VERSION: `2026.02.19` → `2026.02.20`
+
+---
+
 ## [2026.02.19] - 2026-02-10
 
 ### Добавлено

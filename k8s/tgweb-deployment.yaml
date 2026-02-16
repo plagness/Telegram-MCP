@@ -9,6 +9,8 @@ metadata:
     ns.component: web-ui
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: tgweb
@@ -19,6 +21,7 @@ spec:
         ns.module: telegram
         ns.component: web-ui
     spec:
+      serviceAccountName: tgweb
       containers:
         - name: tgweb
           image: telegram-mcp-tgweb:latest
@@ -76,6 +79,31 @@ spec:
                 configMapKeyRef:
                   name: telegram-config
                   key: LLM_CORE_URL
+            - name: ARENA_CORE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: ARENA_CORE_URL
+            - name: PLANNER_CORE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: PLANNER_CORE_URL
+            - name: METRICS_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: METRICS_API_URL
+            - name: CHANNEL_MCP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: CHANNEL_MCP_URL
+            - name: BCS_MCP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: BCS_MCP_URL
             - name: PUBLIC_URL
               valueFrom:
                 configMapKeyRef:
