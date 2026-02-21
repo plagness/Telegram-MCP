@@ -181,7 +181,7 @@ class MyTypeHandler(PageTypeHandler):
 ### Через API (рекомендуется)
 
 ```bash
-curl -X POST https://tg.neuronswarm.ru:8443/api/v1/pages \
+curl -X POST https://tg.example.com:8443/api/v1/pages \
   -H "Content-Type: application/json" \
   -d '{
     "slug": "my-page",
@@ -210,17 +210,17 @@ VALUES ('my-page', 'Моя страница', 'mytype', '{"description":"..."}',
 
 ```bash
 # Доступ только по ролям
-curl -X PUT https://tg.neuronswarm.ru:8443/api/v1/pages/my-page/access \
+curl -X PUT https://tg.example.com:8443/api/v1/pages/my-page/access \
   -H "Content-Type: application/json" \
   -d '{"access_rules": {"allowed_roles": ["project_owner", "tester"]}}'
 
 # Доступ участникам чата
-curl -X POST https://tg.neuronswarm.ru:8443/api/v1/pages/my-page/access/grant \
+curl -X POST https://tg.example.com:8443/api/v1/pages/my-page/access/grant \
   -H "Content-Type: application/json" \
   -d '{"grant_type": "chat", "value": -1001455291970}'
 
 # Доступ конкретному пользователю
-curl -X POST https://tg.neuronswarm.ru:8443/api/v1/pages/my-page/access/grant \
+curl -X POST https://tg.example.com:8443/api/v1/pages/my-page/access/grant \
   -H "Content-Type: application/json" \
   -d '{"grant_type": "user", "value": 123456789}'
 ```

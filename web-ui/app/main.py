@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="telegram-mcp web-ui",
-    version="2026.02.21",
+    version="2026.02.22",
     lifespan=lifespan,
 )
 

@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
         }
     else:
         app.state.preview_user = {
-            "user_id": 269949384,
+            "user_id": 0,
             "first_name": "Manager",
             "last_name": "",
             "username": "manager",
