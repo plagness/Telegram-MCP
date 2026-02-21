@@ -30,5 +30,7 @@ data:
   WEBUI_PUBLIC_URL: https://tg.example.com:8443
   PUBLIC_URL: https://tg.example.com:8443
   NODE_TLS_REJECT_UNAUTHORIZED: "0"
+  # Deep link URL для Mini App кнопок (формат: https://t.me/BotUsername/AppShortName)
+  MINIAPP_URL: https://t.me/YourBotUsername/app
   # Путь к реестру нод (монтируется как volume в tgweb)
   NODES_CONFIG_PATH: /app/config/nodes.json

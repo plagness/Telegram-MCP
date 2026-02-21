@@ -1,4 +1,4 @@
-"""Пользовательские view-страницы: профиль, чат."""
+"""Пользовательские view-страницы: профиль, чат-хаб."""
 
 from __future__ import annotations
 
@@ -7,12 +7,13 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..auth import validate_init_data
 from ..config import get_settings
 from ..db import fetch_all, fetch_one
 from ..icons import resolve_icon
+from ..orbital import compute_orbital
 from ..services.access import (
     check_page_access,
     enrich_pages_for_hub,
@@ -102,9 +103,23 @@ async def profile(request: Request):
     return HTMLResponse(html)
 
 
-@router.get("/chat/{chat_id}", response_class=HTMLResponse)
-async def chat_detail(chat_id: str, request: Request):
-    """Детальная страница чата: привязанные страницы + Integrat-плагины."""
+# ── Обратная совместимость: /chat/{id} → /c/{id} ──
+
+@router.get("/chat/{chat_id}")
+async def chat_redirect(chat_id: str, request: Request):
+    """Редирект со старого URL на новый чат-хаб."""
+    qs = str(request.query_params) if request.query_params else ""
+    target = f"/c/{chat_id}"
+    if qs:
+        target += f"?{qs}"
+    return RedirectResponse(url=target, status_code=301)
+
+
+# ── Чат-хаб: полноценная страница чата ──
+
+@router.get("/c/{chat_id}", response_class=HTMLResponse)
+async def chat_hub(chat_id: str, request: Request):
+    """Чат-хаб: temporal events, democracy, плагины, страницы чата."""
     templates = request.app.state.templates
 
     init_data = request.query_params.get("initData", "")
@@ -149,7 +164,7 @@ async def chat_detail(chat_id: str, request: Request):
     else:
         chat["_photo_url"] = ""
 
-    # Страницы, привязанные к этому чату
+    # Страницы, привязанные к этому чату (с enrichment)
     all_pages = await get_accessible_pages(user_id)
     enriched = await enrich_pages_for_hub(all_pages, user_id)
     chat_pages = filter_pages_by_chat(enriched, chat_id)
@@ -158,10 +173,39 @@ async def chat_detail(chat_id: str, request: Request):
         icon_name = (p.get("config") or {}).get("icon") or _HUB_TYPE_ICONS.get(p["page_type"])
         p["_icon"] = resolve_icon(icon_name) if icon_name else None
 
+    # Temporal events для этого чата (orbital enrichment)
+    temporal_pages: list[dict] = []
+    for i, p in enumerate(chat_pages):
+        meta = p.get("_meta") or {}
+        pt = p.get("page_type", "")
+        is_temporal = False
+        if pt == "prediction":
+            if meta.get("status") in ("open", "active") and meta.get("deadline"):
+                is_temporal = True
+        elif pt == "calendar":
+            if meta.get("next_entry"):
+                is_temporal = True
+        elif pt == "survey":
+            is_temporal = True
+
+        if is_temporal:
+            # Chat photo для orbital визуализации
+            p["_chat_photo_url"] = chat.get("_photo_url", "")
+            p["_orbital"] = compute_orbital(
+                pt, meta, index=i,
+                config=p.get("config"),
+                chat_photo_url=p.get("_chat_photo_url", ""),
+            )
+            temporal_pages.append(p)
+
+    # Обычные страницы (не temporal)
+    regular_pages = [p for p in chat_pages if p not in temporal_pages]
+
     bar_ctx = await _build_bar_context(user_id, roles)
 
     # Governance данные (из Democracy, если доступен)
     governance = None
+    governance_slug = None
     if settings.democracy_url:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -174,14 +218,22 @@ async def chat_detail(chat_id: str, request: Request):
         except Exception as e:
             logger.debug("governance data unavailable for chat %s: %s", chat_id, e)
 
+    # Найти slug governance-страницы для этого чата
+    for p in chat_pages:
+        if p.get("page_type") == "governance":
+            governance_slug = p.get("slug")
+            break
+
     html = templates.get_template("chat.html").render(
         user=user,
         bar_user=user,
         **bar_ctx,
         roles=sorted(roles),
         chat=chat,
-        pages=chat_pages,
+        pages=regular_pages,
+        temporal_pages=temporal_pages,
         governance=governance,
+        governance_slug=governance_slug,
         public_url=settings.public_url,
     )
     return HTMLResponse(html)

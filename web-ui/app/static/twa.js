@@ -24,8 +24,15 @@
         // start_param используется для Direct Link
         var startParam = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
 
-        // Direct Link: start_param → редирект на /p/{slug} с initData
+        // Direct Link: start_param → редирект на /p/{slug} или /c/{chat_id}
         if (startParam && window.location.pathname === "/") {
+            // start_param с префиксом "c_" → чат-хаб (/c/{chat_id})
+            if (startParam.indexOf("c_") === 0) {
+                var chatId = startParam.substring(2);
+                window.location.replace("/c/" + chatId + "?initData=" + encodeURIComponent(tg.initData));
+                return;
+            }
+            // Иначе → страница (/p/{slug})
             window.location.replace("/p/" + startParam + "?initData=" + encodeURIComponent(tg.initData));
             return;
         }
@@ -50,12 +57,24 @@
             return;
         }
 
-        // Страница /chat/{id} без initData → добавить initData и перезагрузить
-        if (tg.initData && window.location.pathname.indexOf("/chat/") === 0
+        // Страница /c/{id} (чат-хаб) без initData → добавить initData и перезагрузить
+        if (tg.initData && window.location.pathname.indexOf("/c/") === 0
             && window.location.search.indexOf("initData") === -1) {
             var sep3 = window.location.search ? "&" : "?";
             window.location.replace(window.location.pathname + window.location.search
                 + sep3 + "initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Обратная совместимость: /chat/ → /c/
+        if (window.location.pathname.indexOf("/chat/") === 0) {
+            var newPath = "/c/" + window.location.pathname.substring(6);
+            var qs = window.location.search || "";
+            if (tg.initData && qs.indexOf("initData") === -1) {
+                var sep3b = qs ? "&" : "?";
+                qs = qs + sep3b + "initData=" + encodeURIComponent(tg.initData);
+            }
+            window.location.replace(newPath + qs);
             return;
         }
 

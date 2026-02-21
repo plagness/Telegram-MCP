@@ -826,7 +826,7 @@ template_map = {
 ### 5. Deploy
 
 ```bash
-cd /home/plag/NeuronSwarm/telegram-mcp/web-ui
+cd telegram-mcp/web-ui
 docker build -t telegram-mcp-tgweb:latest .
 sudo k3s ctr images rm docker.io/library/telegram-mcp-tgweb:latest 2>/dev/null
 docker save telegram-mcp-tgweb:latest | sudo k3s ctr images import -

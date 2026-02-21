@@ -1,4 +1,4 @@
-"""Прокси-эндпоинты для данных модулей NeuronSwarm.
+"""Прокси-эндпоинты для интеграции с внешними модулями.
 
 Каждый модуль получает свой /p/{slug}/<module>/data endpoint,
 который проверяет доступ и проксирует данные из соответствующего сервиса.
@@ -741,6 +741,18 @@ async def developer_get_token(request: Request):
         {"tg_id": user["id"], "username": user.get("username", "")},
     )
     return JSONResponse(resp if isinstance(resp, dict) else {})
+
+
+@router.post("/developer/try-query")
+async def developer_try_query(request: Request):
+    """Прокси: тестовый запрос через Integrat (dev-режим, без chat_id)."""
+    user = _validate_chat_user(request)
+    body = await request.json()
+    result = await _datesale_post(
+        "/v1/query", body,
+        user["id"], user.get("username", ""),
+    )
+    return JSONResponse(result if isinstance(result, dict) else {"error": "query failed"})
 
 
 @router.get("/developer/plugins")

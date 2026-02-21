@@ -119,6 +119,16 @@ spec:
                 secretKeyRef:
                   name: telegram-secrets
                   key: TELEGRAM_BOT_TOKEN
+            - name: DEMOCRACY_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: DEMOCRACY_URL
+            - name: MINIAPP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: MINIAPP_URL
             - name: NODES_CONFIG_PATH
               valueFrom:
                 configMapKeyRef:
@@ -149,10 +159,10 @@ spec:
             timeoutSeconds: 3
           resources:
             requests:
-              memory: 128Mi
+              memory: 256Mi
               cpu: 100m
             limits:
-              memory: 512Mi
+              memory: 1Gi
               cpu: 500m
       volumes:
         - name: certs

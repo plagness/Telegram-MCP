@@ -15,7 +15,7 @@ from jinja2 import Environment, FileSystemLoader
 from .config import get_settings
 from .db import close_pool, init_pool
 from .handlers.registry import discover_handlers, register_all_routes
-from .routers import admin, banners_api, health, icons, marketplace, module_proxy, pages, render, roles, views
+from .routers import admin, banners_api, health, icons, marketplace, module_proxy, pages, pins, render, roles, views
 
 settings = get_settings()
 
@@ -31,16 +31,25 @@ BASE_DIR = Path(__file__).parent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Жизненный цикл: открытие/закрытие пула БД + health cron."""
+    """Жизненный цикл: открытие/закрытие пула БД + health cron + pin cron."""
     from .services.health import health_check_loop
+    from .services.pin_cron import start_pin_cron, stop_pin_cron
 
     await init_pool()
     task = asyncio.create_task(health_check_loop())
+    start_pin_cron()
     yield
+    stop_pin_cron()
     task.cancel()
     try:
         await task
     except asyncio.CancelledError:
+        pass
+    # Закрываем Playwright browser если был инициализирован
+    try:
+        from .services.pin_renderer import close_browser
+        await close_browser()
+    except Exception:
         pass
     await close_pool()
 
@@ -82,6 +91,7 @@ app.include_router(roles.router)
 app.include_router(marketplace.router)
 app.include_router(admin.router)
 app.include_router(banners_api.router)
+app.include_router(pins.router)
 
 
 # Error handler — HTML-страница для веб-роутов, JSON для API

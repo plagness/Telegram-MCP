@@ -232,7 +232,7 @@ curl -X POST https://tg.example.com:8443/api/v1/pages/my-page/access/grant \
 ## Шаг 5: Deploy
 
 ```bash
-cd /home/plag/NeuronSwarm/telegram-mcp
+cd telegram-mcp
 
 # Собрать образ
 docker compose build tgweb
@@ -245,7 +245,7 @@ docker save telegram-mcp-tgweb:latest | sudo k3s ctr images import -
 kubectl -n ns-telegram rollout restart deployment tgweb
 ```
 
-Или через Makefile из корня NeuronSwarm:
+Или через Makefile из корня проекта:
 
 ```bash
 make k8s-import   # Пересобрать и импортировать все образы
@@ -474,7 +474,7 @@ cd web-ui && python -m manager.manager
 # → http://localhost:8088
 ```
 
-Или: `make web-manager` из корня NeuronSwarm.
+Или: `make web-manager` из корня проекта.
 
 Показывает:
 - **Dashboard** — все страницы, статистика, handler'ы

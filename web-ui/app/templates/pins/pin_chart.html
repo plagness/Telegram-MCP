@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 800px;
+    height: 400px;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.header {
+    padding: 24px 32px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.header-left {}
+.header-title {
+    font-size: 20px;
+    font-weight: 700;
+}
+.header-subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 4px;
+}
+.header-value {
+    font-size: 32px;
+    font-weight: 700;
+    text-align: right;
+}
+.header-change {
+    font-size: 14px;
+    text-align: right;
+    margin-top: 4px;
+}
+.header-change--up { color: #10B981; }
+.header-change--down { color: #EF4444; }
+
+/* Область графика (заглушка — SVG) */
+.chart-area {
+    flex: 1;
+    padding: 16px 32px 24px;
+    display: flex;
+    align-items: flex-end;
+}
+.chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 100%;
+    width: 100%;
+}
+.chart-bar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+}
+.chart-bar--up { background: linear-gradient(180deg, #10B981 0%, rgba(16,185,129,0.3) 100%); }
+.chart-bar--down { background: linear-gradient(180deg, #EF4444 0%, rgba(239,68,68,0.3) 100%); }
+.chart-bar--neutral { background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%); }
+
+.brand {
+    position: absolute;
+    bottom: 12px;
+    right: 16px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+}
+</style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="header-title">{{ title or 'Chart' }}</div>
+            <div class="header-subtitle">{{ subtitle or '' }}</div>
+        </div>
+        <div>
+            <div class="header-value">{{ value or '—' }}</div>
+            {% if change %}
+            <div class="header-change header-change--{{ 'up' if change_positive else 'down' }}">
+                {{ '+' if change_positive else '' }}{{ change }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="chart-area">
+        <div class="chart-bars">
+            {% for bar in bars or [] %}
+            <div class="chart-bar chart-bar--{{ bar.direction or 'neutral' }}"
+                 style="height: {{ bar.height or 10 }}%"></div>
+            {% endfor %}
+
+            {# Если данных нет — заглушка #}
+            {% if not bars %}
+            {% for i in range(24) %}
+            <div class="chart-bar chart-bar--neutral" style="height: {{ [20,35,25,40,30,55,45,60,50,70,65,80,75,85,70,60,55,65,50,45,60,55,50,45][i] }}%"></div>
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="brand">BeeWeb</div>
+</body>
+</html>

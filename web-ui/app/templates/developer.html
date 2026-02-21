@@ -13,6 +13,60 @@
 {% endblock %}
 
 {% block content %}
+{# ── Quick Start ── #}
+<div class="bee-card" id="onboarding-card" style="display:none">
+    <div class="bee-card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>&#128640; Quick Start</span>
+        <button class="bee-btn-sm" id="ob-dismiss" style="font-size:11px">Скрыть</button>
+    </div>
+    <div id="onboarding-steps">
+        <div class="bee-onboard-step">
+            <div class="bee-onboard-num">1</div>
+            <div class="bee-onboard-body">
+                <div class="bee-onboard-title">Получи данные</div>
+                <div class="bee-onboard-desc">Скопируй curl и выполни в терминале:</div>
+                <pre class="bee-code-block" id="ob-curl">curl -X POST BASE/v1/query \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"plugin":"demo","endpoint":"echo","params":{"text":"hello"}}'</pre>
+                <div style="display:flex;gap:6px;margin-top:6px">
+                    <button class="bee-btn-sm bee-btn-sm--enable" id="ob-copy-curl">Копировать</button>
+                    <button class="bee-btn-sm" id="ob-try-it" style="background:#10B98122;color:#10B981">&#9654; Попробовать</button>
+                </div>
+                <pre class="bee-code-block" id="ob-try-result" style="display:none;max-height:180px;overflow:auto;color:#0F0;margin-top:6px"></pre>
+            </div>
+        </div>
+        <div class="bee-onboard-step">
+            <div class="bee-onboard-num">2</div>
+            <div class="bee-onboard-body">
+                <div class="bee-onboard-title">Опубликуй свои данные</div>
+                <div class="bee-onboard-desc">Создай плагин ниже, добавь эндпоинты &mdash; и другие разработчики смогут получать твои данные через API.</div>
+            </div>
+        </div>
+        <div class="bee-onboard-step" style="border-bottom:0">
+            <div class="bee-onboard-num">3</div>
+            <div class="bee-onboard-body">
+                <div class="bee-onboard-title">Используй SDK</div>
+                <pre class="bee-code-block" style="margin:4px 0">npm install @integrat/sdk
+# или
+go get github.com/plagness/Integrat/sdk/go</pre>
+                <div class="bee-onboard-desc">
+                    <a href="https://github.com/plagness/Integrat" target="_blank" style="color:var(--accent)">Документация &rarr;</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bee-onboard-step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--tg-separator,#222)}
+.bee-onboard-num{width:26px;height:26px;border-radius:50%;background:var(--accent,#FFC107);color:#000;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.bee-onboard-body{flex:1;min-width:0}
+.bee-onboard-title{font-weight:600;font-size:14px}
+.bee-onboard-desc{font-size:12px;color:var(--tg-hint,#999);margin-top:2px}
+.bee-code-block{display:block;background:#111;color:#ccc;padding:8px 10px;border-radius:6px;font-size:11px;overflow-x:auto;margin:4px 0;white-space:pre;font-family:monospace;line-height:1.5}
+</style>
+
 {# ── API-ключ ── #}
 <div class="bee-card">
     <div class="bee-card-title">&#128273; API-ключ</div>
@@ -131,6 +185,7 @@
             '</div>' +
             '<div style="color:var(--tg-hint);font-size:12px;padding:4px 0">User ID: ' + (data.user_id || '?') +
             (data.created ? ' (новый)' : '') + '</div>' +
+            '<div class="bee-form-help" style="margin-bottom:2px">Base URL: <code id="base-url-value" style="color:var(--accent)">' + detectBaseURL() + '</code></div>' +
             '<div class="bee-form-help">Используйте этот токен в заголовке Authorization: Bearer ' + esc(data.token) + '</div>';
 
         document.getElementById('token-copy').addEventListener('click', function() {
@@ -149,6 +204,7 @@
                 if (window.showToast) window.showToast('Скопировано', 'success');
             }
         });
+        updateOnboarding(data.token);
     })
     .catch(function() {
         document.getElementById('token-container').innerHTML =
@@ -324,6 +380,7 @@
         .then(function(data) {
             var plugins = data.plugins || [];
             myPluginsList = plugins;
+            showOnboarding();
             var container = document.getElementById('my-plugins');
             if (!container) return;
             container.innerHTML = '';
@@ -846,6 +903,92 @@
         if (diff < 3600) return Math.floor(diff / 60) + ' мин назад';
         if (diff < 86400) return Math.floor(diff / 3600) + ' ч назад';
         return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    }
+
+    // ── Onboarding Quick Start ──────────────────────
+    function detectBaseURL() {
+        var host = location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:30086';
+        return location.protocol + '//' + host.split(':')[0] + ':30086';
+    }
+
+    function updateOnboarding(token) {
+        var curlEl = document.getElementById('ob-curl');
+        if (!curlEl) return;
+        var base = detectBaseURL();
+        curlEl.textContent = 'curl -X POST ' + base + '/v1/query \\\n' +
+            '  -H "Authorization: Bearer ' + token + '" \\\n' +
+            '  -H "Content-Type: application/json" \\\n' +
+            '  -d \'{"plugin":"demo","endpoint":"echo","params":{"text":"hello"}}\'';
+    }
+
+    function showOnboarding() {
+        var card = document.getElementById('onboarding-card');
+        if (!card) return;
+        if (localStorage.getItem('dev_onboarded') && myPluginsList.length > 0) {
+            card.style.display = 'none';
+        } else {
+            card.style.display = '';
+        }
+    }
+
+    // Dismiss
+    var dismissBtn = document.getElementById('ob-dismiss');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            localStorage.setItem('dev_onboarded', '1');
+            var card = document.getElementById('onboarding-card');
+            if (card) card.style.display = 'none';
+        });
+    }
+
+    // Copy curl
+    var copyBtn = document.getElementById('ob-copy-curl');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+            var text = document.getElementById('ob-curl').textContent;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    if (window.showToast) window.showToast('Скопировано', 'success');
+                });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (window.showToast) window.showToast('Скопировано', 'success');
+            }
+        });
+    }
+
+    // Try it
+    var tryBtn = document.getElementById('ob-try-it');
+    if (tryBtn) {
+        tryBtn.addEventListener('click', function() {
+            var resultEl = document.getElementById('ob-try-result');
+            resultEl.style.display = '';
+            resultEl.textContent = 'Загрузка...';
+            resultEl.style.color = '#ccc';
+            tryBtn.disabled = true;
+            fetch('/developer/try-query', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+                body: JSON.stringify({ plugin: 'demo', endpoint: 'echo', params: { text: 'hello' } }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                resultEl.textContent = JSON.stringify(data, null, 2);
+                resultEl.style.color = '#10B981';
+                tryBtn.disabled = false;
+            })
+            .catch(function(err) {
+                resultEl.textContent = 'Ошибка: ' + err.message;
+                resultEl.style.color = '#E74C3C';
+                tryBtn.disabled = false;
+            });
+        });
     }
 })();
 </script>

@@ -13,14 +13,10 @@ from ..auth import validate_init_data
 from ..config import get_settings
 from ..db import execute_returning, fetch_one, fetch_all
 from ..handlers.registry import get_handler
-from ..icons import resolve_icon
-from ..orbital import compute_orbital
 from ..services import links as links_svc
 from ..services import pages as pages_svc
 from ..services.access import (
     check_page_access,
-    enrich_pages_for_hub,
-    get_accessible_pages,
     get_user_roles,
 )
 from ..services.banner import get_active_banners
@@ -109,20 +105,44 @@ async def _get_user_chats(user_id: int) -> list[dict[str, Any]]:
     return chats
 
 
-def _build_chat_summaries(pages: list[dict]) -> dict[str, dict[str, int]]:
-    """Считает количество страниц и событий per-chat из allowed_chats."""
-    sums: dict[str, dict[str, int]] = {}
-    for p in pages:
-        allowed = (
-            (p.get("config") or {}).get("access_rules") or {}
-        ).get("allowed_chats") or []
-        for cid in allowed:
+async def _build_chat_summaries(
+    chats: list[dict], user_id: int,
+) -> dict[str, dict[str, Any]]:
+    """Лёгкий enrichment чатов: количество активных страниц + наличие governance."""
+    if not chats:
+        return {}
+
+    chat_ids = [str(c["chat_id"]) for c in chats]
+
+    # Количество активных страниц per-chat (через allowed_chats в config)
+    page_rows = await fetch_all(
+        """
+        SELECT config->'access_rules'->'allowed_chats' AS chats,
+               page_type
+        FROM web_pages
+        WHERE is_active = TRUE
+          AND config->'access_rules'->'allowed_chats' IS NOT NULL
+        """,
+        [],
+    )
+
+    sums: dict[str, dict[str, Any]] = {}
+    for row in page_rows:
+        raw_chats = row.get("chats") or []
+        if isinstance(raw_chats, str):
+            import json as _json
+            try:
+                raw_chats = _json.loads(raw_chats)
+            except Exception:
+                raw_chats = []
+        for cid in raw_chats:
             key = str(abs(int(cid)))
             if key not in sums:
-                sums[key] = {"page_count": 0, "event_count": 0}
-            sums[key]["page_count"] += 1
-            meta = p.get("_meta") or {}
-            sums[key]["event_count"] += meta.get("entry_count", 0)
+                sums[key] = {"active_count": 0, "has_governance": False}
+            sums[key]["active_count"] += 1
+            if row.get("page_type") == "governance":
+                sums[key]["has_governance"] = True
+
     return sums
 
 
@@ -131,80 +151,30 @@ async def index(request: Request):
     """Точка входа Mini App (Direct Link).
 
     Если есть start_param → twa.js делает клиентский редирект на /p/{slug}.
-    Если есть initData (без start_param) → рендерим hub с доступными страницами.
+    Если есть initData (без start_param) → рендерим hub с чатами.
     Иначе → base.html (twa.js перенаправит с initData).
     """
     templates = request.app.state.templates
 
-    # Пробуем получить initData для hub-рендера
     init_data = request.query_params.get("initData", "")
     user = validate_init_data(init_data, settings.get_bot_token()) if init_data else None
 
     if not user:
-        # Без initData — показываем base.html (twa.js обработает start_param или
-        # перенаправит обратно с initData для hub)
         return HTMLResponse(templates.get_template("base.html").render())
 
-    # С initData — рендерим hub с чатами и активными событиями
     user_id = user.get("id")
     roles = await get_user_roles(user_id) if user_id else set()
 
     # Чаты пользователя
     chats = await _get_user_chats(user_id) if user_id else []
 
-    # Страницы (для temporal-секции и chat summaries)
-    pages = await get_accessible_pages(user_id) if user_id else []
-    pages = await enrich_pages_for_hub(pages, user_id)
-
-    # SVG-иконки для temporal-карточек
-    for p in pages:
-        icon_name = (p.get("config") or {}).get("icon") or _HUB_TYPE_ICONS.get(p["page_type"])
-        p["_icon"] = resolve_icon(icon_name) if icon_name else None
-
-    # Chat photo URLs для temporal-карточек
-    for p in pages:
-        fid = p.get("_chat_photo_file_id")
-        if fid:
-            try:
-                p["_chat_photo_url"] = await resolve_tg_file_url(fid)
-            except Exception:
-                p["_chat_photo_url"] = ""
-
-    # Orbital для temporal-карточек
-    for i, p in enumerate(pages):
-        p["_orbital"] = compute_orbital(
-            p.get("page_type", "page"),
-            p.get("_meta") or {},
-            index=i,
-            config=p.get("config"),
-            chat_photo_url=p.get("_chat_photo_url", ""),
-        )
-
-    # Только temporal pages для hub (активные предсказания, опросы)
-    temporal_pages: list[dict] = []
-    for p in pages:
-        meta = p.get("_meta") or {}
-        pt = p.get("page_type", "")
-        is_temporal = False
-        if pt == "prediction":
-            if meta.get("status") in ("open", "active") and meta.get("deadline"):
-                is_temporal = True
-        elif pt == "calendar":
-            if meta.get("next_entry"):
-                is_temporal = True
-        elif pt == "survey":
-            is_temporal = True
-        p["_is_temporal"] = is_temporal
-        if is_temporal:
-            temporal_pages.append(p)
-
-    # Сводка по чатам (количество страниц / событий)
-    chat_summaries = _build_chat_summaries(pages)
+    # Лёгкая сводка по чатам (активные страницы, governance)
+    chat_summaries = await _build_chat_summaries(chats, user_id)
 
     # Контекст для sticky header
     bar_ctx = await _build_bar_context(user_id, roles) if user_id else {}
 
-    # Промо-баннеры для hub
+    # Промо-баннеры
     banners: list[dict] = []
     try:
         banners = await get_active_banners(roles)
@@ -218,7 +188,6 @@ async def index(request: Request):
         roles=sorted(roles),
         chats=chats,
         chat_summaries=chat_summaries,
-        temporal_pages=temporal_pages,
         banners=banners,
         public_url=settings.public_url,
     )

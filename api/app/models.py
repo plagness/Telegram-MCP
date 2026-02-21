@@ -903,6 +903,8 @@ class EditMessageCaptionIn(BaseModel):
     parse_mode: ParseMode | None = None
     reply_markup: dict[str, Any] | None = None
     show_caption_above_media: bool | None = None
+    direct_messages_topic_id: int | None = None
+    suggested_post_parameters: dict[str, Any] | None = None
 
 
 class EditMessageReplyMarkupIn(BaseModel):
