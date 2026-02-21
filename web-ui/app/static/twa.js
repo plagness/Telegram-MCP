@@ -50,6 +50,29 @@
             return;
         }
 
+        // Страница /chat/{id} без initData → добавить initData и перезагрузить
+        if (tg.initData && window.location.pathname.indexOf("/chat/") === 0
+            && window.location.search.indexOf("initData") === -1) {
+            var sep3 = window.location.search ? "&" : "?";
+            window.location.replace(window.location.pathname + window.location.search
+                + sep3 + "initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Страница /marketplace без initData → добавить initData и перезагрузить
+        if (tg.initData && window.location.pathname === "/marketplace"
+            && window.location.search.indexOf("initData") === -1) {
+            window.location.replace("/marketplace?initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Страница /developer без initData → добавить initData и перезагрузить
+        if (tg.initData && window.location.pathname === "/developer"
+            && window.location.search.indexOf("initData") === -1) {
+            window.location.replace("/developer?initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
         // Применяем Telegram-тему к CSS-переменным
         if (tg.themeParams) {
             var root = document.documentElement;

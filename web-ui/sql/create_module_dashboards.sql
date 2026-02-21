@@ -57,6 +57,15 @@ VALUES
     true,
     NOW(),
     NOW()
+),
+(
+    'integrat-dashboard',
+    'datesale',
+    'Integrat',
+    '{"description": "Маркетплейс данных: плагины, настройка, подключение к чатам", "access_rules": {"allowed_roles": ["project_owner"]}, "icon": "zapier"}'::jsonb,
+    true,
+    NOW(),
+    NOW()
 )
 ON CONFLICT (slug) DO UPDATE SET
     page_type = EXCLUDED.page_type,

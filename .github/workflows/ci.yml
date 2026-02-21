@@ -61,6 +61,24 @@ jobs:
       - name: Python syntax compile check
         run: PYTHONPYCACHEPREFIX=/tmp/pycache python -m compileall -q api/app sdk/telegram_api_client tests
 
+  web-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install web-ui dependencies
+        working-directory: web-ui
+        run: pip install -r requirements.txt pytest pytest-asyncio httpx
+      - name: Run web-ui tests
+        working-directory: web-ui
+        run: python -m pytest tests/ -v
+        env:
+          DB_DSN: postgresql://test:test@localhost:5432/test
+          BOT_TOKEN: "test:token"
+          PUBLIC_URL: "https://test.example.com"
+
   mcp-node:
     runs-on: ubuntu-latest
     steps:

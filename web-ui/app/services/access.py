@@ -313,6 +313,19 @@ def group_pages_for_hub(
     return groups
 
 
+def filter_pages_by_chat(pages: list[dict], chat_id: str) -> list[dict]:
+    """Фильтрует страницы, привязанные к конкретному чату."""
+    target = abs(int(chat_id))
+    result: list[dict] = []
+    for p in pages:
+        allowed = (
+            (p.get("config") or {}).get("access_rules") or {}
+        ).get("allowed_chats") or []
+        if target in [abs(int(c)) for c in allowed]:
+            result.append(p)
+    return result
+
+
 # ── Enrichment для hub v2 ───────────────────────────────────────────────
 
 
@@ -536,3 +549,128 @@ async def _enrich_survey(page: dict, user_id: int) -> dict[str, Any]:
         "submission_count": count_row["total"] if count_row else 0,
         "user_submitted": user_sub is not None,
     }
+
+
+# ── Web Management: access rules CRUD ────────────────────────────────────
+
+
+async def get_page_access_summary(page: dict) -> dict[str, Any]:
+    """Сводка доступа к странице: правила + resolved пользователи."""
+    config = page.get("config") or {}
+    rules = config.get("access_rules") or {}
+
+    summary: dict[str, Any] = {
+        "slug": page.get("slug"),
+        "public": rules.get("public", False),
+        "rules": rules,
+        "allowed_users": rules.get("allowed_users") or [],
+        "allowed_roles": rules.get("allowed_roles") or [],
+        "allowed_chats": rules.get("allowed_chats") or [],
+    }
+
+    # Resolve: подсчёт пользователей с доступом через чаты
+    chat_ids = rules.get("allowed_chats") or []
+    if chat_ids:
+        row = await fetch_one(
+            """
+            SELECT COUNT(DISTINCT user_id) AS total FROM chat_members
+            WHERE chat_id = ANY(%s)
+              AND status NOT IN ('left', 'kicked')
+            """,
+            [[str(c) for c in chat_ids]],
+        )
+        summary["resolved_chat_members"] = row["total"] if row else 0
+    else:
+        summary["resolved_chat_members"] = 0
+
+    return summary
+
+
+async def grant_access(
+    slug: str, grant_type: str, value: int | str,
+) -> bool:
+    """Добавить правило доступа к странице.
+
+    grant_type: 'user', 'role', 'chat'
+    value: user_id (int), role name (str), chat_id (int)
+    """
+    from . import pages as pages_svc
+
+    page = await pages_svc.get_page(slug)
+    if not page:
+        return False
+
+    config = dict(page.get("config") or {})
+    rules = dict(config.get("access_rules") or {})
+
+    if grant_type == "user":
+        users = list(rules.get("allowed_users") or [])
+        val = int(value)
+        if val not in users:
+            users.append(val)
+        rules["allowed_users"] = users
+
+    elif grant_type == "role":
+        roles = list(rules.get("allowed_roles") or [])
+        val = str(value)
+        if val not in roles:
+            roles.append(val)
+        rules["allowed_roles"] = roles
+
+    elif grant_type == "chat":
+        chats = list(rules.get("allowed_chats") or [])
+        val = int(value)
+        if val not in chats:
+            chats.append(val)
+        rules["allowed_chats"] = chats
+
+    else:
+        return False
+
+    config["access_rules"] = rules
+    return await pages_svc.update_page_config(slug, config)
+
+
+async def revoke_access(
+    slug: str, grant_type: str, value: int | str,
+) -> bool:
+    """Убрать правило доступа со страницы.
+
+    grant_type: 'user', 'role', 'chat'
+    value: user_id (int), role name (str), chat_id (int)
+    """
+    from . import pages as pages_svc
+
+    page = await pages_svc.get_page(slug)
+    if not page:
+        return False
+
+    config = dict(page.get("config") or {})
+    rules = dict(config.get("access_rules") or {})
+
+    if grant_type == "user":
+        users = list(rules.get("allowed_users") or [])
+        val = int(value)
+        if val in users:
+            users.remove(val)
+        rules["allowed_users"] = users
+
+    elif grant_type == "role":
+        roles = list(rules.get("allowed_roles") or [])
+        val = str(value)
+        if val in roles:
+            roles.remove(val)
+        rules["allowed_roles"] = roles
+
+    elif grant_type == "chat":
+        chats = list(rules.get("allowed_chats") or [])
+        val = int(value)
+        if val in chats:
+            chats.remove(val)
+        rules["allowed_chats"] = chats
+
+    else:
+        return False
+
+    config["access_rules"] = rules
+    return await pages_svc.update_page_config(slug, config)

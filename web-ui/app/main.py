@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 
 from .config import get_settings
 from .db import close_pool, init_pool
-from .routers import health, icons, module_proxy, pages, render, roles
+from .handlers.registry import discover_handlers, register_all_routes
+from .routers import admin, banners_api, health, icons, marketplace, module_proxy, pages, render, roles, views
 
 settings = get_settings()
 
@@ -22,20 +24,30 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 
+logger = logging.getLogger(__name__)
+
 BASE_DIR = Path(__file__).parent
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Жизненный цикл: открытие/закрытие пула БД."""
+    """Жизненный цикл: открытие/закрытие пула БД + health cron."""
+    from .services.health import health_check_loop
+
     await init_pool()
+    task = asyncio.create_task(health_check_loop())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
     await close_pool()
 
 
 app = FastAPI(
     title="telegram-mcp web-ui",
-    version="2026.02.16.v4",
+    version="2026.02.21",
     lifespan=lifespan,
 )
 
@@ -51,13 +63,25 @@ static_dir = BASE_DIR / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+# Handler auto-discovery (только Python-импорты, не требует БД)
+discover_handlers()
+
+# Proxy-маршруты от handler'ов (calendar CRUD, governance, infra, llm и т.д.)
+_handler_router = APIRouter(tags=["handlers"])
+register_all_routes(_handler_router)
+
 # Роутеры
 app.include_router(health.router)
 app.include_router(icons.router)
 app.include_router(pages.router)
 app.include_router(render.router)
+app.include_router(views.router)
+app.include_router(_handler_router)
 app.include_router(module_proxy.router)
 app.include_router(roles.router)
+app.include_router(marketplace.router)
+app.include_router(admin.router)
+app.include_router(banners_api.router)
 
 
 # Error handler — HTML-страница для веб-роутов, JSON для API

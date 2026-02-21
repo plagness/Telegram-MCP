@@ -1,0 +1,852 @@
+{% extends "base.html" %}
+
+{% block title %}Разработчик{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg" style="text-align:center;padding:20px">
+    <div style="font-size:32px">&#128187;</div>
+    <div class="bee-chat-detail__name">Кабинет разработчика</div>
+    <div class="bee-chat-detail__desc">API-ключ, статистика, плагины, доступы</div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# ── API-ключ ── #}
+<div class="bee-card">
+    <div class="bee-card-title">&#128273; API-ключ</div>
+    <div id="token-container">
+        <div class="bee-skel" style="height:40px;border-radius:8px;margin:8px 0"></div>
+    </div>
+</div>
+
+{# ── Статистика ── #}
+<div class="bee-card">
+    <div class="bee-card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>&#128200; Статистика</span>
+        <div id="stats-period" style="display:flex;gap:4px">
+            <button class="bee-btn-sm" data-period="1d">Сегодня</button>
+            <button class="bee-btn-sm bee-btn-sm--enable" data-period="7d">7 дн</button>
+            <button class="bee-btn-sm" data-period="30d">30 дн</button>
+        </div>
+    </div>
+    <div id="stats-container">
+        <div class="bee-skel" style="height:80px;border-radius:8px;margin:8px 0"></div>
+    </div>
+</div>
+
+{# ── Запросы доступа ── #}
+<div class="bee-card">
+    <div class="bee-card-title">
+        &#128274; Запросы доступа
+        <span id="access-badge" class="bee-tier-badge bee-tier-badge--gated" style="display:none;margin-left:6px"></span>
+    </div>
+    <div id="access-requests">
+        <div class="bee-skel" style="height:40px;border-radius:8px;margin:8px 0"></div>
+    </div>
+</div>
+
+{# ── Мои плагины ── #}
+<div class="bee-card">
+    <div class="bee-card-title">&#9889; Мои плагины</div>
+    <div id="my-plugins">
+        <div class="bee-skel" style="height:48px;border-radius:8px;margin:8px 0"></div>
+    </div>
+</div>
+
+{# ── Монетизация ── #}
+<div class="bee-card">
+    <div class="bee-card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>&#128142; Монетизация</span>
+        <select class="bee-btn-sm" id="revenue-plugin" style="max-width:140px;font-size:11px"></select>
+    </div>
+    <div id="monetization-container">
+        <div class="bee-skel" style="height:60px;border-radius:8px;margin:8px 0"></div>
+    </div>
+</div>
+
+{# ── Создать плагин ── #}
+<div class="bee-card" id="create-card">
+    <div class="bee-card-title">&#10133; Создать плагин</div>
+    <div id="create-form">
+        <div class="bee-form-group">
+            <label class="bee-form-label">Название <span style="color:#E74C3C">*</span></label>
+            <input class="bee-form-input" id="cp-name" placeholder="My Plugin">
+        </div>
+        <div class="bee-form-group">
+            <label class="bee-form-label">Slug <span style="color:#E74C3C">*</span></label>
+            <input class="bee-form-input" id="cp-slug" placeholder="my-plugin">
+        </div>
+        <div class="bee-form-group">
+            <label class="bee-form-label">Описание</label>
+            <input class="bee-form-input" id="cp-desc" placeholder="Краткое описание плагина">
+        </div>
+        <div class="bee-form-group">
+            <label class="bee-form-label">Base URL <span style="color:#E74C3C">*</span></label>
+            <input class="bee-form-input" id="cp-base" placeholder="https://api.example.com">
+            <div class="bee-form-help">URL вашего API, куда Integrat будет проксировать запросы</div>
+        </div>
+        <div class="bee-form-group">
+            <label class="bee-form-label">GitHub URL</label>
+            <input class="bee-form-input" id="cp-github" placeholder="https://github.com/user/repo">
+        </div>
+        <div class="bee-form-group">
+            <label class="bee-form-label">Версия</label>
+            <input class="bee-form-input" id="cp-version" placeholder="1.0.0">
+        </div>
+        <button class="bee-btn bee-btn--primary" id="cp-submit" style="width:100%;margin-top:4px">Создать</button>
+        <div id="cp-status" style="display:none;padding:8px 0;font-size:13px"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+    var headers = { 'X-Init-Data': initData };
+    var currentPeriod = '7d';
+    var myPluginsList = [];
+
+    if (!initData) return;
+
+    // ── Загрузка API-токена ─────────────────────
+    fetch('/developer/token', { headers: headers })
+    .then(function(r) { return r.ok ? r.json() : {}; })
+    .then(function(data) {
+        var container = document.getElementById('token-container');
+        if (!container) return;
+        if (!data.token) {
+            container.innerHTML = '<div style="color:var(--tg-hint);padding:8px 0">Не удалось получить токен</div>';
+            return;
+        }
+        container.innerHTML =
+            '<div class="bee-token-box">' +
+                '<code class="bee-token-box__value" id="token-value">' + esc(data.token) + '</code>' +
+                '<button class="bee-btn-sm bee-btn-sm--enable" id="token-copy">Копировать</button>' +
+            '</div>' +
+            '<div style="color:var(--tg-hint);font-size:12px;padding:4px 0">User ID: ' + (data.user_id || '?') +
+            (data.created ? ' (новый)' : '') + '</div>' +
+            '<div class="bee-form-help">Используйте этот токен в заголовке Authorization: Bearer ' + esc(data.token) + '</div>';
+
+        document.getElementById('token-copy').addEventListener('click', function() {
+            var val = document.getElementById('token-value').textContent;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(val).then(function() {
+                    if (window.showToast) window.showToast('Скопировано', 'success');
+                });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = val;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (window.showToast) window.showToast('Скопировано', 'success');
+            }
+        });
+    })
+    .catch(function() {
+        document.getElementById('token-container').innerHTML =
+            '<div style="color:var(--tg-hint);padding:8px 0">Ошибка загрузки токена</div>';
+    });
+
+    // ── Статистика ──────────────────────────────
+    function loadStats(period) {
+        currentPeriod = period || '7d';
+        var container = document.getElementById('stats-container');
+        container.innerHTML = '<div class="bee-skel" style="height:80px;border-radius:8px;margin:8px 0"></div>';
+
+        // Обновить кнопки периода
+        document.querySelectorAll('#stats-period [data-period]').forEach(function(b) {
+            b.className = b.dataset.period === currentPeriod ? 'bee-btn-sm bee-btn-sm--enable' : 'bee-btn-sm';
+        });
+
+        // Собираем статистику по всем плагинам
+        if (!myPluginsList.length) {
+            container.innerHTML = '<div style="color:var(--tg-hint);font-size:13px;padding:8px 0">Создайте плагин для просмотра статистики</div>';
+            return;
+        }
+
+        // Берём статистику первого плагина (в будущем — агрегация)
+        var firstPlugin = myPluginsList[0];
+        fetch('/developer/plugins/' + firstPlugin.id + '/stats?period=' + currentPeriod, { headers: headers })
+        .then(function(r) { return r.ok ? r.json() : {}; })
+        .then(function(stats) {
+            var html = '<div class="bee-stats-grid">' +
+                '<div class="bee-stats-item"><div class="bee-stats-item__value">' + (stats.total_calls || 0) + '</div><div class="bee-stats-item__label">Вызовов</div></div>' +
+                '<div class="bee-stats-item"><div class="bee-stats-item__value">' + (stats.unique_callers || 0) + '</div><div class="bee-stats-item__label">Пользователей</div></div>' +
+                '<div class="bee-stats-item"><div class="bee-stats-item__value">' + Math.round(stats.avg_latency_ms || 0) + 'ms</div><div class="bee-stats-item__label">Ср. latency</div></div>' +
+                '<div class="bee-stats-item"><div class="bee-stats-item__value">' + Math.round((stats.cached_ratio || 0) * 100) + '%</div><div class="bee-stats-item__label">Из кеша</div></div>' +
+            '</div>';
+
+            // Bar chart по дням
+            var days = stats.calls_by_day || [];
+            if (days.length > 1) {
+                var maxCalls = Math.max.apply(null, days.map(function(d) { return d.calls || 0; })) || 1;
+                html += '<div class="bee-stats-chart">';
+                days.forEach(function(d) {
+                    var h = Math.max(4, Math.round((d.calls / maxCalls) * 100));
+                    var label = d.date ? d.date.slice(5) : '';
+                    html += '<div style="flex:1;text-align:center">' +
+                        '<div class="bee-stats-chart__bar" style="height:' + h + 'px" data-label="' + d.calls + '"></div>' +
+                        '<div class="bee-stats-chart__label">' + label + '</div>' +
+                    '</div>';
+                });
+                html += '</div>';
+            }
+
+            if (stats.error_count) {
+                html += '<div style="font-size:12px;color:#E74C3C;margin-top:4px">Ошибок: ' + stats.error_count + '</div>';
+            }
+
+            container.innerHTML = html || '<div style="color:var(--tg-hint);font-size:13px;padding:8px 0">Нет данных за этот период</div>';
+        })
+        .catch(function() {
+            container.innerHTML = '<div style="color:var(--tg-hint);font-size:13px;padding:8px 0">Ошибка загрузки статистики</div>';
+        });
+    }
+
+    // Переключатель периода
+    document.getElementById('stats-period').addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-period]');
+        if (btn) loadStats(btn.dataset.period);
+    });
+
+    // ── Запросы доступа ─────────────────────────
+    function loadAccessRequests() {
+        if (!myPluginsList.length) {
+            document.getElementById('access-requests').innerHTML =
+                '<div style="color:var(--tg-hint);font-size:13px;padding:8px 0">Нет плагинов</div>';
+            return;
+        }
+
+        // Загружаем запросы для каждого плагина
+        var promises = myPluginsList.map(function(p) {
+            return fetch('/developer/plugins/' + p.id + '/requests?status=pending', { headers: headers })
+                .then(function(r) { return r.ok ? r.json() : { requests: [] }; })
+                .then(function(data) { return { plugin: p, requests: data.requests || [] }; })
+                .catch(function() { return { plugin: p, requests: [] }; });
+        });
+
+        Promise.all(promises).then(function(results) {
+            var allReqs = [];
+            results.forEach(function(r) {
+                r.requests.forEach(function(req) {
+                    req._plugin_name = r.plugin.name || r.plugin.slug;
+                    allReqs.push(req);
+                });
+            });
+
+            var container = document.getElementById('access-requests');
+            var badge = document.getElementById('access-badge');
+
+            if (allReqs.length) {
+                badge.style.display = '';
+                badge.textContent = allReqs.length;
+            } else {
+                badge.style.display = 'none';
+            }
+
+            if (!allReqs.length) {
+                container.innerHTML = '<div style="color:var(--tg-hint);font-size:13px;padding:8px 0">Нет ожидающих запросов</div>';
+                return;
+            }
+
+            var html = '';
+            allReqs.forEach(function(req) {
+                html += '<div class="bee-access-item" id="access-item-' + req.id + '">' +
+                    '<div class="bee-access-item__header">' +
+                        '<div class="bee-access-item__info">' +
+                            '<div class="bee-access-item__user">' + esc(req.requester_username || 'User #' + req.requester_id) + '</div>' +
+                            '<div class="bee-access-item__endpoint">' + esc(req._plugin_name) + ' &rarr; ' + esc(req.endpoint_name || req.endpoint_slug || '') + '</div>' +
+                        '</div>' +
+                        '<div class="bee-access-item__actions">' +
+                            '<button class="bee-btn-sm bee-btn-sm--enable" data-approve="' + req.id + '">&#10003;</button>' +
+                            '<button class="bee-btn-sm" data-deny="' + req.id + '" style="background:#E74C3C22;color:#E74C3C">&#10005;</button>' +
+                        '</div>' +
+                    '</div>' +
+                    (req.message ? '<div class="bee-access-item__msg">' + esc(req.message) + '</div>' : '') +
+                    '<div class="bee-access-item__time">' + formatTime(req.created_at) + '</div>' +
+                '</div>';
+            });
+
+            container.innerHTML = html;
+        });
+    }
+
+    // Обработчик approve/deny
+    document.getElementById('access-requests').addEventListener('click', function(e) {
+        var approveBtn = e.target.closest('[data-approve]');
+        var denyBtn = e.target.closest('[data-deny]');
+        if (!approveBtn && !denyBtn) return;
+
+        var reqId = approveBtn ? approveBtn.dataset.approve : denyBtn.dataset.deny;
+        var action = approveBtn ? 'approve' : 'deny';
+        var btn = approveBtn || denyBtn;
+        btn.disabled = true;
+
+        fetch('/developer/requests/' + reqId + '/' + action, {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+            body: '{}',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var item = document.getElementById('access-item-' + reqId);
+            if (item) {
+                item.innerHTML = '<div style="color:' + (action === 'approve' ? 'var(--success)' : '#E74C3C') +
+                    ';font-size:13px;padding:4px 0">' + (action === 'approve' ? '&#10003; Одобрено' : '&#10005; Отклонено') + '</div>';
+            }
+            // Обновить badge
+            var badge = document.getElementById('access-badge');
+            var count = parseInt(badge.textContent || '0') - 1;
+            if (count > 0) {
+                badge.textContent = count;
+            } else {
+                badge.style.display = 'none';
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            if (window.showToast) window.showToast('Ошибка', 'error');
+        });
+    });
+
+    // ── Загрузка моих плагинов ──────────────────
+    function loadMyPlugins() {
+        fetch('/developer/plugins', { headers: headers })
+        .then(function(r) { return r.ok ? r.json() : { plugins: [] }; })
+        .then(function(data) {
+            var plugins = data.plugins || [];
+            myPluginsList = plugins;
+            var container = document.getElementById('my-plugins');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!plugins.length) {
+                container.innerHTML = '<div style="color:var(--tg-hint);padding:8px 0;font-size:13px">У вас пока нет плагинов. Создайте первый ниже.</div>';
+                loadStats(currentPeriod);
+                loadAccessRequests();
+                loadMonetization();
+                return;
+            }
+
+            plugins.forEach(function(p) {
+                var div = document.createElement('div');
+                div.className = 'bee-plugin-item';
+
+                var healthDot = p.health_status === 'healthy' ? '#10B981' : p.health_status === 'degraded' ? '#F59E0B' : '#6B7280';
+
+                div.innerHTML =
+                    '<div class="bee-plugin-item__row bee-plugin-item--enabled">' +
+                        '<div class="bee-plugin-item__icon">&#9889;</div>' +
+                        '<div class="bee-plugin-item__body">' +
+                            '<div class="bee-plugin-item__name">' + esc(p.name || p.slug) +
+                                ' <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + healthDot + ';vertical-align:middle"></span></div>' +
+                            '<div class="bee-plugin-item__meta">' +
+                                '<span class="bee-hub-badge">' + esc(p.slug) + '</span>' +
+                                (p.version ? ' v' + esc(p.version) : '') +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="bee-plugin-item__actions">' +
+                            '<button class="bee-btn-sm bee-btn-sm--settings" data-action="grants" data-id="' + p.id + '" title="Доступы">&#128274;</button> ' +
+                            '<button class="bee-btn-sm bee-btn-sm--settings" data-action="endpoints" data-id="' + p.id + '" data-name="' + esc(p.name || p.slug) + '">EP</button> ' +
+                            '<button class="bee-btn-sm" data-action="delete" data-id="' + p.id + '" style="background:#E74C3C22;color:#E74C3C">&#10005;</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="bee-dev-endpoints" id="grants-' + p.id + '" style="display:none"></div>' +
+                    '<div class="bee-dev-endpoints" id="ep-' + p.id + '" style="display:none"></div>';
+                container.appendChild(div);
+            });
+
+            // Обработчики
+            container.addEventListener('click', function(e) {
+                var btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                var action = btn.dataset.action;
+                var pluginId = parseInt(btn.dataset.id);
+
+                if (action === 'delete') {
+                    if (!confirm('Удалить плагин?')) return;
+                    deletePlugin(pluginId);
+                } else if (action === 'endpoints') {
+                    toggleEndpoints(pluginId);
+                } else if (action === 'grants') {
+                    toggleGrants(pluginId);
+                }
+            });
+
+            // Загрузить статистику, запросы и монетизацию после загрузки плагинов
+            loadStats(currentPeriod);
+            loadAccessRequests();
+            loadMonetization();
+        })
+        .catch(function() {
+            document.getElementById('my-plugins').innerHTML =
+                '<div style="color:var(--tg-hint);padding:8px 0">Ошибка загрузки</div>';
+        });
+    }
+
+    loadMyPlugins();
+
+    // ── Удалить плагин ──────────────────────────
+    function deletePlugin(pluginId) {
+        fetch('/developer/plugins/' + pluginId, {
+            method: 'DELETE',
+            headers: headers,
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                if (window.showToast) window.showToast('Удалено', 'success');
+                loadMyPlugins();
+            } else {
+                if (window.showToast) window.showToast('Ошибка удаления', 'error');
+            }
+        })
+        .catch(function() {
+            if (window.showToast) window.showToast('Ошибка сети', 'error');
+        });
+    }
+
+    // ── Выданные доступы ────────────────────────
+    function toggleGrants(pluginId) {
+        var el = document.getElementById('grants-' + pluginId);
+        if (!el) return;
+        if (el.style.display !== 'none') {
+            el.style.display = 'none';
+            return;
+        }
+        el.style.display = '';
+        el.innerHTML = '<div class="bee-skel" style="height:32px;border-radius:6px;margin:4px 0"></div>';
+
+        fetch('/developer/plugins/' + pluginId + '/grants', { headers: headers })
+        .then(function(r) { return r.ok ? r.json() : { grants: [] }; })
+        .then(function(data) {
+            var grants = data.grants || [];
+            var html = '<div style="font-size:12px;font-weight:700;color:var(--tg-hint);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Выданные доступы (' + grants.length + ')</div>';
+
+            if (grants.length) {
+                grants.forEach(function(g) {
+                    html += '<div class="bee-access-item">' +
+                        '<div class="bee-access-item__header">' +
+                            '<div class="bee-access-item__info">' +
+                                '<div class="bee-access-item__user">' + esc(g.grantee_type) + ' #' + g.grantee_id + '</div>' +
+                                '<div class="bee-access-item__endpoint">' + esc(g.endpoint_name || g.endpoint_slug || 'EP #' + g.endpoint_id) + '</div>' +
+                            '</div>' +
+                            (g.status === 'active' ? '<button class="bee-btn-sm" data-revoke="' + g.id + '" style="background:#E74C3C22;color:#E74C3C;font-size:11px">Отозвать</button>' : '<span class="bee-tier-badge bee-tier-badge--private">Отозван</span>') +
+                        '</div>' +
+                    '</div>';
+                });
+            } else {
+                html += '<div style="color:var(--tg-hint);font-size:12px;padding:4px 0">Нет выданных доступов</div>';
+            }
+
+            el.innerHTML = html;
+
+            // Обработчик отзыва
+            el.querySelectorAll('[data-revoke]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var grantId = btn.dataset.revoke;
+                    btn.disabled = true;
+                    fetch('/developer/grants/' + grantId, {
+                        method: 'DELETE',
+                        headers: headers,
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (d.ok) {
+                            if (window.showToast) window.showToast('Доступ отозван', 'success');
+                            toggleGrants(pluginId); // close
+                            setTimeout(function() { toggleGrants(pluginId); }, 100); // reopen
+                        }
+                    })
+                    .catch(function() {
+                        btn.disabled = false;
+                        if (window.showToast) window.showToast('Ошибка', 'error');
+                    });
+                });
+            });
+        })
+        .catch(function() {
+            el.innerHTML = '<div style="color:var(--tg-hint);padding:4px 0">Ошибка</div>';
+        });
+    }
+
+    // ── Эндпоинты плагина ───────────────────────
+    function toggleEndpoints(pluginId) {
+        var el = document.getElementById('ep-' + pluginId);
+        if (!el) return;
+        if (el.style.display !== 'none') {
+            el.style.display = 'none';
+            return;
+        }
+        el.style.display = '';
+        el.innerHTML = '<div class="bee-skel" style="height:32px;border-radius:6px;margin:4px 0"></div>';
+
+        fetch('/developer/plugins/' + pluginId + '/endpoints', { headers: headers })
+        .then(function(r) { return r.ok ? r.json() : { endpoints: [] }; })
+        .then(function(data) {
+            var eps = data.endpoints || [];
+            var html = '';
+
+            if (eps.length) {
+                eps.forEach(function(ep) {
+                    var tier = ep.access_tier || 'open';
+                    var tierLabel = tier === 'open' ? 'Открытый' : tier === 'gated' ? 'По запросу' : 'Приватный';
+
+                    html += '<div class="bee-endpoint-item" id="ep-item-' + ep.id + '">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+                            '<div>' +
+                                '<div class="bee-endpoint-item__name">' + esc(ep.name || ep.slug) + '</div>' +
+                                '<div class="bee-endpoint-item__meta">' +
+                                    '<span class="bee-hub-badge">' + esc(ep.slug) + '</span>' +
+                                    ' <span class="bee-tier-badge bee-tier-badge--' + tier + '">' + tierLabel + '</span>' +
+                                    (ep.data_type ? ' <span class="bee-hub-badge">' + esc(ep.data_type) + '</span>' : '') +
+                                    (ep.cache_ttl ? ' <span class="bee-hub-badge">TTL ' + ep.cache_ttl + 's</span>' : '') +
+                                '</div>' +
+                                (ep.description ? '<div class="bee-endpoint-item__desc">' + esc(ep.description) + '</div>' : '') +
+                            '</div>' +
+                            '<div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px">' +
+                                '<button class="bee-btn-sm" data-edit-ep="' + ep.id + '" data-plugin-id="' + pluginId + '" style="font-size:11px">&#9998;</button>' +
+                                '<button class="bee-btn-sm" data-del-ep="' + ep.id + '" data-plugin-id="' + pluginId + '" style="background:#E74C3C22;color:#E74C3C;font-size:11px">&#10005;</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+            } else {
+                html = '<div style="color:var(--tg-hint);font-size:12px;padding:4px 0">Нет эндпоинтов</div>';
+            }
+
+            // Форма добавления эндпоинта
+            html += '<div style="padding:8px 0;border-top:1px solid var(--tg-separator);margin-top:8px">' +
+                '<div style="font-size:12px;font-weight:700;color:var(--tg-hint);margin-bottom:6px">Новый эндпоинт</div>' +
+                '<div class="bee-form-group" style="margin-bottom:6px">' +
+                    '<input class="bee-form-input" placeholder="Название" id="ep-name-' + pluginId + '">' +
+                '</div>' +
+                '<div class="bee-form-group" style="margin-bottom:6px">' +
+                    '<input class="bee-form-input" placeholder="slug (например data.list)" id="ep-slug-' + pluginId + '">' +
+                '</div>' +
+                '<div class="bee-form-group" style="margin-bottom:6px">' +
+                    '<input class="bee-form-input" placeholder="Описание (необязательно)" id="ep-desc-' + pluginId + '">' +
+                '</div>' +
+                '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+                    '<select class="bee-form-input" id="ep-tier-' + pluginId + '" style="flex:1">' +
+                        '<option value="open">open</option>' +
+                        '<option value="gated">gated</option>' +
+                        '<option value="private">private</option>' +
+                    '</select>' +
+                    '<select class="bee-form-input" id="ep-dtype-' + pluginId + '" style="flex:1">' +
+                        '<option value="query">query</option>' +
+                        '<option value="stream">stream</option>' +
+                        '<option value="webhook">webhook</option>' +
+                    '</select>' +
+                    '<input class="bee-form-input" id="ep-ttl-' + pluginId + '" placeholder="TTL" value="300" style="width:60px">' +
+                '</div>' +
+                '<button class="bee-btn-sm bee-btn-sm--enable" data-add-ep="' + pluginId + '">+ Добавить</button>' +
+            '</div>';
+
+            el.innerHTML = html;
+
+            // Обработчик добавления
+            el.querySelector('[data-add-ep]').addEventListener('click', function() {
+                var name = document.getElementById('ep-name-' + pluginId).value.trim();
+                var slug = document.getElementById('ep-slug-' + pluginId).value.trim();
+                if (!name || !slug) {
+                    if (window.showToast) window.showToast('Заполните название и slug', 'error');
+                    return;
+                }
+                var body = { name: name, slug: slug };
+                var desc = document.getElementById('ep-desc-' + pluginId).value.trim();
+                if (desc) body.description = desc;
+                body.access_tier = document.getElementById('ep-tier-' + pluginId).value;
+                body.data_type = document.getElementById('ep-dtype-' + pluginId).value;
+                var ttl = parseInt(document.getElementById('ep-ttl-' + pluginId).value);
+                if (ttl > 0) body.cache_ttl = ttl;
+                addEndpoint(pluginId, body);
+            });
+
+            // Обработчик удаления эндпоинта
+            el.querySelectorAll('[data-del-ep]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    if (!confirm('Удалить эндпоинт?')) return;
+                    var epId = btn.dataset.delEp;
+                    var pid = btn.dataset.pluginId;
+                    btn.disabled = true;
+                    fetch('/developer/plugins/' + pid + '/endpoints/' + epId, {
+                        method: 'DELETE',
+                        headers: headers,
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (d.ok) {
+                            if (window.showToast) window.showToast('Эндпоинт удалён', 'success');
+                            el.style.display = 'none';
+                            setTimeout(function() { toggleEndpoints(parseInt(pid)); }, 100);
+                        }
+                    })
+                    .catch(function() {
+                        btn.disabled = false;
+                        if (window.showToast) window.showToast('Ошибка', 'error');
+                    });
+                });
+            });
+        })
+        .catch(function() {
+            el.innerHTML = '<div style="color:var(--tg-hint);padding:4px 0">Ошибка</div>';
+        });
+    }
+
+    function addEndpoint(pluginId, body) {
+        fetch('/developer/plugins/' + pluginId + '/endpoints', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+            body: JSON.stringify(body),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.id) {
+                if (window.showToast) window.showToast('Эндпоинт создан', 'success');
+                var el = document.getElementById('ep-' + pluginId);
+                if (el) el.style.display = 'none';
+                setTimeout(function() { toggleEndpoints(pluginId); }, 100);
+            } else {
+                if (window.showToast) window.showToast('Ошибка: ' + (data.error || ''), 'error');
+            }
+        })
+        .catch(function() {
+            if (window.showToast) window.showToast('Ошибка сети', 'error');
+        });
+    }
+
+    // ── Монетизация ────────────────────────────
+    var revenuePluginSelect = document.getElementById('revenue-plugin');
+
+    function loadMonetization() {
+        var container = document.getElementById('monetization-container');
+        if (!myPluginsList.length) {
+            container.innerHTML = '<div style="color:var(--tg-hint);font-size:13px;padding:8px 0">Создайте плагин для настройки монетизации</div>';
+            revenuePluginSelect.style.display = 'none';
+            return;
+        }
+
+        // Наполнить select плагинами
+        revenuePluginSelect.innerHTML = '';
+        myPluginsList.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name || p.slug;
+            revenuePluginSelect.appendChild(opt);
+        });
+
+        loadPluginMonetization(myPluginsList[0].id);
+    }
+
+    function loadPluginMonetization(pluginId) {
+        var container = document.getElementById('monetization-container');
+        container.innerHTML = '<div class="bee-skel" style="height:60px;border-radius:8px;margin:8px 0"></div>';
+
+        var listingsTask = fetch('/developer/plugins/' + pluginId + '/listings', { headers: headers })
+            .then(function(r) { return r.ok ? r.json() : { listings: [] }; });
+        var revenueTask = fetch('/developer/plugins/' + pluginId + '/revenue?days=30', { headers: headers })
+            .then(function(r) { return r.ok ? r.json() : {}; });
+        var endpointsTask = fetch('/developer/plugins/' + pluginId + '/endpoints', { headers: headers })
+            .then(function(r) { return r.ok ? r.json() : { endpoints: [] }; });
+
+        Promise.all([listingsTask, revenueTask, endpointsTask]).then(function(results) {
+            var listings = results[0].listings || [];
+            var rev = results[1];
+            var endpoints = results[2].endpoints || [];
+
+            var html = '';
+
+            // Revenue summary
+            if (rev.total_earned !== undefined) {
+                html += '<div class="bee-stats-grid" style="margin-bottom:10px">' +
+                    '<div class="bee-stats-item"><div class="bee-stats-item__value">' + (rev.total_earned || 0) + '&#11088;</div><div class="bee-stats-item__label">Заработано</div></div>' +
+                    '<div class="bee-stats-item"><div class="bee-stats-item__value">' + (rev.total_commission || 0) + '&#11088;</div><div class="bee-stats-item__label">Комиссия</div></div>' +
+                    '<div class="bee-stats-item"><div class="bee-stats-item__value">' + (rev.net_earned || 0) + '&#11088;</div><div class="bee-stats-item__label">Чистыми</div></div>' +
+                '</div>';
+            }
+
+            // Listings
+            html += '<div style="font-size:12px;font-weight:700;color:var(--tg-hint);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Листинги (' + listings.length + ')</div>';
+
+            if (listings.length) {
+                listings.forEach(function(l) {
+                    html += '<div class="bee-access-item">' +
+                        '<div class="bee-access-item__header">' +
+                            '<div class="bee-access-item__info">' +
+                                '<div class="bee-access-item__user">' + esc(l.endpoint_name || l.endpoint_slug) + '</div>' +
+                                '<div class="bee-access-item__endpoint">' + l.price_stars + '&#11088; &middot; ' + esc(l.billing_type || 'subscription') +
+                                    (l.period_days ? ' &middot; ' + l.period_days + ' дн.' : '') + '</div>' +
+                            '</div>' +
+                            (l.active
+                                ? '<button class="bee-btn-sm" data-deactivate-listing="' + l.id + '" style="background:#E74C3C22;color:#E74C3C;font-size:11px">Отключить</button>'
+                                : '<span class="bee-tier-badge bee-tier-badge--private">Неактивен</span>') +
+                        '</div>' +
+                    '</div>';
+                });
+            } else {
+                html += '<div style="color:var(--tg-hint);font-size:12px;padding:4px 0">Нет листингов. Создайте ниже.</div>';
+            }
+
+            // New listing form
+            if (endpoints.length) {
+                html += '<div style="padding:8px 0;border-top:1px solid var(--tg-separator);margin-top:8px">' +
+                    '<div style="font-size:12px;font-weight:700;color:var(--tg-hint);margin-bottom:6px">Новый листинг</div>' +
+                    '<div class="bee-form-group" style="margin-bottom:6px">' +
+                        '<select class="bee-form-input" id="nl-endpoint-' + pluginId + '">';
+                endpoints.forEach(function(ep) {
+                    html += '<option value="' + ep.id + '">' + esc(ep.name || ep.slug) + '</option>';
+                });
+                html += '</select></div>' +
+                    '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+                        '<input class="bee-form-input" id="nl-price-' + pluginId + '" placeholder="Цена ⭐" type="number" min="1" style="flex:1">' +
+                        '<input class="bee-form-input" id="nl-days-' + pluginId + '" placeholder="Дней" type="number" min="1" value="30" style="flex:1">' +
+                    '</div>' +
+                    '<button class="bee-btn-sm bee-btn-sm--enable" data-create-listing="' + pluginId + '">+ Создать листинг</button>' +
+                '</div>';
+            }
+
+            container.innerHTML = html;
+
+            // Handlers
+            container.querySelectorAll('[data-deactivate-listing]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var lid = btn.dataset.deactivateListing;
+                    btn.disabled = true;
+                    fetch('/developer/listings/' + lid, { method: 'DELETE', headers: headers })
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (d.ok) {
+                            if (window.showToast) window.showToast('Листинг отключён', 'success');
+                            loadPluginMonetization(pluginId);
+                        }
+                    })
+                    .catch(function() { btn.disabled = false; });
+                });
+            });
+
+            var createBtn = container.querySelector('[data-create-listing]');
+            if (createBtn) {
+                createBtn.addEventListener('click', function() {
+                    var epId = parseInt(document.getElementById('nl-endpoint-' + pluginId).value);
+                    var price = parseInt(document.getElementById('nl-price-' + pluginId).value);
+                    var days = parseInt(document.getElementById('nl-days-' + pluginId).value) || 30;
+                    if (!price || price <= 0) {
+                        if (window.showToast) window.showToast('Укажите цену', 'error');
+                        return;
+                    }
+                    createBtn.disabled = true;
+                    fetch('/developer/plugins/' + pluginId + '/listings', {
+                        method: 'POST',
+                        headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+                        body: JSON.stringify({ endpoint_id: epId, price_stars: price, period_days: days }),
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (d.id) {
+                            if (window.showToast) window.showToast('Листинг создан!', 'success');
+                            loadPluginMonetization(pluginId);
+                        } else {
+                            if (window.showToast) window.showToast('Ошибка: ' + (d.error || ''), 'error');
+                            createBtn.disabled = false;
+                        }
+                    })
+                    .catch(function() { createBtn.disabled = false; });
+                });
+            }
+        });
+    }
+
+    if (revenuePluginSelect) {
+        revenuePluginSelect.addEventListener('change', function() {
+            loadPluginMonetization(parseInt(this.value));
+        });
+    }
+
+    // ── Создать плагин ──────────────────────────
+    var submitBtn = document.getElementById('cp-submit');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            var name = document.getElementById('cp-name').value.trim();
+            var slug = document.getElementById('cp-slug').value.trim();
+            var base = document.getElementById('cp-base').value.trim();
+            var desc = document.getElementById('cp-desc').value.trim();
+            var github = document.getElementById('cp-github').value.trim();
+            var version = document.getElementById('cp-version').value.trim();
+            var status = document.getElementById('cp-status');
+
+            if (!name || !slug || !base) {
+                status.style.display = '';
+                status.style.color = '#E74C3C';
+                status.textContent = 'Заполните обязательные поля (название, slug, base URL)';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Создаю...';
+
+            var body = { name: name, slug: slug, base_url: base };
+            if (desc) body.description = desc;
+            if (github) body.github_url = github;
+            if (version) body.version = version;
+
+            fetch('/developer/plugins', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+                body: JSON.stringify(body),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Создать';
+
+                if (data.id) {
+                    if (window.haptic) window.haptic('notification', 'success');
+                    if (window.showToast) window.showToast('Плагин создан!', 'success');
+                    ['cp-name', 'cp-slug', 'cp-desc', 'cp-base', 'cp-github', 'cp-version'].forEach(function(id) {
+                        document.getElementById(id).value = '';
+                    });
+                    status.style.display = 'none';
+                    loadMyPlugins();
+                } else {
+                    status.style.display = '';
+                    status.style.color = '#E74C3C';
+                    status.textContent = data.error || 'Ошибка создания';
+                }
+            })
+            .catch(function() {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Создать';
+                if (window.showToast) window.showToast('Ошибка сети', 'error');
+            });
+        });
+    }
+
+    // ── Helpers ──────────────────────────────────
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
+
+    function formatTime(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        var now = new Date();
+        var diff = (now - d) / 1000;
+        if (diff < 60) return 'только что';
+        if (diff < 3600) return Math.floor(diff / 60) + ' мин назад';
+        if (diff < 86400) return Math.floor(diff / 3600) + ' ч назад';
+        return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    }
+})();
+</script>
+{% endblock %}

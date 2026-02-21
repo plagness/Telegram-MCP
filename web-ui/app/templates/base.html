@@ -44,10 +44,15 @@
             </div>
         </div>
 
-        {# ═══ Блок 2: Контекстная зона (баннеры, поиск, фильтры) ═══ #}
+        {# ═══ Блок 2: Banner Zone (промо, алерты, maintenance) ═══ #}
+        <div class="bee-banner-zone" id="bee-banner-zone">
+            {% block banners %}{% endblock %}
+        </div>
+
+        {# ═══ Блок 3: Контекстная зона (поиск, фильтры, навигация) ═══ #}
         {% block context %}{% endblock %}
 
-        {# ═══ Блок 3: Контент страницы ═══ #}
+        {# ═══ Блок 4: Контент страницы ═══ #}
         {% block content %}{% endblock %}
     </div>
 

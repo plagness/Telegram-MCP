@@ -88,6 +88,30 @@
 </div>
 {% endif %}
 
+{# ── Особые функции (системные дашборды, только для привилегированных) ── #}
+{% if is_privileged and system_pages %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128295; Особые функции</div>
+    <div class="bee-list">
+        {% for page in system_pages %}
+        <a class="bee-list-item bee-sys-link" href="/p/{{ page.slug }}">
+            <div class="bee-list-icon">
+                {% if page._icon %}
+                <img src="{{ page._icon.icon_url }}" alt=""
+                     style="width:24px;height:24px;filter:brightness(0) invert(0.7)">
+                {% endif %}
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ page.title }}</div>
+                <div class="bee-list-subtitle">{{ page.config.description if page.config }}</div>
+            </div>
+            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 {# ── Пустое состояние ── #}
 {% if not recent_tx and bets_count == 0 and surveys_count == 0 %}
 <div class="bee-result">
@@ -96,4 +120,26 @@
     <div class="bee-result-text">Ваша активность появится здесь.</div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+
+    document.querySelectorAll('.bee-sys-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (window.haptic) window.haptic('impact', 'light');
+            if (tgApp && initData) {
+                e.preventDefault();
+                var href = link.getAttribute('href');
+                var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

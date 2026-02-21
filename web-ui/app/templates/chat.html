@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}{{ chat.title or 'Чат' }}{% endblock %}
+
+{% set page_labels = {
+    'calendar': '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c',
+    'prediction': '\u041f\u0440\u0435\u0434\u0441\u043a\u0430\u0437\u0430\u043d\u0438\u044f',
+    'dashboard': '\u0414\u0430\u0448\u0431\u043e\u0440\u0434',
+    'survey': '\u041e\u043f\u0440\u043e\u0441',
+    'leaderboard': '\u0420\u0435\u0439\u0442\u0438\u043d\u0433',
+    'llm': 'LLM',
+    'infra': '\u0418\u043d\u0444\u0440\u0430',
+    'page': '\u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430',
+    'datesale': 'Integrat'
+} %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg" style="text-align: center; padding: 24px 20px;">
+    <div class="bee-chat-detail__avatar">
+        {% if chat._photo_url %}
+        <img src="{{ chat._photo_url }}" alt=""
+             onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+        <span class="bee-chat-detail__fallback" style="display:none">{{ (chat.title or '?')[0] | upper }}</span>
+        {% else %}
+        <span class="bee-chat-detail__fallback">{{ (chat.title or '?')[0] | upper }}</span>
+        {% endif %}
+    </div>
+    <div class="bee-chat-detail__name">{{ chat.title or 'Без названия' }}</div>
+    {% if chat.description %}
+    <div class="bee-chat-detail__desc">{{ chat.description }}</div>
+    {% endif %}
+    <div class="bee-chat-detail__badges">
+        <span class="bee-hub-badge">{{ chat.member_count or 0 }} участников</span>
+        {% if chat.type %}
+        <span class="bee-hub-badge bee-hub-badge--{{ chat.type }}">{{ chat.type }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# ── Страницы чата ── #}
+{% if pages %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128196; Страницы</div>
+    <div class="bee-list">
+        {% for page in pages %}
+        <a class="bee-list-item bee-chat-page-link" href="/p/{{ page.slug }}">
+            <div class="bee-list-icon">
+                {% if page._icon %}
+                <img src="{{ page._icon.icon_url }}" alt=""
+                     style="width:24px;height:24px;filter:brightness(0) invert(0.7)">
+                {% endif %}
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ page.title }}</div>
+                <div class="bee-list-subtitle">
+                    <span class="bee-hub-badge bee-hub-badge--{{ page.page_type }}" style="font-size:10px">
+                        {{ page_labels.get(page.page_type, page.page_type) }}
+                    </span>
+                    {% if page.config and page.config.description %}
+                    {{ page.config.description }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Плагины Integrat (маркетплейс + настройки, lazy-loaded) ── #}
+<div class="bee-card" id="plugins-card">
+    <div class="bee-card-title">&#9889; Плагины Integrat</div>
+    <div id="plugins-container">
+        <div class="bee-skel" style="height:48px;border-radius:8px;margin:8px 0"></div>
+        <div class="bee-skel" style="height:48px;border-radius:8px;margin:8px 0"></div>
+    </div>
+</div>
+
+{# ── Конфигурация плагина (открывается inline) ── #}
+<div class="bee-card" id="config-card" style="display:none">
+    <div class="bee-card-title" id="config-title">Настройки</div>
+    <div id="config-form-container"></div>
+    <div style="padding:0 0 12px;display:flex;gap:8px">
+        <button class="bee-btn bee-btn--primary" id="config-save-btn" style="flex:1">Сохранить</button>
+        <button class="bee-btn" id="config-close-btn">Закрыть</button>
+    </div>
+    <div id="config-status" style="display:none;padding:0 0 8px;font-size:13px"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    var chatId = '{{ chat.chat_id }}';
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+    var headers = { 'X-Init-Data': initData };
+    var activePluginId = null;
+
+    // ── Загрузка маркетплейса ────────────────────
+    if (initData) {
+        fetch('/chat/' + chatId + '/marketplace', { headers: headers })
+        .then(function(r) { return r.ok ? r.json() : { plugins: [] }; })
+        .then(function(data) {
+            var plugins = data.plugins || [];
+            var container = document.getElementById('plugins-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!plugins.length) {
+                container.innerHTML = '<div style="padding:12px 0;color:var(--tg-hint);font-size:13px">Плагины пока недоступны</div>';
+                return;
+            }
+
+            plugins.forEach(function(p) {
+                var div = document.createElement('div');
+                div.className = 'bee-plugin-item';
+                div.dataset.pluginId = p.id;
+
+                var enabledClass = p.enabled ? ' bee-plugin-item--enabled' : '';
+                div.innerHTML =
+                    '<div class="bee-plugin-item__row' + enabledClass + '">' +
+                        '<div class="bee-plugin-item__icon">&#9889;</div>' +
+                        '<div class="bee-plugin-item__body">' +
+                            '<div class="bee-plugin-item__name">' + esc(p.name || p.slug) + '</div>' +
+                            '<div class="bee-plugin-item__meta">' +
+                                (p.version ? 'v' + esc(p.version) : '') +
+                                (p.description ? ' &middot; ' + esc(p.description) : '') +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="bee-plugin-item__actions">' +
+                            (p.enabled
+                                ? '<button class="bee-btn-sm bee-btn-sm--settings" data-action="config" data-id="' + p.id + '" data-name="' + esc(p.name || p.slug) + '">&#9881;</button>'
+                                : '<button class="bee-btn-sm bee-btn-sm--enable" data-action="enable" data-id="' + p.id + '">Включить</button>') +
+                        '</div>' +
+                    '</div>';
+                container.appendChild(div);
+            });
+
+            // Обработчики кнопок
+            container.addEventListener('click', function(e) {
+                var btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                var action = btn.dataset.action;
+                var pluginId = parseInt(btn.dataset.id);
+
+                if (action === 'enable') {
+                    enablePlugin(pluginId, btn);
+                } else if (action === 'config') {
+                    openConfig(pluginId, btn.dataset.name);
+                }
+            });
+        })
+        .catch(function(err) {
+            var container = document.getElementById('plugins-container');
+            if (container) {
+                container.innerHTML = '<div style="padding:12px 0;color:var(--tg-hint);font-size:13px">Не удалось загрузить плагины</div>';
+            }
+        });
+    }
+
+    // ── Включить плагин ──────────────────────────
+    function enablePlugin(pluginId, btn) {
+        if (window.haptic) window.haptic('impact', 'medium');
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        fetch('/chat/' + chatId + '/plugins/' + pluginId + '/enable', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'enabled') {
+                if (window.haptic) window.haptic('notification', 'success');
+                // Перезагружаем маркетплейс для обновления UI
+                window.location.reload();
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Включить';
+                if (window.showToast) window.showToast('Ошибка включения', 'error');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Включить';
+            if (window.showToast) window.showToast('Ошибка сети', 'error');
+        });
+    }
+
+    // ── Открыть настройки плагина ─────────────────
+    function openConfig(pluginId, pluginName) {
+        if (window.haptic) window.haptic('impact', 'light');
+        activePluginId = pluginId;
+
+        var card = document.getElementById('config-card');
+        var title = document.getElementById('config-title');
+        var container = document.getElementById('config-form-container');
+        var status = document.getElementById('config-status');
+
+        title.innerHTML = '&#9881; ' + esc(pluginName);
+        container.innerHTML = '<div class="bee-skel" style="height:40px;border-radius:8px;margin:8px 0"></div>';
+        status.style.display = 'none';
+        card.style.display = '';
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        fetch('/chat/' + chatId + '/plugins/' + pluginId + '/config', { headers: headers })
+        .then(function(r) { return r.ok ? r.json() : {}; })
+        .then(function(data) {
+            var fields = [];
+            try { fields = JSON.parse(data.fields || '[]'); } catch(e) {}
+            var values = data.values || {};
+            renderConfigForm(container, fields, values);
+        })
+        .catch(function() {
+            container.innerHTML = '<div style="color:var(--tg-hint);padding:8px 0">Не удалось загрузить настройки</div>';
+        });
+    }
+
+    // ── Рендер формы настроек ──────────────────────
+    function renderConfigForm(container, fields, values) {
+        container.innerHTML = '';
+        if (!fields.length) {
+            container.innerHTML = '<div style="color:var(--tg-hint);padding:8px 0">Нет настраиваемых параметров</div>';
+            return;
+        }
+
+        fields.forEach(function(field) {
+            var group = document.createElement('div');
+            group.className = 'bee-form-group';
+
+            var label = document.createElement('label');
+            label.className = 'bee-form-label';
+            label.textContent = field.label || field.slug;
+            if (field.required) {
+                var req = document.createElement('span');
+                req.style.color = '#E74C3C';
+                req.textContent = ' *';
+                label.appendChild(req);
+            }
+            group.appendChild(label);
+
+            var input;
+            var currentValue = values[field.slug];
+            if (currentValue === undefined || currentValue === null) {
+                currentValue = field.default !== undefined ? field.default : '';
+            }
+
+            if (field.type === 'number') {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'bee-form-input';
+                input.value = currentValue;
+            } else {
+                // string — если длинный (JSON) → textarea
+                var strVal = typeof currentValue === 'object' ? JSON.stringify(currentValue) : String(currentValue);
+                if (strVal.length > 80 || field.slug.indexOf('json') >= 0) {
+                    input = document.createElement('textarea');
+                    input.className = 'bee-form-textarea';
+                    input.rows = 3;
+                    input.value = strVal;
+                } else {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'bee-form-input';
+                    input.value = strVal;
+                }
+            }
+
+            input.dataset.slug = field.slug;
+            input.dataset.type = field.type || 'string';
+            if (field.placeholder) input.placeholder = field.placeholder;
+            group.appendChild(input);
+
+            if (field.help) {
+                var help = document.createElement('div');
+                help.className = 'bee-form-help';
+                help.textContent = field.help;
+                group.appendChild(help);
+            }
+
+            container.appendChild(group);
+        });
+    }
+
+    // ── Сохранить настройки ───────────────────────
+    var saveBtn = document.getElementById('config-save-btn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            if (!activePluginId) return;
+            if (window.haptic) window.haptic('impact', 'medium');
+
+            var inputs = document.querySelectorAll('#config-form-container [data-slug]');
+            var configValues = {};
+            inputs.forEach(function(inp) {
+                var val = inp.value;
+                if (inp.dataset.type === 'number') {
+                    val = parseFloat(val) || 0;
+                }
+                configValues[inp.dataset.slug] = val;
+            });
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Сохраняю...';
+            var status = document.getElementById('config-status');
+
+            fetch('/chat/' + chatId + '/plugins/' + activePluginId + '/config', {
+                method: 'PUT',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+                body: JSON.stringify({ values: configValues }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Сохранить';
+                if (data.status === 'saved') {
+                    if (window.haptic) window.haptic('notification', 'success');
+                    status.style.display = '';
+                    status.style.color = '#10B981';
+                    status.textContent = 'Настройки сохранены';
+                    setTimeout(function() { status.style.display = 'none'; }, 3000);
+                } else {
+                    status.style.display = '';
+                    status.style.color = '#E74C3C';
+                    status.textContent = 'Ошибка сохранения';
+                }
+            })
+            .catch(function() {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Сохранить';
+                if (window.showToast) window.showToast('Ошибка сети', 'error');
+            });
+        });
+    }
+
+    // ── Закрыть настройки ─────────────────────────
+    var closeBtn = document.getElementById('config-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            document.getElementById('config-card').style.display = 'none';
+            activePluginId = null;
+        });
+    }
+
+    // ── initData click handler для страниц ─────
+    document.querySelectorAll('.bee-chat-page-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (window.haptic) window.haptic('impact', 'light');
+            if (tgApp && initData) {
+                e.preventDefault();
+                var href = link.getAttribute('href');
+                var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
+            }
+        });
+    });
+
+    // ── Утилиты ───────────────────────────────────
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg">
+    <div class="bee-title">{{ page.title }}</div>
+    {% if config.get('description') %}
+    <div class="bee-subtitle">{{ config['description'] }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="mod-loading" class="bee-card" style="text-align:center;padding:32px 16px">
+    <div class="bee-subtitle">Загрузка данных...</div>
+</div>
+
+<div id="mod-error" class="bee-card" style="display:none">
+    <div class="bee-card-title" style="color:var(--error)">Ошибка загрузки</div>
+    <div class="bee-subtitle" id="mod-error-text"></div>
+</div>
+
+<!-- Экран 1: Мои чаты -->
+<div id="screen-chats" style="display:none">
+    <div class="bee-card">
+        <div class="bee-card-title">Health</div>
+        <div class="bee-stat-grid bee-stat-grid--three">
+            <div class="bee-stat">
+                <div class="bee-stat-value" id="ds-status" style="font-size:16px">-</div>
+                <div class="bee-stat-label">Datesale</div>
+            </div>
+            <div class="bee-stat">
+                <div class="bee-stat-value" id="ds-version" style="font-size:14px">-</div>
+                <div class="bee-stat-label">version</div>
+            </div>
+            <div class="bee-stat">
+                <div class="bee-stat-value" id="ds-chats-count" style="color:var(--accent)">-</div>
+                <div class="bee-stat-label">chats</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bee-card">
+        <div class="bee-card-title">Мои чаты</div>
+        <div class="bee-list" id="chats-list"></div>
+    </div>
+</div>
+
+<!-- Экран 2: Плагины чата -->
+<div id="screen-plugins" style="display:none">
+    <div class="bee-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <a id="plugins-back" href="#" style="font-size:20px;color:var(--tg-hint);text-decoration:none">&#8249;</a>
+            <div class="bee-card-title" style="margin:0" id="plugins-chat-title">Плагины</div>
+        </div>
+        <div class="bee-subtitle" id="plugins-chat-subtitle"></div>
+    </div>
+
+    <div id="plugins-loading" class="bee-card" style="text-align:center;padding:24px 16px">
+        <div class="bee-subtitle">Загрузка плагинов...</div>
+    </div>
+
+    <div id="plugins-empty" class="bee-card" style="display:none;text-align:center;padding:24px 16px">
+        <div class="bee-subtitle" style="opacity:0.5">Нет подключённых плагинов</div>
+    </div>
+
+    <div class="bee-list" id="plugins-list"></div>
+</div>
+
+<!-- Экран 3: Настройки плагина -->
+<div id="screen-config" style="display:none">
+    <div class="bee-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <a id="config-back" href="#" style="font-size:20px;color:var(--tg-hint);text-decoration:none">&#8249;</a>
+            <div class="bee-card-title" style="margin:0" id="config-plugin-title">Настройки</div>
+        </div>
+        <div class="bee-subtitle" id="config-plugin-desc"></div>
+    </div>
+
+    <div id="config-loading" class="bee-card" style="text-align:center;padding:24px 16px">
+        <div class="bee-subtitle">Загрузка настроек...</div>
+    </div>
+
+    <div id="config-form-wrap" style="display:none">
+        <div class="bee-card">
+            <div id="config-fields"></div>
+            <div style="margin-top:16px;text-align:center">
+                <button id="config-save-btn" class="bee-btn bee-btn--primary" style="width:100%;padding:12px;border:none;border-radius:8px;font-size:15px;cursor:pointer">Сохранить</button>
+            </div>
+            <div id="config-toast" style="display:none;margin-top:12px;text-align:center;padding:8px;border-radius:6px;font-size:13px"></div>
+        </div>
+    </div>
+</div>
+
+<div style="text-align:center;padding:8px;opacity:0.5;font-size:12px" id="updated-at"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var initData = tg ? tg.initData : '';
+    var SLUG = '{{ page.slug }}';
+    var hdrs = { 'X-Init-Data': initData };
+
+    // Состояние
+    var state = { screen: 'chats', chatId: null, chatTitle: '', pluginId: null, pluginTitle: '' };
+
+    function $(id) { return document.getElementById(id); }
+
+    function showScreen(name) {
+        ['screen-chats', 'screen-plugins', 'screen-config'].forEach(function(s) {
+            $(s).style.display = s === 'screen-' + name ? '' : 'none';
+        });
+        state.screen = name;
+    }
+
+    // === Экран 1: Чаты ===
+
+    function renderChats(data) {
+        var h = data.health || {};
+        $('ds-status').textContent = h.status || 'unknown';
+        $('ds-status').style.color = h.status === 'ok' ? 'var(--success)' : 'var(--error)';
+        $('ds-version').textContent = h.version || '-';
+
+        var chats = data.chats || [];
+        $('ds-chats-count').textContent = chats.length;
+
+        var html = '';
+        if (!chats.length) {
+            html = '<div class="bee-list-item" style="opacity:0.5"><div class="bee-list-content"><div class="bee-list-subtitle">Нет доступных чатов</div></div></div>';
+        }
+        for (var i = 0; i < chats.length; i++) {
+            var ch = chats[i];
+            var title = ch.title || ch.username || 'Chat';
+            var subtitle = ch.type || '';
+            if (ch.member_count) subtitle += (subtitle ? ' · ' : '') + ch.member_count + ' участников';
+
+            html += '<div class="bee-list-item" data-chat-id="' + (ch.chat_id || '') + '" data-title="' + title.replace(/"/g, '&quot;') + '" style="cursor:pointer">' +
+                '<div class="bee-list-icon" style="color:var(--accent)">&#9679;</div>' +
+                '<div class="bee-list-content">' +
+                '<div class="bee-list-title">' + title + '</div>' +
+                '<div class="bee-list-subtitle">' + subtitle + '</div>' +
+                '</div>' +
+                '<div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div></div>';
+        }
+        $('chats-list').innerHTML = html;
+
+        // Клик по чату
+        var items = $('chats-list').querySelectorAll('.bee-list-item[data-chat-id]');
+        for (var j = 0; j < items.length; j++) {
+            items[j].addEventListener('click', function() {
+                state.chatId = this.getAttribute('data-chat-id');
+                state.chatTitle = this.getAttribute('data-title');
+                openPlugins();
+            });
+        }
+
+        $('updated-at').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    function fetchChats() {
+        fetch('/p/' + SLUG + '/datesale/data', { headers: hdrs })
+            .then(function(r) {
+                if (r.status === 403 || r.status === 401) {
+                    $('mod-loading').style.display = 'none';
+                    $('mod-error').style.display = '';
+                    $('mod-error-text').textContent = 'Доступ ограничен';
+                    return null;
+                }
+                if (!r.ok) {
+                    $('mod-loading').style.display = 'none';
+                    $('mod-error').style.display = '';
+                    $('mod-error-text').textContent = 'Ошибка ' + r.status;
+                    return null;
+                }
+                return r.json();
+            })
+            .then(function(data) {
+                if (!data) return;
+                $('mod-loading').style.display = 'none';
+                showScreen('chats');
+                renderChats(data);
+            })
+            .catch(function(e) {
+                console.warn('datesale fetch:', e);
+                $('mod-loading').style.display = 'none';
+                $('mod-error').style.display = '';
+                $('mod-error-text').textContent = 'Ошибка сети';
+            });
+    }
+
+    // === Экран 2: Плагины чата ===
+
+    function openPlugins() {
+        $('plugins-chat-title').textContent = state.chatTitle;
+        $('plugins-chat-subtitle').textContent = 'Chat ID: ' + state.chatId;
+        $('plugins-loading').style.display = '';
+        $('plugins-empty').style.display = 'none';
+        $('plugins-list').innerHTML = '';
+        showScreen('plugins');
+
+        fetch('/p/' + SLUG + '/datesale/chats/' + state.chatId + '/plugins', { headers: hdrs })
+            .then(function(r) { return r.ok ? r.json() : { plugins: [] }; })
+            .then(function(data) {
+                $('plugins-loading').style.display = 'none';
+                var plugins = data.plugins || [];
+                if (!plugins.length) {
+                    $('plugins-empty').style.display = '';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < plugins.length; i++) {
+                    var p = plugins[i];
+                    var statusColor = p.health_status === 'healthy' ? 'var(--success)' : 'var(--accent)';
+                    html += '<div class="bee-card" data-plugin-id="' + p.id + '" data-plugin-title="' + (p.name || p.slug).replace(/"/g, '&quot;') + '" data-plugin-desc="' + (p.description || '').replace(/"/g, '&quot;') + '" style="cursor:pointer">' +
+                        '<div style="display:flex;align-items:center;justify-content:space-between">' +
+                        '<div>' +
+                        '<div class="bee-card-title" style="margin:0">' + (p.name || p.slug) + '</div>' +
+                        '<div class="bee-subtitle">' + (p.description || '') + '</div>' +
+                        '</div>' +
+                        '<div style="font-size:18px;color:var(--tg-hint)">&#8250;</div>' +
+                        '</div>' +
+                        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+                        '<span class="bee-badge bee-badge--outline">v' + (p.version || '?') + '</span>' +
+                        '<span class="bee-badge" style="background:' + statusColor + ';color:#fff">' + (p.health_status || 'unknown') + '</span>' +
+                        '<span class="bee-badge bee-badge--outline">' + (p.slug || '') + '</span>' +
+                        '</div></div>';
+                }
+                $('plugins-list').innerHTML = html;
+
+                // Клик по плагину
+                var cards = $('plugins-list').querySelectorAll('.bee-card[data-plugin-id]');
+                for (var j = 0; j < cards.length; j++) {
+                    cards[j].addEventListener('click', function() {
+                        state.pluginId = this.getAttribute('data-plugin-id');
+                        state.pluginTitle = this.getAttribute('data-plugin-title');
+                        openConfig(this.getAttribute('data-plugin-desc'));
+                    });
+                }
+            })
+            .catch(function(e) {
+                console.warn('plugins fetch:', e);
+                $('plugins-loading').style.display = 'none';
+                $('plugins-empty').style.display = '';
+            });
+    }
+
+    // === Экран 3: Настройки плагина ===
+
+    function openConfig(desc) {
+        $('config-plugin-title').textContent = state.pluginTitle;
+        $('config-plugin-desc').textContent = desc || '';
+        $('config-loading').style.display = '';
+        $('config-form-wrap').style.display = 'none';
+        $('config-toast').style.display = 'none';
+        showScreen('config');
+
+        fetch('/p/' + SLUG + '/datesale/plugins/' + state.pluginId + '/config?tg_chat_id=' + state.chatId, { headers: hdrs })
+            .then(function(r) { return r.ok ? r.json() : {}; })
+            .then(function(data) {
+                $('config-loading').style.display = 'none';
+                renderConfigForm(data.fields || [], data.values || {});
+            })
+            .catch(function(e) {
+                console.warn('config fetch:', e);
+                $('config-loading').style.display = 'none';
+            });
+    }
+
+    function renderConfigForm(fields, values) {
+        if (!fields || !fields.length) {
+            $('config-fields').innerHTML = '<div class="bee-subtitle" style="opacity:0.5;text-align:center;padding:16px">Нет полей для настройки</div>';
+            $('config-form-wrap').style.display = '';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < fields.length; i++) {
+            var f = fields[i];
+            var val = values[f.slug] !== undefined ? values[f.slug] : (f.default !== undefined ? f.default : '');
+            var inputId = 'cf-' + f.slug;
+
+            html += '<div style="margin-bottom:16px">';
+            html += '<label for="' + inputId + '" style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--tg-text)">' + (f.label || f.slug);
+            if (f.required) html += ' <span style="color:var(--error)">*</span>';
+            html += '</label>';
+
+            if (f.type === 'boolean') {
+                html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+                    '<input type="checkbox" id="' + inputId + '" data-slug="' + f.slug + '" data-type="boolean"' + (val ? ' checked' : '') + ' style="width:18px;height:18px">' +
+                    '<span style="font-size:13px;color:var(--tg-hint)">' + (f.help || '') + '</span></label>';
+            } else if (f.type === 'number') {
+                html += '<input type="number" id="' + inputId + '" data-slug="' + f.slug + '" data-type="number" value="' + val + '" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid var(--tg-hint);border-radius:8px;font-size:14px;background:var(--tg-bg);color:var(--tg-text);box-sizing:border-box">';
+            } else if (f.type === 'select' && f.options) {
+                html += '<select id="' + inputId + '" data-slug="' + f.slug + '" data-type="select" style="width:100%;padding:10px 12px;border:1px solid var(--tg-hint);border-radius:8px;font-size:14px;background:var(--tg-bg);color:var(--tg-text)">';
+                for (var k = 0; k < f.options.length; k++) {
+                    var opt = f.options[k];
+                    html += '<option value="' + opt.value + '"' + (val == opt.value ? ' selected' : '') + '>' + opt.label + '</option>';
+                }
+                html += '</select>';
+            } else {
+                // string (default) — textarea для JSON-like полей
+                var isLong = (f.slug.indexOf('json') !== -1) || (val && String(val).length > 50);
+                if (isLong) {
+                    html += '<textarea id="' + inputId + '" data-slug="' + f.slug + '" data-type="string" rows="4" placeholder="' + (f.placeholder || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:10px 12px;border:1px solid var(--tg-hint);border-radius:8px;font-size:13px;font-family:monospace;background:var(--tg-bg);color:var(--tg-text);box-sizing:border-box;resize:vertical">' + (typeof val === 'string' ? val : JSON.stringify(val)) + '</textarea>';
+                } else {
+                    html += '<input type="text" id="' + inputId + '" data-slug="' + f.slug + '" data-type="string" value="' + String(val).replace(/"/g, '&quot;') + '" placeholder="' + (f.placeholder || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:10px 12px;border:1px solid var(--tg-hint);border-radius:8px;font-size:14px;background:var(--tg-bg);color:var(--tg-text);box-sizing:border-box">';
+                }
+            }
+
+            if (f.help && f.type !== 'boolean') {
+                html += '<div style="font-size:12px;color:var(--tg-hint);margin-top:4px">' + f.help + '</div>';
+            }
+            html += '</div>';
+        }
+
+        $('config-fields').innerHTML = html;
+        $('config-form-wrap').style.display = '';
+    }
+
+    function saveConfig() {
+        var inputs = $('config-fields').querySelectorAll('[data-slug]');
+        var values = {};
+        for (var i = 0; i < inputs.length; i++) {
+            var el = inputs[i];
+            var slug = el.getAttribute('data-slug');
+            var type = el.getAttribute('data-type');
+            if (type === 'boolean') {
+                values[slug] = el.checked;
+            } else if (type === 'number') {
+                values[slug] = el.value ? Number(el.value) : null;
+            } else {
+                values[slug] = el.value;
+            }
+        }
+
+        var btn = $('config-save-btn');
+        btn.disabled = true;
+        btn.textContent = 'Сохранение...';
+
+        fetch('/p/' + SLUG + '/datesale/plugins/' + state.pluginId + '/config', {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, hdrs),
+            body: JSON.stringify({ tg_chat_id: Number(state.chatId), values: values }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.textContent = 'Сохранить';
+            var toast = $('config-toast');
+            if (data.status === 'saved') {
+                toast.style.display = '';
+                toast.style.background = 'var(--success)';
+                toast.style.color = '#fff';
+                toast.textContent = 'Сохранено';
+            } else {
+                toast.style.display = '';
+                toast.style.background = 'var(--error)';
+                toast.style.color = '#fff';
+                toast.textContent = 'Ошибка сохранения';
+            }
+            setTimeout(function() { toast.style.display = 'none'; }, 3000);
+        })
+        .catch(function(e) {
+            btn.disabled = false;
+            btn.textContent = 'Сохранить';
+            console.warn('config save:', e);
+        });
+    }
+
+    // === Навигация ===
+
+    $('plugins-back').addEventListener('click', function(e) {
+        e.preventDefault();
+        showScreen('chats');
+    });
+
+    $('config-back').addEventListener('click', function(e) {
+        e.preventDefault();
+        openPlugins();
+    });
+
+    $('config-save-btn').addEventListener('click', saveConfig);
+
+    // === Старт ===
+    fetchChats();
+})();
+</script>
+{% endblock %}

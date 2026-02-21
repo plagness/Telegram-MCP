@@ -1,6 +1,8 @@
 # Bee UI — Руководство разработчика
 
-Полное руководство по UI-системе Telegram Mini App. Покрывает архитектуру, CSS-систему, компоненты BeeKit и BeeFX, паттерны backend-proxy, и пошаговое создание новых страниц.
+> **Создание новой страницы?** Начните с [WEBDEV.md](../WEBDEV.md) — пошаговая инструкция с handler-системой (auto-discovery, без ручной регистрации).
+
+Полное руководство по UI-системе Telegram Mini App. Покрывает CSS-систему, компоненты BeeKit и BeeFX, паттерны backend-proxy.
 
 ---
 
@@ -205,11 +207,15 @@ web-ui/
 
 ### Чеклист добавления нового дашборда
 
-1. **pages.py** — зарегистрировать `page_type="mymodule"`
-2. **module_proxy.py** — добавить `_fetch_mymodule_data()` + endpoint `GET /p/{slug}/mymodule/data`
-3. **templates/mymodule.html** — создать шаблон (skeleton + BeeKit.poll + render)
-4. **render.py** — добавить в `template_map`: `'mymodule': 'mymodule.html'`
-5. **Docker build → K3s deploy** — пересобрать и задеплоить
+> **Актуальный чеклист** — в [WEBDEV.md](../WEBDEV.md). Ниже устаревший вариант для справки.
+
+С handler-системой (BeeWeb) нужно всего 3 шага:
+
+1. **Handler** — создать файл в `app/handlers/` (подкласс `PageTypeHandler`)
+2. **Шаблон** — создать в `app/templates/` (extends base.html)
+3. **БД** — создать запись через `POST /api/v1/pages`
+
+template_map, render.py, pages.py трогать **не нужно** — auto-discovery.
 
 ---
 
@@ -751,14 +757,29 @@ async def _check_owner_access(request: Request) -> bool:
 
 ## 8. Пошаговый пример: новый дашборд «Monitoring»
 
+> **Актуальный пошаговый гайд** — в [WEBDEV.md](../WEBDEV.md).
+> Ниже устаревший пример (до handler-системы). Оставлен для понимания module_proxy паттерна.
+
 ### 1. Регистрация page_type
 
-В `pages.py` (или через API):
+Через handler (рекомендуется):
 ```python
-page_type = "monitoring"
+# app/handlers/monitoring_handler.py
+from . import PageTypeHandler, proxy_get, validate_page_request
+
+class MonitoringHandler(PageTypeHandler):
+    page_type = "monitoring"
+    template = "monitoring.html"
+    scripts = ["echarts"]
+
+    def register_routes(self, router):
+        @router.get("/p/{slug}/monitoring/data")
+        async def monitoring_data(slug, request):
+            await validate_page_request(slug, "monitoring", request)
+            return await proxy_get("http://monitoring-service:8080/v1/metrics")
 ```
 
-### 2. Backend proxy
+### 2. Backend proxy (legacy, через module_proxy.py)
 
 В `module_proxy.py`:
 

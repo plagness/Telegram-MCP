@@ -1,0 +1,398 @@
+{% extends "layout.html" %}
+{% set active_nav = "dashboard" %}
+
+{% block title %}Dashboard — Page Manager{% endblock %}
+
+{% block content %}
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-card__value">{{ total }}</div>
+        <div class="stat-card__label">Всего страниц</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__value">{{ active }}</div>
+        <div class="stat-card__label">Активных</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__value">{{ handlers | length }}</div>
+        <div class="stat-card__label">Handler типов</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__value">{{ by_type | length }}</div>
+        <div class="stat-card__label">Используемых типов</div>
+    </div>
+</div>
+
+<div class="mgr-split">
+    <div class="mgr-main">
+        <div class="grid-2 mb-24">
+            <div class="card">
+                <div class="card__title">По типам</div>
+                <div class="table-wrap" style="max-height:320px; overflow-y:auto;">
+                <table>
+                    <thead><tr><th>Тип</th><th>Кол-во</th></tr></thead>
+                    <tbody>
+                    {% for pt, cnt in by_type %}
+                    <tr>
+                        <td><span class="badge badge--type">{{ pt }}</span></td>
+                        <td>{{ cnt }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card__title">Handler Registry</div>
+                <div class="table-wrap" style="max-height:320px; overflow-y:auto;">
+                <table>
+                    <thead><tr><th>Type</th><th>Template</th></tr></thead>
+                    <tbody>
+                    {% for t in handler_types %}
+                    <tr>
+                        <td><span class="badge badge--type">{{ t.page_type }}</span></td>
+                        <td style="font-size:12px; color:var(--text-muted);">{{ t.template }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Поиск пользователя + проверка доступа -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <h2 class="section-title" style="margin-bottom:0; border:none; padding:0; flex-shrink:0;">Все страницы</h2>
+            <div style="flex:1;"></div>
+            <div style="display:flex; align-items:center; gap:8px; position:relative;">
+                <div style="position:relative;">
+                    <input type="text" id="userSearch" class="mgr-input" placeholder="Имя, @username или ID" style="width:220px; padding:6px 10px; font-size:12px;" autocomplete="off">
+                    <div id="userDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); margin-top:4px; max-height:200px; overflow-y:auto; box-shadow:var(--glass-shadow);"></div>
+                </div>
+                <button class="mgr-btn mgr-btn--primary mgr-btn--sm" onclick="quickSimulate()">Check access</button>
+                <button class="mgr-btn mgr-btn--outline mgr-btn--sm" onclick="clearQuickSim()" id="quickClear" style="display:none;">Clear</button>
+            </div>
+        </div>
+        <div id="quickSimResult" style="display:none; margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span id="qsUserInfo" style="font-size:12px; color:var(--text-secondary);"></span>
+            <span class="badge badge--active" id="qsAccessible"></span>
+            <span class="badge badge--inactive" id="qsBlocked" style="margin-left:2px;"></span>
+        </div>
+
+        <div class="table-wrap">
+        <table id="pagesTable">
+            <thead>
+                <tr>
+                    <th>Slug</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in pages %}
+            <tr class="row--clickable"
+                data-slug="{{ p.slug }}"
+                data-type="{{ p.page_type }}"
+                onclick="selectPage(this, '{{ p.slug }}', '{{ p.page_type }}')">
+                <td><a href="/pages/{{ p.slug }}" onclick="event.stopPropagation()">{{ p.slug }}</a></td>
+                <td>{{ p.title }}</td>
+                <td><span class="badge badge--type">{{ p.page_type }}</span></td>
+                <td>
+                    {% if p.is_active %}
+                    <span class="badge badge--active">Active</span>
+                    {% else %}
+                    <span class="badge badge--inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="color:var(--text-muted); font-size:12px;">{{ p.updated_at.strftime('%Y-%m-%d %H:%M') if p.updated_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="mgr-panel" id="previewPanel">
+        <div class="phone-frame-wrap">
+            <div class="phone-toolbar" id="phoneToolbar">
+                <span class="phone-toolbar__slug" id="toolbarSlug">/ hub</span>
+                <span class="badge badge--type" id="toolbarType" style="font-size:10px;">hub</span>
+                <button class="phone-toolbar__btn" onclick="refreshPreview()" title="Refresh">&#8635;</button>
+                <button class="phone-toolbar__btn" onclick="openInTab()" title="Open in new tab">&#8599;</button>
+                <button class="phone-toolbar__btn mgr-panel-close" onclick="closePanel()" title="Close">&#10005;</button>
+            </div>
+            <!-- Preview As: выбор профиля -->
+            <div class="preview-as" id="previewAs">
+                <div style="display:flex; align-items:center; gap:6px; position:relative;">
+                    <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Preview as:</span>
+                    <input type="text" id="previewUserSearch" class="mgr-input" placeholder="Имя, @user или ID" style="flex:1; padding:4px 8px; font-size:11px; min-width:0;" autocomplete="off">
+                    <div id="previewUserDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:60; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); margin-top:2px; max-height:180px; overflow-y:auto; box-shadow:var(--glass-shadow);"></div>
+                </div>
+            </div>
+            <div class="phone-frame" id="phoneFrame">
+                <iframe id="previewIframe" src="/preview/"></iframe>
+            </div>
+            <div class="page-info" id="pageInfo">
+                <div class="page-info__row">
+                    <span class="page-info__label">HTTP</span>
+                    <span class="page-info__value" id="infoStatus">—</span>
+                </div>
+                <div class="page-info__row">
+                    <span class="page-info__label">Health</span>
+                    <span class="page-info__value" id="infoHealth">—</span>
+                </div>
+                <div class="page-info__row">
+                    <span class="page-info__label">Response</span>
+                    <span class="page-info__value" id="infoResponse">—</span>
+                </div>
+                <div class="page-info__row">
+                    <span class="page-info__label">Last check</span>
+                    <span class="page-info__value" id="infoChecked">—</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mgr-panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSlug = null;
+let currentPath = '/';
+let selectedUserId = null;
+let searchTimeout = null;
+
+// ── Preview As: поиск и выбор пользователя для превью ───────
+const pvInput = document.getElementById('previewUserSearch');
+const pvDropdown = document.getElementById('previewUserDropdown');
+let pvSearchTimeout = null;
+
+// Загрузить текущего preview-пользователя
+fetch('/api/preview-user').then(r => r.json()).then(data => {
+    if (pvInput && data.user_id) {
+        pvInput.value = (data.first_name || 'User') + ' (' + data.user_id + ')';
+    }
+});
+
+pvInput.addEventListener('input', () => {
+    clearTimeout(pvSearchTimeout);
+    const q = pvInput.value.trim();
+    if (q.length < 1) { pvDropdown.style.display = 'none'; return; }
+    pvSearchTimeout = setTimeout(() => {
+        fetch('/api/users/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                if (!data.users.length) {
+                    if (/^\d+$/.test(q)) {
+                        pvDropdown.innerHTML = '<div class="user-item" onclick="setPreviewUser(' + q + ', \'ID: ' + q + '\')"><div style="font-weight:600;">ID: ' + q + '</div></div>';
+                    } else {
+                        pvDropdown.innerHTML = '<div style="padding:8px 10px; color:var(--text-muted); font-size:11px;">Не найдено</div>';
+                    }
+                    pvDropdown.style.display = 'block';
+                    return;
+                }
+                let html = '';
+                data.users.forEach(u => {
+                    const roles = u.roles.length ? ' <span class="badge badge--role" style="font-size:8px;">' + u.roles.join('</span> <span class="badge badge--role" style="font-size:8px;">') + '</span>' : '';
+                    html += '<div class="user-item" onclick="setPreviewUser(' + u.user_id + ', \'' + (u.name || u.username || u.user_id).replace(/'/g, "\\'") + '\')">' +
+                        '<div style="font-weight:600; font-size:12px;">' + (u.name || '—') + roles + '</div>' +
+                        '<div style="font-size:10px; color:var(--text-muted);">@' + (u.username || '—') + ' · ' + u.user_id + '</div></div>';
+                });
+                pvDropdown.innerHTML = html;
+                pvDropdown.style.display = 'block';
+            });
+    }, 300);
+});
+
+pvInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        pvDropdown.style.display = 'none';
+        const q = pvInput.value.trim();
+        if (/^\d+$/.test(q)) setPreviewUser(parseInt(q), 'ID: ' + q);
+    }
+    if (e.key === 'Escape') pvDropdown.style.display = 'none';
+});
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#previewUserSearch') && !e.target.closest('#previewUserDropdown'))
+        pvDropdown.style.display = 'none';
+});
+
+function setPreviewUser(userId, label) {
+    pvInput.value = label + ' (' + userId + ')';
+    pvDropdown.style.display = 'none';
+    fetch('/api/preview-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: userId}),
+    }).then(r => r.json()).then(data => {
+        if (data.ok) refreshPreview();
+    });
+}
+
+function selectPage(row, slug, type) {
+    document.querySelectorAll('#pagesTable tr.row--selected').forEach(r => r.classList.remove('row--selected'));
+    row.classList.add('row--selected');
+    currentSlug = slug;
+    currentPath = '/p/' + slug;
+
+    document.getElementById('toolbarSlug').textContent = '/p/' + slug;
+    document.getElementById('toolbarType').textContent = type;
+
+    document.getElementById('previewIframe').src = '/preview/p/' + slug;
+
+    // Mobile: открыть панель
+    document.getElementById('previewPanel').classList.add('mgr-panel--open');
+    document.getElementById('panelOverlay').classList.add('mgr-panel-overlay--visible');
+
+    // Загрузить health
+    fetch('/api/health/' + slug)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('infoHealth').innerHTML = data.status === 'ok'
+                ? '<span class="badge badge--active" style="font-size:10px;">OK</span>'
+                : data.status
+                    ? '<span class="badge badge--inactive" style="font-size:10px;">' + data.status.toUpperCase() + '</span>'
+                    : '—';
+            document.getElementById('infoResponse').textContent = data.response_time_ms != null ? data.response_time_ms + 'ms' : '—';
+            document.getElementById('infoStatus').textContent = data.status_code || '—';
+            document.getElementById('infoChecked').textContent = data.checked_at ? data.checked_at.substring(0, 19) : '—';
+        })
+        .catch(() => { document.getElementById('infoHealth').textContent = '—'; });
+}
+
+function refreshPreview() {
+    document.getElementById('previewIframe').src = '/preview' + currentPath;
+}
+
+function openInTab() {
+    window.open('/preview' + currentPath, '_blank');
+}
+
+function closePanel() {
+    document.getElementById('previewPanel').classList.remove('mgr-panel--open');
+    document.getElementById('panelOverlay').classList.remove('mgr-panel-overlay--visible');
+}
+
+// ── Поиск пользователей ─────────────────────────────────────────
+const searchInput = document.getElementById('userSearch');
+const dropdown = document.getElementById('userDropdown');
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    const q = searchInput.value.trim();
+    if (q.length < 1) { dropdown.style.display = 'none'; return; }
+    searchTimeout = setTimeout(() => {
+        fetch('/api/users/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                if (!data.users.length) {
+                    // Если введён числовой ID — позволить использовать напрямую
+                    if (/^\d+$/.test(q)) {
+                        dropdown.innerHTML = '<div class="user-item" onclick="pickUser(' + q + ', \'ID: ' + q + '\')"><div style="font-weight:600;">Использовать ID: ' + q + '</div></div>';
+                        dropdown.style.display = 'block';
+                    } else {
+                        dropdown.innerHTML = '<div style="padding:10px 12px; color:var(--text-muted); font-size:12px;">Не найдено</div>';
+                        dropdown.style.display = 'block';
+                    }
+                    return;
+                }
+                let html = '';
+                data.users.forEach(u => {
+                    const roles = u.roles.length ? ' <span class="badge badge--role" style="font-size:9px;">' + u.roles.join('</span> <span class="badge badge--role" style="font-size:9px;">') + '</span>' : '';
+                    html += '<div class="user-item" onclick="pickUser(' + u.user_id + ', \'' + (u.name || u.username || u.user_id).replace(/'/g, "\\'") + '\')">' +
+                        '<div style="font-weight:600; font-size:13px;">' + (u.name || '—') + roles + '</div>' +
+                        '<div style="font-size:11px; color:var(--text-muted);">@' + (u.username || '—') + ' · ' + u.user_id + '</div>' +
+                    '</div>';
+                });
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+            });
+    }, 300);
+});
+
+searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        dropdown.style.display = 'none';
+        const q = searchInput.value.trim();
+        if (/^\d+$/.test(q)) {
+            selectedUserId = parseInt(q);
+            quickSimulate();
+        } else if (selectedUserId) {
+            quickSimulate();
+        }
+    }
+    if (e.key === 'Escape') dropdown.style.display = 'none';
+});
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#userSearch') && !e.target.closest('#userDropdown'))
+        dropdown.style.display = 'none';
+});
+
+function pickUser(userId, label) {
+    selectedUserId = userId;
+    searchInput.value = label + ' (' + userId + ')';
+    dropdown.style.display = 'none';
+    quickSimulate();
+}
+
+// ── Симуляция доступа ─────────────────────────────────────────────
+function quickSimulate() {
+    const uid = selectedUserId || parseInt(searchInput.value);
+    if (!uid || isNaN(uid)) { searchInput.focus(); return; }
+
+    fetch('/api/simulate?user_id=' + uid)
+        .then(r => r.json())
+        .then(data => {
+            const result = document.getElementById('quickSimResult');
+            result.style.display = 'flex';
+            document.getElementById('qsUserInfo').textContent = 'user_id: ' + data.user_id;
+            document.getElementById('qsAccessible').textContent = data.accessible + ' accessible';
+            document.getElementById('qsBlocked').textContent = data.blocked + ' blocked';
+            document.getElementById('quickClear').style.display = 'inline-flex';
+
+            const accessMap = {};
+            (data.pages || []).forEach(p => { accessMap[p.slug] = p; });
+
+            document.querySelectorAll('#pagesTable tbody tr').forEach(row => {
+                const slug = row.dataset.slug;
+                row.classList.remove('row--accessible', 'row--blocked');
+                if (accessMap[slug]) {
+                    row.classList.add(accessMap[slug].has_access ? 'row--accessible' : 'row--blocked');
+                }
+            });
+        });
+}
+
+function clearQuickSim() {
+    document.getElementById('quickSimResult').style.display = 'none';
+    document.getElementById('quickClear').style.display = 'none';
+    searchInput.value = '';
+    selectedUserId = null;
+    document.querySelectorAll('#pagesTable tbody tr').forEach(row => {
+        row.classList.remove('row--accessible', 'row--blocked');
+    });
+}
+</script>
+<style>
+.user-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+.user-item:last-child { border-bottom: none; }
+.user-item:hover { background: var(--bg-card-hover); }
+.preview-as {
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+}
+</style>
+{% endblock %}

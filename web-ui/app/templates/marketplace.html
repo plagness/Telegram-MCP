@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}Магазин плагинов{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+
+{% block head %}
+<style>
+.mp-search-row { padding: 0 16px 8px; }
+.mp-search-wrap { position: relative; }
+.mp-search-input {
+    width: 100%; padding: 10px 40px 10px 14px; border: none; border-radius: 12px;
+    background: var(--tg-secondary-bg); color: var(--tg-text); font-size: 14px;
+    outline: none; box-sizing: border-box;
+}
+.mp-search-input::placeholder { color: var(--tg-hint); }
+.mp-filter-btn {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px;
+    color: var(--tg-hint);
+}
+
+.mp-section { margin: 16px 0 8px; }
+.mp-section-title {
+    font-size: 15px; font-weight: 700; padding: 0 16px 8px; display: flex;
+    align-items: center; gap: 8px;
+}
+.mp-section-icon { font-size: 18px; }
+
+.mp-cats { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.mp-cats::-webkit-scrollbar { display: none; }
+.mp-cat-chip {
+    flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    background: var(--tg-secondary-bg); color: var(--tg-text); cursor: pointer;
+    border: 2px solid transparent; transition: all .2s; white-space: nowrap;
+}
+.mp-cat-chip--active { border-color: var(--accent); background: rgba(255, 193, 7, 0.15); }
+.mp-cat-count { font-size: 11px; color: var(--tg-hint); font-weight: 400; }
+
+.mp-card {
+    padding: 14px 16px; margin: 0 12px 8px; border-radius: 14px;
+    background: var(--tg-secondary-bg); cursor: pointer; transition: transform .15s;
+}
+.mp-card:active { transform: scale(0.98); }
+.mp-card__top { display: flex; align-items: flex-start; gap: 12px; }
+.mp-card__icon { font-size: 28px; flex-shrink: 0; width: 40px; text-align: center; line-height: 1.2; }
+.mp-card__body { flex: 1; min-width: 0; }
+.mp-card__name-row { display: flex; align-items: center; gap: 6px; }
+.mp-card__name { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-card__stars { font-size: 12px; color: var(--tg-hint); white-space: nowrap; flex-shrink: 0; }
+.mp-card__author { font-size: 12px; color: var(--tg-hint); margin-top: 2px; }
+.mp-card__desc { font-size: 13px; color: var(--tg-hint); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-card__badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.mp-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600;
+    background: rgba(128,128,128,0.15); color: var(--tg-hint);
+}
+.mp-badge--open { background: rgba(46,125,50,0.2); color: #66BB6A; }
+.mp-badge--gated { background: rgba(245,127,23,0.2); color: #FFA726; }
+.mp-badge--paid { background: rgba(33,150,243,0.2); color: #42A5F5; }
+.mp-badge--verified { background: rgba(76,175,80,0.2); color: #66BB6A; }
+.mp-badge--category { background: rgba(255,193,7,0.2); color: #FFD54F; }
+
+.mp-empty { display: none; text-align: center; padding: 40px 16px; color: var(--tg-hint); }
+.mp-empty__icon { font-size: 48px; margin-bottom: 12px; }
+.mp-empty__title { font-size: 16px; font-weight: 600; }
+.mp-empty__text { font-size: 13px; margin-top: 6px; }
+
+.mp-filter-group { margin-bottom: 16px; }
+.mp-filter-label { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--tg-hint); margin-bottom: 8px; letter-spacing: 0.5px; }
+.mp-filter-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.mp-filter-opt { padding: 6px 14px; border-radius: 8px; background: var(--tg-secondary-bg); cursor: pointer; font-size: 13px; border: 2px solid transparent; transition: all .15s; }
+.mp-filter-opt--active { border-color: var(--accent); }
+.mp-filter-actions { display: flex; gap: 8px; margin-top: 16px; }
+.mp-filter-actions button { flex: 1; padding: 10px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.mp-filter-apply { background: var(--accent); color: var(--accent-text, #000); }
+.mp-filter-reset { background: var(--tg-secondary-bg); color: var(--tg-text); }
+</style>
+{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg" style="text-align:center;padding:20px">
+    <div style="font-size:36px">&#9889;</div>
+    <div class="bee-chat-detail__name">Магазин Integrat</div>
+    <div class="bee-chat-detail__desc">Плагины данных для Telegram-чатов</div>
+</div>
+
+<div class="mp-search-row">
+    <div class="mp-search-wrap">
+        <input type="text" class="mp-search-input" id="mp-search"
+               placeholder="Поиск плагинов..." autocomplete="off">
+        <button class="mp-filter-btn" id="mp-filter-btn" title="Фильтры">&#9776;</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="mp-section" id="mp-cats-section" style="display:none">
+    <div class="mp-section-title"><span class="mp-section-icon">&#128194;</span> Категории</div>
+    <div class="mp-cats" id="mp-cats"></div>
+</div>
+
+<div class="mp-section" id="mp-top-section">
+    <div class="mp-section-title"><span class="mp-section-icon">&#128293;</span> Популярные</div>
+    <div id="mp-top-list">
+        <div class="mp-card"><div class="bee-skel" style="height:72px;border-radius:10px"></div></div>
+        <div class="mp-card"><div class="bee-skel" style="height:72px;border-radius:10px"></div></div>
+    </div>
+</div>
+
+<div class="mp-section" id="mp-new-section" style="display:none">
+    <div class="mp-section-title"><span class="mp-section-icon">&#127381;</span> Новые</div>
+    <div id="mp-new-list"></div>
+</div>
+
+<div class="mp-section" id="mp-search-section" style="display:none">
+    <div class="mp-section-title"><span class="mp-section-icon">&#128269;</span> Результаты</div>
+    <div id="mp-search-list"></div>
+</div>
+
+<div class="mp-empty" id="mp-empty">
+    <div class="mp-empty__icon">&#128269;</div>
+    <div class="mp-empty__title">Плагины не найдены</div>
+    <div class="mp-empty__text">Попробуйте другой запрос или фильтры</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+    var hdrs = { 'X-Init-Data': initData };
+    if (!initData) return;
+
+    var searchEl = document.getElementById('mp-search');
+    var filterBtn = document.getElementById('mp-filter-btn');
+    var topList = document.getElementById('mp-top-list');
+    var newList = document.getElementById('mp-new-list');
+    var searchList = document.getElementById('mp-search-list');
+    var emptyEl = document.getElementById('mp-empty');
+    var catsEl = document.getElementById('mp-cats');
+
+    var activeCategories = [];
+    var activeSort = 'popular';
+    var searchTimeout = null;
+
+    Promise.all([
+        fetch('/marketplace/v2/categories', { headers: hdrs }).then(function(r) { return r.ok ? r.json() : []; }),
+        fetch('/marketplace/v2/top?limit=10', { headers: hdrs }).then(function(r) { return r.ok ? r.json() : { plugins: [] }; }),
+        fetch('/marketplace/v2/search?sort=new&limit=5', { headers: hdrs }).then(function(r) { return r.ok ? r.json() : { plugins: [] }; }),
+    ]).then(function(results) {
+        renderCategories(results[0]);
+        renderPluginList(topList, results[1].plugins || []);
+        var newPlugins = results[2].plugins || [];
+        if (newPlugins.length) {
+            document.getElementById('mp-new-section').style.display = '';
+            renderPluginList(newList, newPlugins);
+        }
+    }).catch(function() {
+        topList.innerHTML = '<div class="mp-card" style="padding:16px;color:var(--tg-hint)">Не удалось загрузить</div>';
+    });
+
+    function renderCategories(cats) {
+        if (!cats || !cats.length) return;
+        document.getElementById('mp-cats-section').style.display = '';
+        catsEl.innerHTML = '';
+
+        var allChip = document.createElement('div');
+        allChip.className = 'mp-cat-chip mp-cat-chip--active';
+        allChip.dataset.slug = '';
+        allChip.innerHTML = 'Все';
+        catsEl.appendChild(allChip);
+
+        cats.forEach(function(c) {
+            if (c.count === 0) return;
+            var chip = document.createElement('div');
+            chip.className = 'mp-cat-chip';
+            chip.dataset.slug = c.slug;
+            chip.innerHTML = c.icon + ' ' + esc(c.name) + ' <span class="mp-cat-count">' + c.count + '</span>';
+            catsEl.appendChild(chip);
+        });
+
+        catsEl.addEventListener('click', function(e) {
+            var chip = e.target.closest('.mp-cat-chip');
+            if (!chip) return;
+            var slug = chip.dataset.slug;
+            document.querySelectorAll('.mp-cat-chip').forEach(function(c) { c.classList.remove('mp-cat-chip--active'); });
+            chip.classList.add('mp-cat-chip--active');
+            activeCategories = slug ? [slug] : [];
+            doSearch();
+        });
+    }
+
+    function renderPluginCard(p) {
+        var card = document.createElement('div');
+        card.className = 'mp-card';
+        card.dataset.slug = p.slug;
+
+        var starsHtml = p.github_stars > 0 ? '<span class="mp-card__stars">&#11088; ' + p.github_stars + '</span>' : '';
+        var author = p.author ? ('@' + esc(p.author.username)) : '';
+        var verifiedHtml = p.verified ? ' <span class="mp-badge mp-badge--verified">&#10004;</span>' : '';
+
+        var badges = '';
+        if (p.endpoint_count) badges += '<span class="mp-badge">' + p.endpoint_count + ' endpoints</span>';
+        if (p.open_endpoints) badges += '<span class="mp-badge mp-badge--open">' + p.open_endpoints + ' open</span>';
+        if (p.gated_endpoints) badges += '<span class="mp-badge mp-badge--gated">' + p.gated_endpoints + ' gated</span>';
+        if (p.has_paid && p.min_price) badges += '<span class="mp-badge mp-badge--paid">&#128142; ' + p.min_price + '&#11088;</span>';
+
+        card.innerHTML =
+            '<div class="mp-card__top">' +
+                '<div class="mp-card__icon">' + (p.icon_emoji || '&#9889;') + '</div>' +
+                '<div class="mp-card__body">' +
+                    '<div class="mp-card__name-row">' +
+                        '<div class="mp-card__name">' + esc(p.name || p.slug) + '</div>' +
+                        verifiedHtml + starsHtml +
+                    '</div>' +
+                    '<div class="mp-card__author">' + author + ' &middot; ' + esc(p.category || '') + '</div>' +
+                    (p.description ? '<div class="mp-card__desc">' + esc(p.description) + '</div>' : '') +
+                '</div>' +
+            '</div>' +
+            (badges ? '<div class="mp-card__badges">' + badges + '</div>' : '');
+
+        card.addEventListener('click', function() {
+            window.location.href = '/marketplace/' + encodeURIComponent(p.slug) + '?initData=' + encodeURIComponent(initData);
+        });
+        return card;
+    }
+
+    function renderPluginList(container, plugins) {
+        container.innerHTML = '';
+        if (!plugins || !plugins.length) {
+            container.innerHTML = '<div style="padding:16px;color:var(--tg-hint);font-size:13px;text-align:center">Нет плагинов</div>';
+            return;
+        }
+        plugins.forEach(function(p) { container.appendChild(renderPluginCard(p)); });
+    }
+
+    function doSearch() {
+        var q = searchEl.value.trim();
+        var isSearch = q || activeCategories.length;
+
+        document.getElementById('mp-top-section').style.display = isSearch ? 'none' : '';
+        document.getElementById('mp-new-section').style.display = 'none';
+        document.getElementById('mp-search-section').style.display = isSearch ? '' : 'none';
+        emptyEl.style.display = 'none';
+
+        if (!isSearch) {
+            fetch('/marketplace/v2/search?sort=new&limit=5', { headers: hdrs })
+            .then(function(r) { return r.ok ? r.json() : { plugins: [] }; })
+            .then(function(data) {
+                if ((data.plugins || []).length) {
+                    document.getElementById('mp-new-section').style.display = '';
+                    renderPluginList(newList, data.plugins);
+                }
+            });
+            return;
+        }
+
+        searchList.innerHTML = '<div class="mp-card"><div class="bee-skel" style="height:72px;border-radius:10px"></div></div>';
+
+        var params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (activeCategories.length) params.set('category', activeCategories.join(','));
+        params.set('sort', activeSort);
+        params.set('limit', '20');
+
+        fetch('/marketplace/v2/search?' + params.toString(), { headers: hdrs })
+        .then(function(r) { return r.ok ? r.json() : { plugins: [] }; })
+        .then(function(data) {
+            var plugins = data.plugins || [];
+            if (plugins.length) {
+                renderPluginList(searchList, plugins);
+            } else {
+                searchList.innerHTML = '';
+                emptyEl.style.display = '';
+            }
+        });
+    }
+
+    searchEl.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(doSearch, 300);
+    });
+
+    filterBtn.addEventListener('click', function() {
+        var sheetBody = document.getElementById('bee-sheet-body');
+        var sheetTitle = document.getElementById('bee-sheet-title');
+        sheetTitle.textContent = 'Фильтры';
+
+        sheetBody.innerHTML =
+            '<div class="mp-filter-group">' +
+                '<div class="mp-filter-label">Сортировка</div>' +
+                '<div class="mp-filter-opts" id="filter-sort">' +
+                    '<div class="mp-filter-opt' + (activeSort === 'popular' ? ' mp-filter-opt--active' : '') + '" data-v="popular">&#128293; Популярные</div>' +
+                    '<div class="mp-filter-opt' + (activeSort === 'new' ? ' mp-filter-opt--active' : '') + '" data-v="new">&#127381; Новые</div>' +
+                    '<div class="mp-filter-opt' + (activeSort === 'stars' ? ' mp-filter-opt--active' : '') + '" data-v="stars">&#11088; Stars</div>' +
+                    '<div class="mp-filter-opt' + (activeSort === 'name' ? ' mp-filter-opt--active' : '') + '" data-v="name">&#128290; А-Я</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="mp-filter-actions">' +
+                '<button class="mp-filter-reset" id="filter-reset">Сбросить</button>' +
+                '<button class="mp-filter-apply" id="filter-apply">Применить</button>' +
+            '</div>';
+
+        document.getElementById('filter-sort').addEventListener('click', function(e) {
+            var opt = e.target.closest('.mp-filter-opt');
+            if (!opt) return;
+            this.querySelectorAll('.mp-filter-opt').forEach(function(o) { o.classList.remove('mp-filter-opt--active'); });
+            opt.classList.add('mp-filter-opt--active');
+        });
+
+        document.getElementById('filter-apply').addEventListener('click', function() {
+            var sel = document.querySelector('#filter-sort .mp-filter-opt--active');
+            if (sel) activeSort = sel.dataset.v;
+            window.BeeKit && window.BeeKit.closeSheet();
+            doSearch();
+        });
+
+        document.getElementById('filter-reset').addEventListener('click', function() {
+            activeSort = 'popular';
+            activeCategories = [];
+            document.querySelectorAll('.mp-cat-chip').forEach(function(c) { c.classList.remove('mp-cat-chip--active'); });
+            var allChip = document.querySelector('.mp-cat-chip[data-slug=""]');
+            if (allChip) allChip.classList.add('mp-cat-chip--active');
+            searchEl.value = '';
+            window.BeeKit && window.BeeKit.closeSheet();
+            document.getElementById('mp-top-section').style.display = '';
+            document.getElementById('mp-search-section').style.display = 'none';
+            emptyEl.style.display = 'none';
+        });
+
+        window.BeeKit && window.BeeKit.openSheet();
+    });
+
+    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+})();
+</script>
+{% endblock %}

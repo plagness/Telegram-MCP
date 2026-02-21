@@ -1,0 +1,199 @@
+{% extends "layout.html" %}
+{% set active_nav = "dashboard" %}
+
+{% block title %}{{ page.slug }} — Page Manager{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+    <h2 style="font-size:18px; font-weight:600;">{{ page.title }}</h2>
+    <span class="badge badge--type">{{ page.page_type }}</span>
+    {% if page.is_active %}
+    <span class="badge badge--active">Active</span>
+    {% else %}
+    <span class="badge badge--inactive">Inactive</span>
+    {% endif %}
+</div>
+
+<!-- Quick actions -->
+<div style="display:flex; gap:8px; margin-bottom:24px;">
+    <button class="mgr-btn mgr-btn--outline mgr-btn--sm" onclick="navigator.clipboard.writeText('{{ page.slug }}')">Copy slug</button>
+    <button class="mgr-btn mgr-btn--outline mgr-btn--sm" onclick="toggleActive('{{ page.slug }}')" id="toggleBtn">
+        {% if page.is_active %}Deactivate{% else %}Activate{% endif %}
+    </button>
+    <a class="mgr-btn mgr-btn--outline mgr-btn--sm" href="/preview/p/{{ page.slug }}" target="_blank">Open page &#8599;</a>
+</div>
+
+<div class="mgr-split">
+    <div class="mgr-main">
+        <div class="grid-2 mb-24">
+            <div class="card">
+                <div class="card__title">Info</div>
+                <div class="table-wrap">
+                <table>
+                    <tr><td style="color:var(--text-muted);">Slug</td><td class="mono" style="color:var(--accent);">{{ page.slug }}</td></tr>
+                    <tr><td style="color:var(--text-muted);">Type</td><td><span class="badge badge--type">{{ page.page_type }}</span></td></tr>
+                    <tr><td style="color:var(--text-muted);">Created</td><td>{{ page.created_at }}</td></tr>
+                    <tr><td style="color:var(--text-muted);">Updated</td><td>{{ page.updated_at }}</td></tr>
+                    <tr><td style="color:var(--text-muted);">Creator</td><td>{{ page.creator_id or '—' }}</td></tr>
+                    <tr><td style="color:var(--text-muted);">Bot</td><td>{{ page.bot_id or '—' }}</td></tr>
+                </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card__title">Access Rules</div>
+                <div class="table-wrap">
+                <table>
+                    <tr><td style="color:var(--text-muted);">Public</td><td>
+                        {% if access.public %}
+                        <span class="badge badge--active" style="font-size:10px;">yes</span>
+                        {% else %}
+                        <span style="color:var(--text-muted);">no</span>
+                        {% endif %}
+                    </td></tr>
+                    <tr><td style="color:var(--text-muted);">Users</td><td>{{ access.allowed_users | length }} direct</td></tr>
+                    <tr><td style="color:var(--text-muted);">Roles</td><td>
+                        {% if access.allowed_roles %}
+                        {% for r in access.allowed_roles %}<span class="badge badge--role" style="margin-right:4px;">{{ r }}</span>{% endfor %}
+                        {% else %}—{% endif %}
+                    </td></tr>
+                    <tr><td style="color:var(--text-muted);">Chats</td><td>{{ access.allowed_chats | length }} chats</td></tr>
+                    <tr><td style="color:var(--text-muted);">Resolved members</td><td>{{ access.resolved_chat_members }}</td></tr>
+                </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Health card (AJAX) -->
+        <div class="card mb-24">
+            <div class="card__title">Health</div>
+            <div id="healthContent" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                <span class="text-muted text-sm">Loading...</span>
+            </div>
+        </div>
+
+        {% if handler_info %}
+        <div class="card mb-16">
+            <div class="card__title">Handler: {{ handler_info.page_type }}</div>
+            <div class="table-wrap">
+            <table>
+                <tr><td style="color:var(--text-muted);">Template</td><td>{{ handler_info.template }}</td></tr>
+                <tr><td style="color:var(--text-muted);">Scripts</td><td>{{ handler_info.scripts | join(', ') if handler_info.scripts else '—' }}</td></tr>
+            </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <details>
+            <summary>Config (JSON)</summary>
+            <pre>{{ page.config | tojson(indent=2) if page.config else '{}' }}</pre>
+        </details>
+    </div>
+
+    <div class="mgr-panel" id="previewPanel">
+        <div class="phone-frame-wrap">
+            <div class="phone-toolbar">
+                <span class="phone-toolbar__slug">/p/{{ page.slug }}</span>
+                <button class="phone-toolbar__btn" onclick="document.getElementById('detailIframe').src='/preview/p/{{ page.slug }}'" title="Refresh">&#8635;</button>
+                <button class="phone-toolbar__btn" onclick="window.open('/preview/p/{{ page.slug }}', '_blank')" title="Open in new tab">&#8599;</button>
+            </div>
+            <div class="preview-as">
+                <div style="display:flex; align-items:center; gap:6px; position:relative;">
+                    <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">As:</span>
+                    <input type="text" id="pvUserSearch" class="mgr-input" placeholder="Имя, @user или ID" style="flex:1; padding:4px 8px; font-size:11px; min-width:0;" autocomplete="off">
+                    <div id="pvUserDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:60; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); margin-top:2px; max-height:180px; overflow-y:auto; box-shadow:var(--glass-shadow);"></div>
+                </div>
+            </div>
+            <div class="phone-frame">
+                <iframe id="detailIframe" src="/preview/p/{{ page.slug }}"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/health/{{ page.slug }}')
+    .then(r => r.json())
+    .then(data => {
+        const el = document.getElementById('healthContent');
+        if (data.status === 'ok') {
+            el.innerHTML = '<span class="badge badge--active">OK</span>' +
+                '<span class="text-sm" style="color:var(--text-secondary);">' + (data.response_time_ms || '?') + 'ms</span>' +
+                '<span class="text-sm text-muted">HTTP ' + (data.status_code || '?') + '</span>' +
+                '<span class="text-sm text-muted">' + (data.checked_at ? data.checked_at.substring(0, 19) : '') + '</span>';
+        } else if (data.status) {
+            el.innerHTML = '<span class="badge badge--inactive">' + data.status.toUpperCase() + '</span>' +
+                '<span class="text-sm" style="color:var(--error);">' + (data.error_message || '') + '</span>';
+        } else {
+            el.innerHTML = '<span class="text-muted text-sm">No health data</span>';
+        }
+    })
+    .catch(() => {
+        document.getElementById('healthContent').innerHTML = '<span class="text-muted text-sm">No health data</span>';
+    });
+
+function toggleActive(slug) {
+    fetch('/api/pages/' + slug + '/toggle', {method: 'POST'})
+        .then(r => r.json())
+        .then(data => { if (data.ok) location.reload(); })
+        .catch(err => console.error('Toggle error:', err));
+}
+
+// ── Preview As: выбор профиля ───────
+const pvInput = document.getElementById('pvUserSearch');
+const pvDropdown = document.getElementById('pvUserDropdown');
+let pvSearchTimeout = null;
+
+fetch('/api/preview-user').then(r => r.json()).then(data => {
+    if (pvInput && data.user_id) pvInput.value = (data.first_name || 'User') + ' (' + data.user_id + ')';
+});
+
+pvInput.addEventListener('input', () => {
+    clearTimeout(pvSearchTimeout);
+    const q = pvInput.value.trim();
+    if (q.length < 1) { pvDropdown.style.display = 'none'; return; }
+    pvSearchTimeout = setTimeout(() => {
+        fetch('/api/users/search?q=' + encodeURIComponent(q))
+            .then(r => r.json()).then(data => {
+                if (!data.users.length) {
+                    pvDropdown.innerHTML = /^\d+$/.test(q)
+                        ? '<div class="user-item" onclick="setPvUser(' + q + ',\'ID: ' + q + '\')"><div style="font-weight:600;">ID: ' + q + '</div></div>'
+                        : '<div style="padding:8px; color:var(--text-muted); font-size:11px;">Не найдено</div>';
+                } else {
+                    pvDropdown.innerHTML = data.users.map(u => {
+                        const roles = u.roles.length ? ' <span class="badge badge--role" style="font-size:8px;">' + u.roles.join('</span> <span class="badge badge--role" style="font-size:8px;">') + '</span>' : '';
+                        return '<div class="user-item" onclick="setPvUser(' + u.user_id + ',\'' + (u.name||u.user_id).replace(/'/g,"\\'") + '\')">' +
+                            '<div style="font-weight:600;font-size:12px;">' + (u.name||'—') + roles + '</div>' +
+                            '<div style="font-size:10px;color:var(--text-muted);">@' + (u.username||'—') + ' · ' + u.user_id + '</div></div>';
+                    }).join('');
+                }
+                pvDropdown.style.display = 'block';
+            });
+    }, 300);
+});
+
+pvInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { pvDropdown.style.display = 'none'; const q = pvInput.value.trim(); if (/^\d+$/.test(q)) setPvUser(parseInt(q), 'ID: ' + q); }
+    if (e.key === 'Escape') pvDropdown.style.display = 'none';
+});
+
+function setPvUser(userId, label) {
+    pvInput.value = label + ' (' + userId + ')';
+    pvDropdown.style.display = 'none';
+    fetch('/api/preview-user', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: userId}),
+    }).then(r => r.json()).then(data => {
+        if (data.ok) document.getElementById('detailIframe').src = '/preview/p/{{ page.slug }}';
+    });
+}
+</script>
+<style>
+.user-item { padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border); transition:background 0.15s; }
+.user-item:last-child { border-bottom:none; }
+.user-item:hover { background:var(--bg-card-hover); }
+.preview-as { padding:6px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }
+</style>
+{% endblock %}

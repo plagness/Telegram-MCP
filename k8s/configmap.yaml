@@ -19,6 +19,8 @@ data:
   METRICS_API_URL: http://metricsapi-service.ns-metrics.svc.cluster.local:8083
   CHANNEL_MCP_URL: http://chmcp-service.ns-channel.svc.cluster.local:3333
   BCS_MCP_URL: http://bcsmcp.ns-bcs.svc.cluster.local:3333
+  DATESALE_URL: http://datesalecore.ns-datesale.svc.cluster.local:8086
+  DEMOCRACY_URL: http://democracycore.ns-democracy.svc.cluster.local:8087
 
   # Конфигурация приложения
   LOG_LEVEL: info

@@ -1,0 +1,253 @@
+{% extends "layout.html" %}
+{% set active_nav = "access" %}
+
+{% block title %}Access Matrix — Page Manager{% endblock %}
+
+{% block content %}
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-card__value">{{ public_count }}</div>
+        <div class="stat-card__label">Публичные</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__value">{{ role_count }}</div>
+        <div class="stat-card__label">По ролям</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__value">{{ chat_count }}</div>
+        <div class="stat-card__label">По чатам</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__value">{{ user_count }}</div>
+        <div class="stat-card__label">По user_id</div>
+    </div>
+</div>
+
+<!-- Панель симуляции доступа -->
+<div class="card mb-24">
+    <div class="card__title">Access Simulation</div>
+    <div style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="position:relative;">
+            <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">User</label>
+            <input type="text" id="simUserSearch" class="mgr-input" placeholder="Имя, @username или ID" style="width:220px;" autocomplete="off">
+            <div id="simUserDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); margin-top:4px; max-height:200px; overflow-y:auto; box-shadow:var(--glass-shadow);"></div>
+        </div>
+        <div style="flex:1; min-width:200px;">
+            <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">Roles</label>
+            <div class="chip-group" id="roleChips">
+                {% for role in all_roles %}
+                <label class="chip">
+                    <input type="checkbox" value="{{ role }}">
+                    {{ role }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <button class="mgr-btn mgr-btn--primary" onclick="runSimulation()">Simulate</button>
+            <button class="mgr-btn mgr-btn--outline" onclick="clearSimulation()" id="simClear" style="display:none;">Clear</button>
+        </div>
+    </div>
+    <div id="simResult" style="margin-top:12px; display:none;">
+        <div style="display:flex; gap:12px; align-items:center;">
+            <span class="badge badge--active" id="simAccessible"></span>
+            <span class="badge badge--inactive" id="simBlocked"></span>
+            <span style="font-size:12px; color:var(--text-muted);" id="simInfo"></span>
+        </div>
+    </div>
+</div>
+
+{% if filter_type %}
+<p class="mb-16 text-muted text-sm">
+    Фильтр: <span class="badge badge--type">{{ filter_type }}{% if filter_value %} = {{ filter_value }}{% endif %}</span>
+    <a href="/access" style="margin-left:12px;">Сбросить</a>
+</p>
+{% endif %}
+
+<div class="table-wrap">
+<table id="accessTable">
+    <thead>
+        <tr>
+            <th>Slug</th>
+            <th>Type</th>
+            <th>Public</th>
+            <th>Roles</th>
+            <th>Chats</th>
+            <th>Users</th>
+            <th>Members</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for p in pages %}
+    <tr data-slug="{{ p.slug }}">
+        <td><a href="/pages/{{ p.slug }}">{{ p.slug }}</a></td>
+        <td><span class="badge badge--type">{{ p.page_type }}</span></td>
+        <td>
+            {% if p._public %}
+                <span class="badge badge--active" style="font-size:10px;">public</span>
+            {% else %}
+                —
+            {% endif %}
+        </td>
+        <td>
+            {% for role in p._roles %}
+                <a href="/access?type=role&value={{ role }}" class="badge badge--role" style="margin-right:4px;">{{ role }}</a>
+            {% endfor %}
+            {% if not p._roles %}—{% endif %}
+        </td>
+        <td>
+            {% for chat_id in p._chats %}
+                <a href="/access?type=chat&value={{ chat_id }}" class="badge badge--chat" style="margin-right:4px;" title="chat_id: {{ chat_id }}">
+                    {{ p._chat_titles.get(chat_id, chat_id) }}
+                </a>
+            {% endfor %}
+            {% if not p._chats %}—{% endif %}
+        </td>
+        <td>
+            {% if p._users %}
+                <span class="badge badge--info" style="font-size:10px;">{{ p._users | length }}</span>
+            {% else %}
+                —
+            {% endif %}
+        </td>
+        <td style="color:var(--text-muted);">
+            {% if p._resolved_members is not none %}
+                {{ p._resolved_members }}
+            {% else %}
+                —
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let simSelectedUserId = null;
+let simSearchTimeout = null;
+const simInput = document.getElementById('simUserSearch');
+const simDropdown = document.getElementById('simUserDropdown');
+
+// Поиск пользователей
+simInput.addEventListener('input', () => {
+    clearTimeout(simSearchTimeout);
+    const q = simInput.value.trim();
+    if (q.length < 1) { simDropdown.style.display = 'none'; return; }
+    simSearchTimeout = setTimeout(() => {
+        fetch('/api/users/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                if (!data.users.length) {
+                    if (/^\d+$/.test(q)) {
+                        simDropdown.innerHTML = '<div class="user-item" onclick="simPickUser(' + q + ', \'ID: ' + q + '\')"><div style="font-weight:600;">Использовать ID: ' + q + '</div></div>';
+                    } else {
+                        simDropdown.innerHTML = '<div style="padding:10px 12px; color:var(--text-muted); font-size:12px;">Не найдено</div>';
+                    }
+                    simDropdown.style.display = 'block';
+                    return;
+                }
+                let html = '';
+                data.users.forEach(u => {
+                    const roles = u.roles.length ? ' <span class="badge badge--role" style="font-size:9px;">' + u.roles.join('</span> <span class="badge badge--role" style="font-size:9px;">') + '</span>' : '';
+                    html += '<div class="user-item" onclick="simPickUser(' + u.user_id + ', \'' + (u.name || u.username || u.user_id).replace(/'/g, "\\'") + '\')">' +
+                        '<div style="font-weight:600; font-size:13px;">' + (u.name || '—') + roles + '</div>' +
+                        '<div style="font-size:11px; color:var(--text-muted);">@' + (u.username || '—') + ' · ' + u.user_id + '</div>' +
+                    '</div>';
+                });
+                simDropdown.innerHTML = html;
+                simDropdown.style.display = 'block';
+            });
+    }, 300);
+});
+
+simInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        simDropdown.style.display = 'none';
+        const q = simInput.value.trim();
+        if (/^\d+$/.test(q)) simSelectedUserId = parseInt(q);
+        if (simSelectedUserId) runSimulation();
+    }
+    if (e.key === 'Escape') simDropdown.style.display = 'none';
+});
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#simUserSearch') && !e.target.closest('#simUserDropdown'))
+        simDropdown.style.display = 'none';
+});
+
+function simPickUser(userId, label) {
+    simSelectedUserId = userId;
+    simInput.value = label + ' (' + userId + ')';
+    simDropdown.style.display = 'none';
+    // Автовключаем роли если они есть у выбранного пользователя
+    fetch('/api/users/search?q=' + userId)
+        .then(r => r.json())
+        .then(data => {
+            if (data.users.length) {
+                const userRoles = data.users[0].roles || [];
+                document.querySelectorAll('#roleChips input').forEach(cb => {
+                    cb.checked = userRoles.includes(cb.value);
+                });
+            }
+            runSimulation();
+        });
+}
+
+function runSimulation() {
+    const uid = simSelectedUserId || parseInt(simInput.value);
+    if (!uid || isNaN(uid)) { simInput.focus(); return; }
+
+    const roles = [];
+    document.querySelectorAll('#roleChips input:checked').forEach(cb => roles.push(cb.value));
+
+    const params = new URLSearchParams({user_id: uid});
+    if (roles.length) params.set('roles', roles.join(','));
+
+    fetch('/api/simulate?' + params)
+        .then(r => r.json())
+        .then(data => {
+            const result = document.getElementById('simResult');
+            result.style.display = 'block';
+            document.getElementById('simAccessible').textContent = data.accessible + ' accessible';
+            document.getElementById('simBlocked').textContent = data.blocked + ' blocked';
+            document.getElementById('simInfo').textContent = 'user_id: ' + data.user_id + (roles.length ? ' + roles: ' + roles.join(', ') : '');
+            document.getElementById('simClear').style.display = 'inline-flex';
+
+            const accessMap = {};
+            (data.pages || []).forEach(p => { accessMap[p.slug] = p; });
+
+            document.querySelectorAll('#accessTable tbody tr').forEach(row => {
+                const slug = row.dataset.slug;
+                row.classList.remove('row--accessible', 'row--blocked');
+                if (accessMap[slug]) {
+                    row.classList.add(accessMap[slug].has_access ? 'row--accessible' : 'row--blocked');
+                }
+            });
+        });
+}
+
+function clearSimulation() {
+    document.getElementById('simResult').style.display = 'none';
+    document.getElementById('simClear').style.display = 'none';
+    document.querySelectorAll('#accessTable tbody tr').forEach(row => {
+        row.classList.remove('row--accessible', 'row--blocked');
+    });
+    document.querySelectorAll('#roleChips input').forEach(cb => { cb.checked = false; });
+    simInput.value = '';
+    simSelectedUserId = null;
+}
+</script>
+<style>
+.user-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+.user-item:last-child { border-bottom: none; }
+.user-item:hover { background: var(--bg-card-hover); }
+</style>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% set active_nav = "types" %}
+
+{% block title %}Page Types — Page Manager{% endblock %}
+
+{% block content %}
+<h2 class="section-title">Handler Registry ({{ types | length }})</h2>
+
+<div class="table-wrap mb-24">
+<table>
+    <thead>
+        <tr>
+            <th>Page Type</th>
+            <th>Handler Class</th>
+            <th>Template</th>
+            <th>Scripts</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for pt, h in handlers.items() | sort %}
+    <tr>
+        <td><span class="badge badge--type">{{ pt }}</span></td>
+        <td style="color:var(--text-secondary);">{{ h.__class__.__name__ }}</td>
+        <td class="mono text-sm" style="color:var(--text-muted);">{{ h.template }}</td>
+        <td class="text-sm" style="color:var(--text-muted);">{{ h.scripts | join(', ') if h.scripts else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<h2 class="section-title">Config Schemas</h2>
+
+{% for t in types %}
+<details>
+    <summary>{{ t.page_type }}</summary>
+    <pre>{{ t.config_schema | tojson(indent=2) }}</pre>
+</details>
+{% endfor %}
+{% endblock %}

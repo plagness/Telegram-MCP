@@ -3882,3 +3882,211 @@ a { color: var(--accent-dark); }
 /* ═══ BeeFX: Accessibility ═══ */
 
 @media(prefers-reduced-motion:reduce){.bee-fade-in,.bee-char{opacity:1;transform:none;filter:none;transition:none}.bee-shiny,.bee-gradient-text{animation:none;-webkit-text-fill-color:unset;background:none}.bee-star-border::before,.bee-star-border::after{animation:none}.bee-skel{animation:none}.bee-ripple__wave{animation:none}.bee-glitch::before,.bee-glitch::after{animation:none}}
+
+/* ═══ Chat Cards (Hub) ═══ */
+
+.bee-chat-card{display:flex;align-items:center;gap:12px;padding:12px 16px;text-decoration:none;color:var(--tg-text);border-bottom:1px solid var(--tg-separator);transition:background .15s ease}
+.bee-chat-card:active{background:var(--accent-glow)}
+.bee-chat-card__avatar{flex-shrink:0;width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--tg-secondary-bg)}
+.bee-chat-card__avatar img{width:100%;height:100%;object-fit:cover}
+.bee-chat-card__fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:20px;font-weight:600;color:var(--tg-hint);background:linear-gradient(135deg,var(--tg-secondary-bg),var(--accent-glow))}
+.bee-chat-card__body{flex:1;min-width:0}
+.bee-chat-card__title{font-size:15px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bee-chat-card__info{font-size:12px;color:var(--tg-hint);margin-top:2px}
+.bee-chat-card__arrow{flex-shrink:0;font-size:20px;color:var(--tg-hint);line-height:1}
+
+/* ═══ Chat Detail Page ═══ */
+
+.bee-chat-detail__avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:var(--tg-secondary-bg)}
+.bee-chat-detail__avatar img{width:100%;height:100%;object-fit:cover}
+.bee-chat-detail__fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:28px;font-weight:700;color:var(--tg-hint);background:linear-gradient(135deg,var(--tg-secondary-bg),var(--accent-glow))}
+.bee-chat-detail__name{font-size:18px;font-weight:700;line-height:1.3}
+.bee-chat-detail__desc{font-size:13px;color:var(--tg-hint);margin-top:6px;line-height:1.4}
+.bee-chat-detail__badges{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+
+/* ═══ List Items (reusable) ═══ */
+
+.bee-list{display:flex;flex-direction:column}
+.bee-list-item{display:flex;align-items:center;gap:12px;padding:12px 0;text-decoration:none;color:var(--tg-text);border-bottom:1px solid var(--tg-separator);transition:background .15s ease}
+.bee-list-item:last-child{border-bottom:none}
+.bee-list-item:active{background:var(--accent-glow)}
+.bee-list-icon{flex-shrink:0;width:32px;text-align:center}
+.bee-list-content{flex:1;min-width:0}
+.bee-list-title{font-size:14px;font-weight:600;line-height:1.3}
+.bee-list-subtitle{font-size:12px;color:var(--tg-hint);margin-top:2px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.bee-list-right{flex-shrink:0}
+
+/* ═══ Plugin Items (marketplace) ═══ */
+
+.bee-plugin-item{border-bottom:1px solid var(--tg-separator)}
+.bee-plugin-item:last-child{border-bottom:none}
+.bee-plugin-item__row{display:flex;align-items:center;gap:10px;padding:12px 0}
+.bee-plugin-item__icon{flex-shrink:0;font-size:20px;width:32px;text-align:center}
+.bee-plugin-item__body{flex:1;min-width:0}
+.bee-plugin-item__name{font-size:14px;font-weight:600;line-height:1.3}
+.bee-plugin-item__meta{font-size:12px;color:var(--tg-hint);margin-top:2px}
+.bee-plugin-item__actions{flex-shrink:0}
+.bee-plugin-item__row--enabled{background:var(--accent-glow);margin:0 -16px;padding:12px 16px;border-radius:8px}
+
+/* Small buttons */
+.bee-btn-sm{display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.bee-btn-sm:disabled{opacity:.5;cursor:default}
+.bee-btn-sm--enable{background:var(--accent);color:var(--accent-text)}
+.bee-btn-sm--settings{background:var(--tg-secondary-bg);color:var(--tg-text);font-size:16px;padding:4px 8px}
+
+/* ═══ Config Form ═══ */
+
+.bee-form-group{margin:0 0 16px}
+.bee-form-label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--tg-text)}
+.bee-form-input,.bee-form-textarea{width:100%;padding:10px 12px;border:1px solid var(--tg-separator);border-radius:8px;font-size:14px;background:var(--tg-secondary-bg);color:var(--tg-text);box-sizing:border-box;transition:border-color .15s}
+.bee-form-input:focus,.bee-form-textarea:focus{outline:none;border-color:var(--accent)}
+.bee-form-textarea{resize:vertical;min-height:60px;font-family:monospace;font-size:13px}
+.bee-form-help{font-size:11px;color:var(--tg-hint);margin-top:4px;line-height:1.4}
+
+/* Buttons */
+.bee-btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border:1px solid var(--tg-separator);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;background:var(--tg-secondary-bg);color:var(--tg-text);transition:opacity .15s}
+.bee-btn:disabled{opacity:.5;cursor:default}
+.bee-btn--primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+
+/* ═══ Marketplace Cards ═══ */
+
+.bee-mp-card{margin-bottom:8px}
+.bee-mp-card__header{display:flex;align-items:center;gap:10px}
+.bee-mp-card__icon{flex-shrink:0;font-size:24px;width:36px;text-align:center}
+.bee-mp-card__info{flex:1;min-width:0}
+.bee-mp-card__name{font-size:15px;font-weight:600;line-height:1.3}
+.bee-mp-card__meta{margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.bee-mp-card__expand{flex-shrink:0;font-size:12px!important;padding:4px 8px!important}
+.bee-mp-card__desc{font-size:13px;color:var(--tg-hint);margin-top:8px;line-height:1.4}
+.bee-mp-card__github{margin-top:6px;font-size:12px}
+.bee-mp-card__github a{color:var(--accent);text-decoration:none}
+.bee-mp-card__detail{margin-top:12px;padding-top:12px;border-top:1px solid var(--tg-separator)}
+.bee-mp-card__section-title{font-size:12px;font-weight:700;text-transform:uppercase;color:var(--tg-hint);margin:8px 0 6px;letter-spacing:.5px}
+
+/* ═══ Endpoint Items ═══ */
+
+.bee-endpoint-item{padding:6px 0;border-bottom:1px solid var(--tg-separator,rgba(255,255,255,.06))}
+.bee-endpoint-item:last-child{border-bottom:none}
+.bee-endpoint-item__name{font-size:13px;font-weight:600}
+.bee-endpoint-item__meta{margin-top:2px;display:flex;flex-wrap:wrap;gap:3px}
+.bee-endpoint-item__desc{font-size:11px;color:var(--tg-hint);margin-top:2px;line-height:1.3}
+
+/* ═══ Access Tier Badges ═══ */
+
+.bee-tier-badge{display:inline-flex;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600;line-height:1.4}
+.bee-tier-badge--open{background:#E8F5E9;color:#2E7D32}
+.bee-tier-badge--gated{background:#FFF8E1;color:#F57F17}
+.bee-tier-badge--private{background:#ECEFF1;color:#546E7A}
+.bee-tier-badge--pending{background:#E3F2FD;color:#1565C0}
+@media(prefers-color-scheme:dark){
+    .bee-tier-badge--open{background:rgba(46,125,50,.25);color:#81C784}
+    .bee-tier-badge--gated{background:rgba(245,127,23,.25);color:#FFD54F}
+    .bee-tier-badge--private{background:rgba(84,110,122,.25);color:#90A4AE}
+    .bee-tier-badge--pending{background:rgba(21,101,192,.25);color:#64B5F6}
+}
+
+/* ═══ Access Request Form ═══ */
+
+.bee-access-request{margin-top:8px}
+.bee-access-request__msg{width:100%;font-size:13px;padding:8px;border-radius:8px;border:1px solid var(--tg-separator);background:var(--tg-secondary-bg);color:var(--tg-text);resize:none;font-family:inherit}
+
+/* ═══ Stats Dashboard ═══ */
+
+.bee-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
+.bee-stats-item{padding:12px;border-radius:10px;background:var(--tg-secondary-bg);text-align:center}
+.bee-stats-item__value{font-size:20px;font-weight:700;color:var(--accent)}
+.bee-stats-item__label{font-size:11px;color:var(--tg-hint);margin-top:2px}
+.bee-stats-chart{margin:12px 0;height:120px;display:flex;align-items:flex-end;gap:4px}
+.bee-stats-chart__bar{flex:1;border-radius:4px 4px 0 0;background:var(--accent);min-height:4px;position:relative;transition:height .3s}
+.bee-stats-chart__bar:hover::after{content:attr(data-label);position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--tg-text);white-space:nowrap}
+.bee-stats-chart__label{font-size:9px;color:var(--tg-hint);text-align:center;margin-top:2px}
+
+/* ═══ Access Requests List ═══ */
+
+.bee-access-item{padding:10px 0;border-bottom:1px solid var(--tg-separator)}
+.bee-access-item:last-child{border-bottom:none}
+.bee-access-item__header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bee-access-item__info{flex:1;min-width:0}
+.bee-access-item__user{font-size:13px;font-weight:600}
+.bee-access-item__endpoint{font-size:11px;color:var(--tg-hint)}
+.bee-access-item__msg{font-size:12px;color:var(--tg-text);margin-top:4px;padding:6px 8px;background:var(--tg-secondary-bg);border-radius:6px;line-height:1.3}
+.bee-access-item__actions{display:flex;gap:6px;flex-shrink:0}
+.bee-access-item__time{font-size:10px;color:var(--tg-hint);margin-top:2px}
+
+/* ═══ Token Box ═══ */
+
+.bee-token-box{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--tg-secondary-bg);border-radius:8px;margin:8px 0}
+.bee-token-box__value{flex:1;font-family:monospace;font-size:13px;word-break:break-all;color:var(--accent)}
+
+/* ═══ Developer endpoints container ═══ */
+
+.bee-dev-endpoints{padding:4px 0 8px 42px}
+
+/* ═══ Banner Zone (Tier 2) ═══ */
+
+.bee-banner-zone {
+    padding: 0 16px;
+}
+.bee-banner-zone:empty {
+    display: none;
+}
+
+/* Системный баннер (maintenance, alert) */
+.bee-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: var(--radius-md);
+    background: var(--frosted-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    font-size: 13px;
+    line-height: 1.4;
+    position: relative;
+    overflow: hidden;
+}
+.bee-banner--info {
+    border-color: var(--accent);
+    background: rgba(255, 193, 7, 0.08);
+}
+.bee-banner--warning {
+    border-color: #E67E22;
+    background: rgba(230, 126, 34, 0.08);
+}
+.bee-banner--error {
+    border-color: #E74C3C;
+    background: rgba(231, 76, 60, 0.08);
+}
+.bee-banner--success {
+    border-color: #2ECC71;
+    background: rgba(46, 204, 113, 0.08);
+}
+.bee-banner__icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.bee-banner__text {
+    flex: 1;
+    min-width: 0;
+}
+.bee-banner__close {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: var(--tg-hint);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    -webkit-tap-highlight-color: transparent;
+}
+.bee-banner__close:active {
+    background: rgba(128, 128, 128, 0.3);
+}

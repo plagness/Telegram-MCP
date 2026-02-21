@@ -104,6 +104,11 @@ spec:
                 configMapKeyRef:
                   name: telegram-config
                   key: BCS_MCP_URL
+            - name: DATESALE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: telegram-config
+                  key: DATESALE_URL
             - name: PUBLIC_URL
               valueFrom:
                 configMapKeyRef:

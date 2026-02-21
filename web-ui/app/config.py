@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     metrics_api_url: str = "http://metricsapi-service:8083"
     channel_mcp_url: str = "http://chmcp-service:3333"
     bcs_mcp_url: str = "http://bcsmcp:3333"
+    datesale_url: str = "http://datesalecore.ns-datesale.svc.cluster.local:8086"
+    democracy_url: str = "http://democracycore.ns-democracy.svc.cluster.local:8087"
     mcp_http_token: str = ""
     bot_token: str = ""
     telegram_bot_token: str = ""
