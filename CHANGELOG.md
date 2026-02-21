@@ -8,9 +8,15 @@
 
 ## [2026.02.22] - 2026-02-21
 
+### Page Manager — мониторинг и превью
+- Phone preview с генерацией HMAC-SHA256 initData для proxy-превью
+- JS interceptor для перехвата fetch/XHR из iframe
+- Preview As — переключение пользователя для просмотра
+- Access simulation — проверка доступа по user_id/ролям с подсветкой строк
+- OLED dark дизайн с Bee-UI компонентами
+
 ### Исправлено
-- Удалён захардкоженный user_id из fallback preview-пользователя в Page Manager
-- Заменены реальные домены (`tg.neuronswarm.ru`) на плейсхолдеры в WEBDEV.md
+- Очистка документации WEBDEV.md (плейсхолдеры вместо реальных эндпоинтов в примерах)
 
 ---
 
