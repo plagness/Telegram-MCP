@@ -1,4 +1,11 @@
-"""Эндпоинты для работы с историями (Bot API 9.0+)."""
+"""
+Эндпоинты для работы с историями (Bot API 9.0+).
+
+ВАЖНО: Все методы Stories требуют Telegram Business подключение.
+Бот должен быть подключён к бизнес-аккаунту (business_connection_id).
+Без этого Telegram вернёт ошибку "business connection not found".
+Фото/видео передаётся только как файл (file upload), не по URL.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/post")
 async def post_story_api(payload: PostStoryIn) -> dict[str, Any]:
-    """Публикация истории в канал (Bot API 9.0)."""
+    """Публикация истории (Bot API 9.0). Требует Telegram Business подключение."""
     bot_token, _ = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": payload.chat_id,
@@ -48,7 +55,7 @@ async def post_story_api(payload: PostStoryIn) -> dict[str, Any]:
 
 @router.put("/{chat_id}/{story_id}")
 async def edit_story_api(chat_id: str, story_id: int, payload: EditStoryIn) -> dict[str, Any]:
-    """Редактирование истории."""
+    """Редактирование истории. Требует Telegram Business подключение."""
     bot_token, _ = await resolve_bot_context(payload.bot_id)
     telegram_payload: dict[str, Any] = {
         "chat_id": chat_id,
@@ -72,7 +79,7 @@ async def edit_story_api(chat_id: str, story_id: int, payload: EditStoryIn) -> d
 
 @router.delete("/{chat_id}/{story_id}")
 async def delete_story_api(chat_id: str, story_id: int, bot_id: int | None = None) -> dict[str, Any]:
-    """Удаление истории."""
+    """Удаление истории. Требует Telegram Business подключение."""
     bot_token, _ = await resolve_bot_context(bot_id)
     try:
         result = await delete_story(

@@ -19,6 +19,7 @@ resources:
   - tgdb-statefulset.yaml
   - tgdb-service.yaml
   # API
+  - tgapi-data-pvc.yaml
   - tgapi-deployment.yaml
   - tgapi-service.yaml
   # MCP Bridge

@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+
+{% block title %}{{ chat.title or 'Чат' }} — Данные{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/c/{{ chat.chat_id }}">&#8249;</a>{% endblock %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg" style="text-align:center;padding:20px 20px 12px">
+    <div class="bee-chat-detail__avatar" style="width:48px;height:48px;margin:0 auto 8px">
+        {% if chat._photo_url %}
+        <img src="{{ chat._photo_url }}" alt=""
+             onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+        <span class="bee-chat-detail__fallback" style="display:none">{{ (chat.title or '?')[0] | upper }}</span>
+        {% else %}
+        <span class="bee-chat-detail__fallback">{{ (chat.title or '?')[0] | upper }}</span>
+        {% endif %}
+    </div>
+    <div class="bee-chat-detail__name" style="font-size:17px">{{ chat.title or 'Без названия' }}</div>
+    <div style="color:var(--tg-hint);font-size:12px;margin-top:2px">Chat Data</div>
+</div>
+
+{# ── Табы навигации ── #}
+<div class="bee-tabs" id="cd-tabs">
+    <button class="bee-tab active" data-tab="overview">Обзор</button>
+    <button class="bee-tab" data-tab="members">Участники</button>
+    <button class="bee-tab" data-tab="messages">Сообщения</button>
+    <button class="bee-tab" data-tab="events">События</button>
+    <button class="bee-tab" data-tab="stats">Статистика</button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ═══ Таб: Обзор ═══ #}
+<div class="cd-panel active" id="panel-overview">
+    <div class="bee-card">
+        <div class="bee-card-title">&#128202; Сводка</div>
+        <div class="bee-stat-grid" id="overview-stats">
+            <div class="bee-stat"><div class="bee-stat-value bee-skel" style="height:24px;width:40px;margin:0 auto"></div><div class="bee-stat-label">Участники</div></div>
+            <div class="bee-stat"><div class="bee-stat-value bee-skel" style="height:24px;width:40px;margin:0 auto"></div><div class="bee-stat-label">Сообщения</div></div>
+            <div class="bee-stat"><div class="bee-stat-value bee-skel" style="height:24px;width:40px;margin:0 auto"></div><div class="bee-stat-label">Реакции</div></div>
+        </div>
+    </div>
+
+    {# Кнопка синхронизации #}
+    <div class="bee-card">
+        <div class="bee-card-title">&#128260; Синхронизация</div>
+        <div style="padding:0 16px 12px">
+            <div style="color:var(--tg-hint);font-size:13px;margin-bottom:10px">
+                Запросить актуальные данные из Telegram: метаданные чата, администраторы, аватарки.
+            </div>
+            <button class="bee-btn bee-btn--primary" id="sync-btn" style="width:100%">
+                Синхронизировать
+            </button>
+            <div id="sync-status" style="display:none;margin-top:8px;font-size:13px"></div>
+        </div>
+    </div>
+</div>
+
+{# ═══ Таб: Участники ═══ #}
+<div class="cd-panel" id="panel-members" style="display:none">
+    <div class="bee-card">
+        <div class="bee-card-title" id="members-title">&#128101; Участники</div>
+        <div style="padding:0 16px 8px">
+            <input type="text" class="bee-input" id="members-search"
+                   placeholder="Поиск по имени..." style="margin-bottom:8px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                <button class="bee-badge bee-badge--active" data-filter="">Все</button>
+                <button class="bee-badge" data-filter="administrator">Админы</button>
+                <button class="bee-badge" data-filter="creator">Создатель</button>
+                <button class="bee-badge" data-filter="member">Участники</button>
+            </div>
+        </div>
+        <div class="bee-list" id="members-list">
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+        </div>
+        <div style="padding:8px 16px 12px;display:flex;gap:8px" id="members-pager" style="display:none">
+            <button class="bee-btn bee-btn--small bee-btn--outline" id="members-more" style="width:100%">Загрузить ещё</button>
+        </div>
+    </div>
+</div>
+
+{# ═══ Таб: Сообщения ═══ #}
+<div class="cd-panel" id="panel-messages" style="display:none">
+    <div class="bee-card">
+        <div class="bee-card-title" id="messages-title">&#128172; Сообщения</div>
+        <div style="padding:0 16px 8px">
+            <input type="text" class="bee-input" id="messages-search"
+                   placeholder="Поиск по тексту..." style="margin-bottom:8px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                <button class="bee-badge bee-badge--active" data-media="">Все</button>
+                <button class="bee-badge" data-media="photo">&#128247; Фото</button>
+                <button class="bee-badge" data-media="video">&#127909; Видео</button>
+                <button class="bee-badge" data-media="document">&#128196; Файлы</button>
+                <button class="bee-badge" data-media="voice">&#127908; Голос</button>
+            </div>
+        </div>
+        <div class="bee-list" id="messages-list">
+            <div class="bee-skel" style="height:60px;border-radius:8px;margin:4px 16px"></div>
+            <div class="bee-skel" style="height:60px;border-radius:8px;margin:4px 16px"></div>
+        </div>
+        <div style="padding:8px 16px 12px">
+            <button class="bee-btn bee-btn--small bee-btn--outline" id="messages-more" style="width:100%;display:none">Загрузить ещё</button>
+        </div>
+    </div>
+</div>
+
+{# ═══ Таб: События ═══ #}
+<div class="cd-panel" id="panel-events" style="display:none">
+    <div class="bee-card">
+        <div class="bee-card-title" id="events-title">&#128220; События</div>
+        <div style="padding:0 16px 8px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                <button class="bee-badge bee-badge--active" data-event="">Все</button>
+                <button class="bee-badge" data-event="join">Вступления</button>
+                <button class="bee-badge" data-event="leave">Выходы</button>
+                <button class="bee-badge" data-event="pin">Закрепления</button>
+                <button class="bee-badge" data-event="title_change">Смена названия</button>
+            </div>
+        </div>
+        <div class="bee-list" id="events-list">
+            <div class="bee-skel" style="height:48px;border-radius:8px;margin:4px 16px"></div>
+            <div class="bee-skel" style="height:48px;border-radius:8px;margin:4px 16px"></div>
+        </div>
+        <div style="padding:8px 16px 12px">
+            <button class="bee-btn bee-btn--small bee-btn--outline" id="events-more" style="width:100%;display:none">Загрузить ещё</button>
+        </div>
+    </div>
+</div>
+
+{# ═══ Таб: Статистика ═══ #}
+<div class="cd-panel" id="panel-stats" style="display:none">
+    <div class="bee-card">
+        <div class="bee-card-title">&#128200; Статистика за
+            <select class="bee-select" id="stats-period" style="display:inline;width:auto;font-size:13px;padding:2px 8px">
+                <option value="7d">7 дней</option>
+                <option value="30d" selected>30 дней</option>
+                <option value="90d">90 дней</option>
+                <option value="all">Всё время</option>
+            </select>
+        </div>
+        <div id="stats-content">
+            <div class="bee-stat-grid" id="stats-grid">
+                <div class="bee-stat"><div class="bee-stat-value bee-skel" style="height:24px;width:40px;margin:0 auto"></div><div class="bee-stat-label">Сообщ./день</div></div>
+                <div class="bee-stat"><div class="bee-stat-value bee-skel" style="height:24px;width:40px;margin:0 auto"></div><div class="bee-stat-label">Активных</div></div>
+                <div class="bee-stat"><div class="bee-stat-value bee-skel" style="height:24px;width:40px;margin:0 auto"></div><div class="bee-stat-label">Реакций</div></div>
+            </div>
+        </div>
+    </div>
+
+    {# Топ авторы #}
+    <div class="bee-card" id="stats-authors-card" style="display:none">
+        <div class="bee-card-title">&#128081; Топ авторы</div>
+        <div class="bee-list" id="stats-authors"></div>
+    </div>
+
+    {# Распределение медиа #}
+    <div class="bee-card" id="stats-media-card" style="display:none">
+        <div class="bee-card-title">&#128206; Типы контента</div>
+        <div class="bee-chart" id="stats-media"></div>
+    </div>
+
+    {# Топ реакции #}
+    <div class="bee-card" id="stats-reactions-card" style="display:none">
+        <div class="bee-card-title">&#128293; Топ реакции</div>
+        <div class="bee-chart" id="stats-reactions"></div>
+    </div>
+
+    {# Пиковые часы #}
+    <div class="bee-card" id="stats-hours-card" style="display:none">
+        <div class="bee-card-title">&#9200; Активность по часам</div>
+        <div class="bee-chart" id="stats-hours"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.bee-tabs{display:flex;gap:4px;padding:8px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bee-tabs::-webkit-scrollbar{display:none}
+.bee-tab{flex:0 0 auto;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;
+    background:rgba(255,255,255,0.06);color:var(--tg-hint);border:none;cursor:pointer;
+    transition:all .2s;white-space:nowrap}
+.bee-tab.active{background:var(--accent);color:var(--accent-text)}
+.cd-panel{animation:cdFadeIn .2s ease}
+@keyframes cdFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.bee-badge{cursor:pointer;padding:4px 10px;border-radius:12px;font-size:12px;
+    background:rgba(255,255,255,0.06);color:var(--tg-hint);border:none;transition:all .2s}
+.bee-badge--active,.bee-badge.active{background:var(--accent);color:var(--accent-text)}
+.cd-msg{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.cd-msg__head{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.cd-msg__user{font-size:13px;font-weight:600;color:var(--accent-light)}
+.cd-msg__time{font-size:11px;color:var(--tg-hint)}
+.cd-msg__text{font-size:14px;color:var(--tg-text);word-break:break-word}
+.cd-msg__meta{font-size:11px;color:var(--tg-hint);margin-top:2px;display:flex;gap:8px}
+.cd-event{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:flex-start}
+.cd-event__icon{font-size:18px;flex:0 0 28px;text-align:center}
+.cd-event__body{flex:1;min-width:0}
+.cd-event__title{font-size:13px;color:var(--tg-text)}
+.cd-event__time{font-size:11px;color:var(--tg-hint)}
+.cd-member{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.cd-member__avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,193,7,0.15);
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:var(--accent);flex:0 0 36px;overflow:hidden}
+.cd-member__avatar img{width:100%;height:100%;object-fit:cover}
+.cd-member__body{flex:1;min-width:0}
+.cd-member__name{font-size:14px;font-weight:500;color:var(--tg-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-member__info{font-size:12px;color:var(--tg-hint)}
+.cd-member__badge{font-size:10px;padding:2px 6px;border-radius:8px;background:rgba(255,193,7,0.15);color:var(--accent)}
+.cd-empty{text-align:center;padding:32px 16px;color:var(--tg-hint);font-size:14px}
+</style>
+<script>
+(function() {
+    'use strict';
+
+    var chatId = '{{ chat.chat_id }}';
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+    var apiBase = '/api/chatdata/' + chatId;
+    var headers = { 'X-Init-Data': initData };
+
+    // ── Состояние табов ──────────────────────
+    var loaded = {};
+    var membersOffset = 0, messagesOffset = 0, eventsOffset = 0;
+    var membersFilter = '', messagesMedia = '', messagesSearch = '', eventsFilter = '';
+
+    // ── Переключение табов ───────────────────
+    document.getElementById('cd-tabs').addEventListener('click', function(e) {
+        var btn = e.target.closest('.bee-tab');
+        if (!btn) return;
+        if (window.haptic) window.haptic('impact', 'light');
+
+        var tab = btn.dataset.tab;
+        document.querySelectorAll('.bee-tab').forEach(function(t) { t.classList.toggle('active', t === btn); });
+        document.querySelectorAll('.cd-panel').forEach(function(p) {
+            p.style.display = p.id === 'panel-' + tab ? '' : 'none';
+            if (p.id === 'panel-' + tab) p.classList.add('active');
+        });
+
+        if (!loaded[tab]) {
+            loaded[tab] = true;
+            if (tab === 'overview') loadOverview();
+            else if (tab === 'members') loadMembers(true);
+            else if (tab === 'messages') loadMessages(true);
+            else if (tab === 'events') loadEvents(true);
+            else if (tab === 'stats') loadStats();
+        }
+    });
+
+    // ── Утилиты ──────────────────────────────
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function fmtDate(s) {
+        if (!s) return '';
+        var d = new Date(s);
+        var now = new Date();
+        var dd = d.getDate(), mm = d.getMonth() + 1, hh = d.getHours(), mi = d.getMinutes();
+        var pad = function(n) { return n < 10 ? '0' + n : n; };
+        if (d.toDateString() === now.toDateString()) return pad(hh) + ':' + pad(mi);
+        return pad(dd) + '.' + pad(mm) + ' ' + pad(hh) + ':' + pad(mi);
+    }
+    function fmtNum(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return String(n);
+    }
+
+    // ── ОБЗОР ────────────────────────────────
+    function loadOverview() {
+        fetch(apiBase + '/info', { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var grid = document.getElementById('overview-stats');
+            var info = data.info || data;
+            grid.innerHTML =
+                '<div class="bee-stat"><div class="bee-stat-value">' + fmtNum(info.member_count || 0) + '</div><div class="bee-stat-label">Участники</div></div>' +
+                '<div class="bee-stat"><div class="bee-stat-value">' + fmtNum(info.known_members_count || 0) + '</div><div class="bee-stat-label">Известных</div></div>' +
+                '<div class="bee-stat"><div class="bee-stat-value">' + fmtNum(info.messages_count || 0) + '</div><div class="bee-stat-label">Сообщения</div></div>';
+
+            if (window.BeeFX) {
+                grid.querySelectorAll('.bee-stat-value').forEach(function(el) {
+                    var val = parseInt(el.textContent.replace(/[^\d]/g, '')) || 0;
+                    BeeFX.countUp(el, 0, val, { duration: 800 });
+                });
+            }
+        })
+        .catch(function() {
+            document.getElementById('overview-stats').innerHTML =
+                '<div class="cd-empty">Не удалось загрузить данные</div>';
+        });
+    }
+
+    // ── УЧАСТНИКИ ────────────────────────────
+    function loadMembers(reset) {
+        if (reset) { membersOffset = 0; document.getElementById('members-list').innerHTML = ''; }
+
+        var url = apiBase + '/members?limit=50&offset=' + membersOffset;
+        if (membersFilter) url += '&status=' + membersFilter;
+        var searchVal = document.getElementById('members-search').value.trim();
+        if (searchVal) url += '&search=' + encodeURIComponent(searchVal);
+
+        fetch(url, { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var list = document.getElementById('members-list');
+            var items = data.items || [];
+            var total = data.total || 0;
+
+            document.getElementById('members-title').innerHTML = '&#128101; Участники <span style="color:var(--tg-hint);font-size:13px">(' + total + ')</span>';
+
+            items.forEach(function(m) {
+                var el = document.createElement('div');
+                el.className = 'cd-member';
+                var name = esc(m.first_name || '') + (m.last_name ? ' ' + esc(m.last_name) : '');
+                var info = [];
+                if (m.username) info.push('@' + esc(m.username));
+                if (m.status && m.status !== 'member') info.push(m.status);
+
+                var avatarHtml = '';
+                if (m.avatar_url) {
+                    avatarHtml = '<img src="' + esc(m.avatar_url) + '" onerror="this.parentNode.innerHTML=\'' + esc((m.first_name || '?')[0].toUpperCase()) + '\'">';
+                } else {
+                    avatarHtml = esc((m.first_name || '?')[0].toUpperCase());
+                }
+
+                el.innerHTML =
+                    '<div class="cd-member__avatar">' + avatarHtml + '</div>' +
+                    '<div class="cd-member__body">' +
+                        '<div class="cd-member__name">' + name + '</div>' +
+                        (info.length ? '<div class="cd-member__info">' + info.join(' &middot; ') + '</div>' : '') +
+                    '</div>' +
+                    (m.status === 'administrator' || m.status === 'creator'
+                        ? '<span class="cd-member__badge">' + (m.status === 'creator' ? '&#128081;' : '&#9733;') + '</span>'
+                        : '');
+                list.appendChild(el);
+            });
+
+            membersOffset += items.length;
+            var btn = document.getElementById('members-more');
+            btn.style.display = membersOffset < total ? '' : 'none';
+
+            if (!items.length && membersOffset === 0) {
+                list.innerHTML = '<div class="cd-empty">Участники не найдены</div>';
+            }
+        })
+        .catch(function() {
+            document.getElementById('members-list').innerHTML = '<div class="cd-empty">Ошибка загрузки</div>';
+        });
+    }
+
+    document.getElementById('members-more').addEventListener('click', function() { loadMembers(false); });
+    document.getElementById('members-search').addEventListener('input', debounce(function() { loadMembers(true); }, 400));
+
+    // Фильтры участников
+    document.querySelectorAll('[data-filter]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (window.haptic) window.haptic('selection');
+            membersFilter = this.dataset.filter;
+            document.querySelectorAll('[data-filter]').forEach(function(b) { b.classList.remove('bee-badge--active', 'active'); });
+            this.classList.add('bee-badge--active', 'active');
+            loadMembers(true);
+        });
+    });
+
+    // ── СООБЩЕНИЯ ────────────────────────────
+    function loadMessages(reset) {
+        if (reset) { messagesOffset = 0; document.getElementById('messages-list').innerHTML = ''; }
+
+        var url = apiBase + '/messages?limit=30&offset=' + messagesOffset;
+        if (messagesMedia) url += '&media_type=' + messagesMedia;
+        var searchVal = document.getElementById('messages-search').value.trim();
+        if (searchVal) url += '&search=' + encodeURIComponent(searchVal);
+
+        fetch(url, { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var list = document.getElementById('messages-list');
+            var items = data.items || [];
+            var total = data.total || 0;
+
+            document.getElementById('messages-title').innerHTML = '&#128172; Сообщения <span style="color:var(--tg-hint);font-size:13px">(' + total + ')</span>';
+
+            items.forEach(function(msg) {
+                var el = document.createElement('div');
+                el.className = 'cd-msg';
+
+                var userName = msg.first_name || msg.username || 'user';
+                var text = msg.text || msg.caption || '';
+                var meta = [];
+                if (msg.media_type) meta.push(mediaIcon(msg.media_type) + ' ' + msg.media_type);
+                if (msg.reactions_count) meta.push('&#128293; ' + msg.reactions_count);
+
+                el.innerHTML =
+                    '<div class="cd-msg__head">' +
+                        '<span class="cd-msg__user">' + esc(userName) + '</span>' +
+                        '<span class="cd-msg__time">' + fmtDate(msg.created_at) + '</span>' +
+                    '</div>' +
+                    (text ? '<div class="cd-msg__text">' + esc(text).substring(0, 300) + (text.length > 300 ? '...' : '') + '</div>' : '') +
+                    (meta.length ? '<div class="cd-msg__meta">' + meta.join('<span style="opacity:0.3">|</span>') + '</div>' : '');
+                list.appendChild(el);
+            });
+
+            messagesOffset += items.length;
+            var btn = document.getElementById('messages-more');
+            btn.style.display = messagesOffset < total ? '' : 'none';
+
+            if (!items.length && messagesOffset === 0) {
+                list.innerHTML = '<div class="cd-empty">Сообщения не найдены</div>';
+            }
+        })
+        .catch(function() {
+            document.getElementById('messages-list').innerHTML = '<div class="cd-empty">Ошибка загрузки</div>';
+        });
+    }
+
+    function mediaIcon(type) {
+        var icons = {photo:'&#128247;',video:'&#127909;',document:'&#128196;',voice:'&#127908;',
+            audio:'&#127925;',sticker:'&#127912;',animation:'&#127916;',video_note:'&#128249;'};
+        return icons[type] || '&#128206;';
+    }
+
+    document.getElementById('messages-more').addEventListener('click', function() { loadMessages(false); });
+    document.getElementById('messages-search').addEventListener('input', debounce(function() { loadMessages(true); }, 400));
+
+    // Фильтры медиа
+    document.querySelectorAll('[data-media]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (window.haptic) window.haptic('selection');
+            messagesMedia = this.dataset.media;
+            document.querySelectorAll('[data-media]').forEach(function(b) { b.classList.remove('bee-badge--active', 'active'); });
+            this.classList.add('bee-badge--active', 'active');
+            loadMessages(true);
+        });
+    });
+
+    // ── СОБЫТИЯ ──────────────────────────────
+    var eventIcons = {join:'&#128994;',leave:'&#128308;',kick:'&#128683;',pin:'&#128204;',unpin:'&#128203;',
+        new_photo:'&#128247;',delete_photo:'&#128465;',title_change:'&#9999;',migrate:'&#128260;'};
+    var eventLabels = {join:'вступил(а)',leave:'вышел(а)',kick:'исключён(а)',pin:'закрепил(а)',
+        unpin:'открепил(а)',new_photo:'обновил(а) фото',delete_photo:'удалил(а) фото',
+        title_change:'сменил(а) название',migrate:'миграция'};
+
+    function loadEvents(reset) {
+        if (reset) { eventsOffset = 0; document.getElementById('events-list').innerHTML = ''; }
+
+        var url = apiBase + '/events?limit=30&offset=' + eventsOffset;
+        if (eventsFilter) url += '&event_type=' + eventsFilter;
+
+        fetch(url, { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var list = document.getElementById('events-list');
+            var items = data.items || [];
+            var total = data.total || 0;
+
+            document.getElementById('events-title').innerHTML = '&#128220; События <span style="color:var(--tg-hint);font-size:13px">(' + total + ')</span>';
+
+            items.forEach(function(evt) {
+                var el = document.createElement('div');
+                el.className = 'cd-event';
+                var icon = eventIcons[evt.event_type] || '&#128196;';
+                var label = eventLabels[evt.event_type] || evt.event_type;
+                var actor = evt.actor_name || '';
+                var target = evt.target_name || '';
+                var desc = actor;
+                if (label) desc += ' ' + label;
+                if (target && target !== actor) desc += ' ' + target;
+
+                el.innerHTML =
+                    '<div class="cd-event__icon">' + icon + '</div>' +
+                    '<div class="cd-event__body">' +
+                        '<div class="cd-event__title">' + esc(desc) + '</div>' +
+                        '<div class="cd-event__time">' + fmtDate(evt.created_at) + '</div>' +
+                    '</div>';
+                list.appendChild(el);
+            });
+
+            eventsOffset += items.length;
+            var btn = document.getElementById('events-more');
+            btn.style.display = eventsOffset < total ? '' : 'none';
+
+            if (!items.length && eventsOffset === 0) {
+                list.innerHTML = '<div class="cd-empty">Событий пока нет</div>';
+            }
+        })
+        .catch(function() {
+            document.getElementById('events-list').innerHTML = '<div class="cd-empty">Ошибка загрузки</div>';
+        });
+    }
+
+    document.getElementById('events-more').addEventListener('click', function() { loadEvents(false); });
+
+    // Фильтры событий
+    document.querySelectorAll('[data-event]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (window.haptic) window.haptic('selection');
+            eventsFilter = this.dataset.event;
+            document.querySelectorAll('[data-event]').forEach(function(b) { b.classList.remove('bee-badge--active', 'active'); });
+            this.classList.add('bee-badge--active', 'active');
+            loadEvents(true);
+        });
+    });
+
+    // ── СТАТИСТИКА ───────────────────────────
+    function loadStats() {
+        var period = document.getElementById('stats-period').value;
+
+        fetch(apiBase + '/stats?period=' + period, { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var s = data.stats || data;
+
+            // Основная сетка
+            var grid = document.getElementById('stats-grid');
+            grid.innerHTML =
+                '<div class="bee-stat"><div class="bee-stat-value">' + (s.messages_per_day || 0).toFixed(1) + '</div><div class="bee-stat-label">Сообщ./день</div></div>' +
+                '<div class="bee-stat"><div class="bee-stat-value">' + fmtNum(s.active_users || 0) + '</div><div class="bee-stat-label">Активных</div></div>' +
+                '<div class="bee-stat"><div class="bee-stat-value">' + fmtNum(s.reactions_total || 0) + '</div><div class="bee-stat-label">Реакций</div></div>';
+
+            // Топ авторы
+            var authors = s.top_authors || [];
+            var authorsCard = document.getElementById('stats-authors-card');
+            var authorsList = document.getElementById('stats-authors');
+            if (authors.length) {
+                authorsCard.style.display = '';
+                authorsList.innerHTML = '';
+                authors.forEach(function(a, i) {
+                    var medals = ['&#129351;', '&#129352;', '&#129353;'];
+                    var medal = i < 3 ? medals[i] : '<span style="color:var(--tg-hint)">' + (i + 1) + '</span>';
+                    var div = document.createElement('div');
+                    div.className = 'bee-list-item';
+                    div.innerHTML =
+                        '<div class="bee-list-icon" style="font-size:16px">' + medal + '</div>' +
+                        '<div class="bee-list-content">' +
+                            '<div class="bee-list-title">' + esc(a.name || a.user_id || 'user') + '</div>' +
+                        '</div>' +
+                        '<div class="bee-list-right"><span class="text-accent fw-bold">' + fmtNum(a.count) + '</span></div>';
+                    authorsList.appendChild(div);
+                });
+            } else {
+                authorsCard.style.display = 'none';
+            }
+
+            // Медиа-распределение
+            var media = s.media_distribution || [];
+            var mediaCard = document.getElementById('stats-media-card');
+            var mediaChart = document.getElementById('stats-media');
+            if (media.length) {
+                mediaCard.style.display = '';
+                renderBarChart(mediaChart, media);
+            } else {
+                mediaCard.style.display = 'none';
+            }
+
+            // Топ реакции
+            var reactions = s.top_reactions || [];
+            var reactCard = document.getElementById('stats-reactions-card');
+            var reactChart = document.getElementById('stats-reactions');
+            if (reactions.length) {
+                reactCard.style.display = '';
+                renderBarChart(reactChart, reactions.map(function(r) { return {label: r.emoji || r.label, value: r.count || r.value}; }));
+            } else {
+                reactCard.style.display = 'none';
+            }
+
+            // Пиковые часы
+            var hours = s.peak_hours || [];
+            var hoursCard = document.getElementById('stats-hours-card');
+            var hoursChart = document.getElementById('stats-hours');
+            if (hours.length) {
+                hoursCard.style.display = '';
+                renderBarChart(hoursChart, hours.map(function(h) { return {label: h.hour + ':00', value: h.count}; }));
+            } else {
+                hoursCard.style.display = 'none';
+            }
+        })
+        .catch(function() {
+            document.getElementById('stats-content').innerHTML = '<div class="cd-empty">Ошибка загрузки статистики</div>';
+        });
+    }
+
+    document.getElementById('stats-period').addEventListener('change', function() {
+        loadStats();
+    });
+
+    // ── Bar chart (CSS-only) ─────────────────
+    function renderBarChart(container, items) {
+        if (!items.length) { container.innerHTML = ''; return; }
+        var max = Math.max.apply(null, items.map(function(i) { return i.value || 0; })) || 1;
+        container.innerHTML = '';
+        items.forEach(function(item) {
+            var pct = Math.round((item.value || 0) * 100 / max);
+            var row = document.createElement('div');
+            row.className = 'bee-chart-row';
+            row.innerHTML =
+                '<div class="bee-chart-label">' + esc(String(item.label || '')) + '</div>' +
+                '<div class="bee-chart-bar-track">' +
+                    '<div class="bee-chart-bar-fill" style="width:' + pct + '%">' +
+                        '<span class="bee-chart-bar-value">' + fmtNum(item.value || 0) + '</span>' +
+                    '</div>' +
+                '</div>';
+            container.appendChild(row);
+        });
+    }
+
+    // ── Синхронизация ────────────────────────
+    document.getElementById('sync-btn').addEventListener('click', function() {
+        var btn = this;
+        var status = document.getElementById('sync-status');
+        if (window.haptic) window.haptic('impact', 'medium');
+        btn.disabled = true;
+        btn.textContent = 'Синхронизация...';
+        status.style.display = 'none';
+
+        fetch(apiBase + '/sync', { method: 'POST', headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.textContent = 'Синхронизировать';
+            status.style.display = '';
+            if (data.error) {
+                status.style.color = 'var(--error)';
+                status.textContent = data.error;
+            } else {
+                status.style.color = 'var(--success)';
+                var parts = [];
+                if (data.admins_synced) parts.push(data.admins_synced + ' админов');
+                if (data.avatars_synced) parts.push(data.avatars_synced + ' аватарок');
+                status.textContent = 'Готово' + (parts.length ? ': ' + parts.join(', ') : '');
+                if (window.haptic) window.haptic('notification', 'success');
+                // Обновить обзор после синхронизации
+                loaded['overview'] = false;
+                loadOverview();
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Синхронизировать';
+            status.style.display = '';
+            status.style.color = 'var(--error)';
+            status.textContent = 'Ошибка сети';
+        });
+    });
+
+    // ── Debounce ─────────────────────────────
+    function debounce(fn, delay) {
+        var timer;
+        return function() {
+            var args = arguments, ctx = this;
+            clearTimeout(timer);
+            timer = setTimeout(function() { fn.apply(ctx, args); }, delay);
+        };
+    }
+
+    // ── initData для ссылок ──────────────────
+    document.querySelectorAll('.bee-bar__back').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (tgApp && initData) {
+                e.preventDefault();
+                var href = link.getAttribute('href');
+                var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
+            }
+        });
+    });
+
+    // ── Автозагрузка обзора ──────────────────
+    loaded['overview'] = true;
+    loadOverview();
+
+})();
+</script>
+{% endblock %}

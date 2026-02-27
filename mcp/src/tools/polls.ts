@@ -94,5 +94,65 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
         return apiRequest(`/v1/updates?${qs.toString()}`);
       },
     },
+    {
+      name: "updates.poll",
+      description: "Long polling: получить новые обновления от Telegram через getUpdates API. Блокирует до timeout секунд. Обновления автоматически сохраняются в БД.",
+      parameters: z.object({
+        bot_id: z.number().int().optional().describe("ID бота для мультибот-поллинга"),
+        offset: z.number().int().optional().describe("Update ID offset (null = текущий из БД)"),
+        limit: z.number().int().min(1).max(100).optional().default(100),
+        timeout: z.number().int().min(0).max(60).optional().default(30).describe("Long polling timeout (секунды)"),
+        allowed_updates: z.array(z.string()).optional().describe("Фильтр типов: message, callback_query, poll и т.д."),
+      }),
+      execute: async (params) => {
+        const qs = new URLSearchParams();
+        if (params.bot_id !== undefined) qs.set("bot_id", String(params.bot_id));
+        if (params.offset !== undefined) qs.set("offset", String(params.offset));
+        qs.set("limit", String(params.limit));
+        qs.set("timeout", String(params.timeout));
+        if (params.allowed_updates) qs.set("allowed_updates", params.allowed_updates.join(","));
+        return apiRequest(`/v1/updates/poll?${qs.toString()}`);
+      },
+    },
+    {
+      name: "updates.ack",
+      description: "Подтвердить обработку обновлений (сохранить offset). Вызывайте после успешной обработки updates.poll.",
+      parameters: z.object({
+        offset: z.number().int().describe("Новый offset (max update_id + 1 из предыдущего poll)"),
+        bot_id: z.number().int().optional(),
+      }),
+      execute: async (params) => apiRequest("/v1/updates/ack", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+    },
+    {
+      name: "updates.offset",
+      description: "Получить текущий offset для polling. Полезно для отладки и мониторинга.",
+      parameters: z.object({
+        bot_id: z.number().int().optional(),
+      }),
+      execute: async (params) => {
+        const qs = new URLSearchParams();
+        if (params.bot_id !== undefined) qs.set("bot_id", String(params.bot_id));
+        return apiRequest(`/v1/updates/offset?${qs.toString()}`);
+      },
+    },
+    {
+      name: "updates.history",
+      description: "История обновлений из БД. Показывает обработанные и необработанные updates.",
+      parameters: z.object({
+        limit: z.number().int().min(1).max(200).optional().default(50),
+        offset: z.number().int().min(0).optional().default(0),
+        processed: z.boolean().optional().describe("Фильтр: true = обработанные, false = необработанные, null = все"),
+      }),
+      execute: async (params) => {
+        const qs = new URLSearchParams();
+        qs.set("limit", String(params.limit));
+        qs.set("offset", String(params.offset));
+        if (params.processed !== undefined) qs.set("processed", String(params.processed));
+        return apiRequest(`/v1/updates/history?${qs.toString()}`);
+      },
+    },
   ];
 }

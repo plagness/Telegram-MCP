@@ -27,10 +27,10 @@ data:
   TEMPLATE_AUTOSEED: "1"
   WEBUI_ENABLED: "true"
   # Публичный URL Mini App (домен + порт)
-  WEBUI_PUBLIC_URL: https://tg.example.com:8443
-  PUBLIC_URL: https://tg.example.com:8443
+  WEBUI_PUBLIC_URL: https://tg.plag.space:8443
+  PUBLIC_URL: https://tg.plag.space:8443
   NODE_TLS_REJECT_UNAUTHORIZED: "0"
   # Deep link URL для Mini App кнопок (формат: https://t.me/BotUsername/AppShortName)
-  MINIAPP_URL: https://t.me/YourBotUsername/app
+  MINIAPP_URL: https://t.me/NeuronSwarmBot/app
   # Путь к реестру нод (монтируется как volume в tgweb)
   NODES_CONFIG_PATH: /app/config/nodes.json

@@ -49,6 +49,7 @@ _HUB_TYPE_ICONS: dict[str, str] = {
     "metrics": "grafana",
     "k8s": "kubernetes",
     "datesale": "zapier",
+    "governance": "civicrm",
     "page": "readme",
 }
 
@@ -78,13 +79,18 @@ async def _build_bar_context(user_id: int, roles: set[str] | None = None) -> dic
 
 
 async def _get_user_chats(user_id: int) -> list[dict[str, Any]]:
-    """Чаты пользователя из chat_members + chats, с resolve фото."""
+    """Чаты пользователя из chat_members + chats, с resolve фото.
+
+    Приоритет аватарки: avatars (custom/local) → resolve_tg_file_url(file_id) → пусто.
+    """
     rows = await fetch_all(
         """
         SELECT c.chat_id, c.title, c.username, c.member_count,
-               c.photo_file_id, c.type, c.description
+               c.photo_file_id, c.type, c.description,
+               a.local_path AS avatar_local_path
         FROM chat_members cm
         JOIN chats c ON c.chat_id = cm.chat_id
+        LEFT JOIN avatars a ON a.entity_type = 'chat' AND a.entity_id = c.chat_id
         WHERE cm.user_id = %s AND cm.status NOT IN ('left', 'kicked')
         ORDER BY cm.updated_at DESC NULLS LAST
         """,
@@ -93,10 +99,12 @@ async def _get_user_chats(user_id: int) -> list[dict[str, Any]]:
     chats: list[dict[str, Any]] = []
     for r in rows:
         chat = dict(r)
-        fid = chat.get("photo_file_id")
-        if fid:
+        # Приоритет: локальная аватарка → Telegram CDN → пусто
+        if chat.get("avatar_local_path"):
+            chat["_photo_url"] = f"/api/avatars/chat/{chat['chat_id']}"
+        elif chat.get("photo_file_id"):
             try:
-                chat["_photo_url"] = await resolve_tg_file_url(fid)
+                chat["_photo_url"] = await resolve_tg_file_url(chat["photo_file_id"])
             except Exception:
                 chat["_photo_url"] = ""
         else:
@@ -146,6 +154,15 @@ async def _build_chat_summaries(
     return sums
 
 
+async def _viewer_has_any_chats(user_id: int) -> bool:
+    """Проверить что пользователь состоит хотя бы в одном чате."""
+    row = await fetch_one(
+        "SELECT 1 FROM chat_members WHERE user_id = %s AND status NOT IN ('left', 'kicked') LIMIT 1",
+        [str(user_id)],
+    )
+    return row is not None
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Точка входа Mini App (Direct Link).
@@ -163,6 +180,15 @@ async def index(request: Request):
         return HTMLResponse(templates.get_template("base.html").render())
 
     user_id = user.get("id")
+
+    # Проверка: состоит ли пользователь хотя бы в одном чате
+    if user_id and not await _viewer_has_any_chats(user_id):
+        html = templates.get_template("stub.html").render(
+            bar_user=user,
+            mode="no_chats",
+        )
+        return HTMLResponse(html)
+
     roles = await get_user_roles(user_id) if user_id else set()
 
     # Чаты пользователя
@@ -204,6 +230,17 @@ async def render_page(slug: str, request: Request):
     page = await pages_svc.get_page(slug)
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
+
+    # Governance pages → redirect в manage
+    if page.get("page_type") == "governance":
+        cfg = page.get("config") or {}
+        chat_id = cfg.get("chat_id", "")
+        if chat_id:
+            qs = str(request.query_params)
+            target = f"/c/{chat_id}/manage/governance"
+            if qs:
+                target += f"?{qs}"
+            return RedirectResponse(target, status_code=302)
 
     # Проверка доступа (initData из query param или header)
     init_data = (

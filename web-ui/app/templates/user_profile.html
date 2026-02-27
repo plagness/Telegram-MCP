@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}{{ target.first_name }}{% if target.last_name %} {{ target.last_name }}{% endif %}{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back bee-sys-link" href="/">&#8249;</a>{% endblock %}
+
+{% set month_names = {
+    1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля',
+    5: 'мая', 6: 'июня', 7: 'июля', 8: 'августа',
+    9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря'
+} %}
+
+{% set month_names_short = {
+    1: 'янв', 2: 'фев', 3: 'мар', 4: 'апр', 5: 'мая', 6: 'июн',
+    7: 'июл', 8: 'авг', 9: 'сен', 10: 'окт', 11: 'ноя', 12: 'дек'
+} %}
+
+{% set lang_names = {
+    'ru': '🇷🇺 Русский',
+    'en': '🇬🇧 English',
+    'uk': '🇺🇦 Українська',
+    'de': '🇩🇪 Deutsch',
+    'fr': '🇫🇷 Français',
+    'es': '🇪🇸 Español',
+    'it': '🇮🇹 Italiano',
+    'pt': '🇧🇷 Português',
+    'zh': '🇨🇳 中文',
+    'ja': '🇯🇵 日本語',
+    'ko': '🇰🇷 한국어',
+    'ar': '🇦🇪 العربية',
+    'tr': '🇹🇷 Türkçe',
+    'pl': '🇵🇱 Polski',
+    'nl': '🇳🇱 Nederlands'
+} %}
+
+{% block context %}
+<div class="bee-card bee-hex-bg" style="text-align: center; padding: 24px 20px;">
+    <div class="bee-profile-avatar" id="profile-avatar"
+         data-own="{{ '1' if is_own else '0' }}"
+         {% if target.avatar_url %}style="background-image: url('{{ target.avatar_url }}'); color: transparent;"
+         {% elif target.photo_url %}style="background-image: url('{{ target.photo_url }}'); color: transparent;"
+         {% endif %}>
+        {{ target.first_name[0] if target.first_name else '?' }}
+    </div>
+    <div class="bee-profile-name">
+        {% if target.emoji_status_url %}
+        <img class="bee-profile-emoji-status" src="{{ target.emoji_status_url }}"
+             width="20" height="20" alt="" loading="lazy"
+             onerror="this.outerHTML='&#10024; '">
+        {% elif target.emoji_status_custom_emoji_id %}
+        <span style="margin-right: 4px">&#10024;</span>
+        {% endif %}
+        {{ target.first_name }}{% if target.last_name %} {{ target.last_name }}{% endif %}
+        {% if target.accent_color_id is not none %}
+        <span class="bee-profile-accent-dot" data-accent="{{ target.accent_color_id }}"></span>
+        {% endif %}
+    </div>
+    {% if target.username %}
+    <div class="bee-profile-username">@{{ target.username }}</div>
+    {% endif %}
+
+    {# User ID (копируемый) #}
+    <div class="bee-profile-uid" id="copy-uid" data-uid="{{ target.user_id }}">
+        ID: {{ target.user_id }}
+    </div>
+
+    {% if target.bio %}
+    <div class="bee-profile-bio">{{ target.bio }}</div>
+    {% endif %}
+
+    {# Бейджи #}
+    <div class="bee-profile-badges">
+        {% if target.is_premium %}
+        <span class="bee-profile-badge bee-profile-badge--premium">&#11088; Premium</span>
+        {% endif %}
+        {% if target.rating_level %}
+        <span class="bee-profile-badge bee-profile-badge--rating">&#9733; Ур. {{ target.rating_level }}</span>
+        {% endif %}
+        {% for role in roles %}
+        <span class="bee-hub-role-badge">{{ role_labels.get(role, role) }}</span>
+        {% endfor %}
+    </div>
+
+    {# Поделиться профилем #}
+    <button class="bee-profile-share-btn" id="share-profile-btn">
+        &#128279; Поделиться
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ── Информация ── #}
+{% set has_info = target.birthdate or target.rating_level or target.first_seen_at or target.message_count or target.language_code or target.estimated_creation_date %}
+{% if has_info %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128100; Информация</div>
+    <div class="bee-profile-info">
+        {% if target.estimated_creation_date %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128241; Аккаунт</span>
+            <span class="bee-profile-info__value" data-est-date="{{ target.estimated_creation_date }}"></span>
+        </div>
+        {% endif %}
+        {% if target.birthdate %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#127874; День рождения</span>
+            <span class="bee-profile-info__value">
+                {{ target.birthdate.day }} {{ month_names.get(target.birthdate.month, '') }}{% if target.birthdate.year %} {{ target.birthdate.year }}{% endif %}
+            </span>
+        </div>
+        {% endif %}
+        {% if target.rating_level %}
+        <div class="bee-profile-info__row" style="flex-direction: column; align-items: stretch; gap: 6px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span class="bee-profile-info__label">&#9733; Рейтинг</span>
+                <span class="bee-profile-info__value">{{ target.rating_value or 0 }} очков</span>
+            </div>
+            <div class="bee-rating-bar">
+                <div class="bee-rating-bar__track">
+                    <div class="bee-rating-bar__fill" style="width: {{ rating_pct }}%"></div>
+                </div>
+                <div class="bee-rating-bar__level">Lv.{{ target.rating_level }}</div>
+            </div>
+        </div>
+        {% endif %}
+        {% if target.language_code %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#127760; Язык</span>
+            <span class="bee-profile-info__value">{{ lang_names.get(target.language_code, target.language_code) }}</span>
+        </div>
+        {% endif %}
+        {% if target.first_seen_at %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128197; Первое появление</span>
+            <span class="bee-profile-info__value" data-ts-short="{{ target.first_seen_at }}"></span>
+        </div>
+        {% endif %}
+        {% if target.message_count %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128172; Сообщений</span>
+            <span class="bee-profile-info__value">{{ target.message_count }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Бизнес (если есть) ── #}
+{% if target.business_intro or target.business_location or target.business_work_hours %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128188; Бизнес</div>
+    <div class="bee-profile-info">
+        {% if target.business_intro %}
+        {% if target.business_intro.title %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128172; Название</span>
+            <span class="bee-profile-info__value">{{ target.business_intro.title }}</span>
+        </div>
+        {% endif %}
+        {% if target.business_intro.message %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128196; Описание</span>
+            <span class="bee-profile-info__value">{{ target.business_intro.message }}</span>
+        </div>
+        {% endif %}
+        {% endif %}
+        {% if target.business_location %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128205; Адрес</span>
+            <span class="bee-profile-info__value">{{ target.business_location.address or '' }}</span>
+        </div>
+        {% endif %}
+        {% if target.business_work_hours %}
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128336; Часовой пояс</span>
+            <span class="bee-profile-info__value">{{ target.business_work_hours.time_zone_name or '' }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Активность (публичная) ── #}
+<div class="bee-card">
+    <div class="bee-card-title">&#128200; Активность</div>
+    <div class="bee-profile-stats bee-profile-stats--two">
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ target.bets_count or 0 }}</div>
+            <div class="bee-profile-stat__label">Ставок</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ target.surveys_count or 0 }}</div>
+            <div class="bee-profile-stat__label">Ответов</div>
+        </div>
+    </div>
+    {% if target.last_seen_at %}
+    <div class="bee-profile-info" style="margin-top: 8px;">
+        <div class="bee-profile-info__row">
+            <span class="bee-profile-info__label">&#128336; Последняя активность</span>
+            <span class="bee-profile-info__value" data-ts-short="{{ target.last_seen_at }}"></span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# ── Общие чаты (при просмотре ЧУЖОГО профиля) ── #}
+{% if not is_own and common_chats %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128101; Общие чаты <span style="color:var(--tg-hint);font-size:13px">({{ common_chats | length }})</span></div>
+    <div class="bee-profile-chats-list">
+        {% for chat in common_chats %}
+        <a class="bee-profile-chat bee-sys-link" href="/c/{{ chat.chat_id }}">
+            <div class="bee-profile-chat__ava">
+                {% if chat.chat_avatar_url %}
+                <img src="{{ chat.chat_avatar_url }}" alt=""
+                     onerror="this.style.display='none';this.parentNode.textContent='{{ (chat.title or '?')[0] | upper }}'">
+                {% else %}
+                {{ (chat.title or '?')[0] | upper }}
+                {% endif %}
+            </div>
+            <div class="bee-profile-chat__body">
+                <div class="bee-profile-chat__title">{{ chat.title or 'Без названия' }}</div>
+                <div class="bee-profile-chat__meta">
+                    {% if chat.custom_title %}{{ chat.custom_title }} ·{% endif %}
+                    {{ chat.target_status or 'member' }}
+                </div>
+            </div>
+            <span class="bee-profile-chat__arrow">&#8250;</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Все чаты (при просмотре СВОЕГО профиля) ── #}
+{% if is_own and user_chats %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128172; Мои чаты <span style="color:var(--tg-hint);font-size:13px">({{ user_chats | length }})</span></div>
+    <div class="bee-profile-chats-list">
+        {% for chat in user_chats %}
+        <a class="bee-profile-chat bee-sys-link" href="/c/{{ chat.chat_id }}">
+            <div class="bee-profile-chat__ava">
+                {% if chat.chat_avatar_url %}
+                <img src="{{ chat.chat_avatar_url }}" alt=""
+                     onerror="this.style.display='none';this.parentNode.textContent='{{ (chat.title or '?')[0] | upper }}'">
+                {% else %}
+                {{ (chat.title or '?')[0] | upper }}
+                {% endif %}
+            </div>
+            <div class="bee-profile-chat__body">
+                <div class="bee-profile-chat__title">{{ chat.title or 'Без названия' }}</div>
+                <div class="bee-profile-chat__meta">
+                    {% if chat.custom_title %}{{ chat.custom_title }} · {% endif %}
+                    {{ chat.status or 'member' }}
+                    {% if chat.chat_message_count %} · {{ chat.chat_message_count }} сообщ.{% endif %}
+                </div>
+            </div>
+            <span class="bee-profile-chat__arrow">&#8250;</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Баланс (только для своего профиля) ── #}
+{% if is_own and balance %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128176; Баланс</div>
+    <div class="bee-profile-stats">
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ balance.balance }}</div>
+            <div class="bee-profile-stat__label">Текущий</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value bee-profile-stat--won">{{ balance.total_won }}</div>
+            <div class="bee-profile-stat__label">Выиграно</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value bee-profile-stat--lost">{{ balance.total_lost }}</div>
+            <div class="bee-profile-stat__label">Проиграно</div>
+        </div>
+        <div class="bee-profile-stat">
+            <div class="bee-profile-stat__value">{{ balance.total_deposited }}</div>
+            <div class="bee-profile-stat__label">Пополнено</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── Последние операции (свой) ── #}
+{% if is_own and recent_tx %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128203; Последние операции</div>
+    <div class="bee-profile-tx-list">
+        {% for tx in recent_tx %}
+        <div class="bee-profile-tx">
+            <div class="bee-profile-tx__info">
+                <span class="bee-profile-tx__type bee-profile-tx--{{ tx.transaction_type }}">
+                    {{ tx.transaction_type }}
+                </span>
+                {% if tx.description %}
+                <span class="bee-profile-tx__desc">{{ tx.description }}</span>
+                {% endif %}
+            </div>
+            <div class="bee-profile-tx__amount {% if tx.amount > 0 %}bee-profile-tx--positive{% else %}bee-profile-tx--negative{% endif %}">
+                {{ '+' if tx.amount > 0 else '' }}{{ tx.amount }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Настройки / Integrat (свой) ── #}
+{% if is_own %}
+<div class="bee-card">
+    <div class="bee-card-title">&#9889; Integrat</div>
+    <div class="bee-list">
+        <a class="bee-list-item bee-sys-link" href="/marketplace">
+            <div class="bee-list-icon">
+                <span style="font-size:20px">&#128722;</span>
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">Магазин плагинов</div>
+                <div class="bee-list-subtitle">Все доступные плагины и данные</div>
+            </div>
+            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div>
+        </a>
+        <a class="bee-list-item bee-sys-link" href="/developer">
+            <div class="bee-list-icon">
+                <span style="font-size:20px">&#128187;</span>
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">Кабинет разработчика</div>
+                <div class="bee-list-subtitle">API-ключ, мои плагины</div>
+            </div>
+            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div>
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{# ── Системные страницы (привилегированные) ── #}
+{% if is_own and is_privileged and system_pages %}
+<div class="bee-card">
+    <div class="bee-card-title">&#128295; Особые функции</div>
+    <div class="bee-list">
+        {% for page in system_pages %}
+        <a class="bee-list-item bee-sys-link" href="/p/{{ page.slug }}">
+            <div class="bee-list-icon">
+                {% if page._icon %}
+                <img src="{{ page._icon.icon_url }}" alt=""
+                     style="width:24px;height:24px;filter:brightness(0) invert(0.7)">
+                {% endif %}
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ page.title }}</div>
+                <div class="bee-list-subtitle">{{ page.config.description if page.config }}</div>
+            </div>
+            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Пустое состояние ── #}
+{% if not is_own and not common_chats and not has_info %}
+<div class="bee-result">
+    <div class="bee-result-icon">&#128100;</div>
+    <div class="bee-result-title">Профиль</div>
+    <div class="bee-result-text">Информация об этом пользователе пока не собрана.</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+    var userId = '{{ target.user_id }}';
+    var miniappUrl = '{{ miniapp_url }}';
+
+    /* Навигация с initData */
+    document.querySelectorAll('.bee-sys-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (window.haptic) window.haptic('impact', 'light');
+            if (tgApp && initData) {
+                e.preventDefault();
+                var href = link.getAttribute('href');
+                var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
+            }
+        });
+    });
+
+    /* Поделиться профилем */
+    var shareBtn = document.getElementById('share-profile-btn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', function() {
+            if (window.haptic) window.haptic('impact', 'light');
+            var shareUrl = miniappUrl + '?startapp=u_' + userId;
+            if (tgApp && tgApp.openTelegramLink) {
+                var shareText = encodeURIComponent(shareUrl);
+                tgApp.openTelegramLink('https://t.me/share/url?url=' + shareText);
+            } else {
+                navigator.clipboard.writeText(shareUrl).then(function() {
+                    if (window.BeeKit && BeeKit.toast) BeeKit.toast('Ссылка скопирована');
+                });
+            }
+        });
+    }
+
+    /* Копирование user_id */
+    var copyUid = document.getElementById('copy-uid');
+    if (copyUid) {
+        copyUid.addEventListener('click', function() {
+            if (window.haptic) window.haptic('impact', 'light');
+            navigator.clipboard.writeText(userId).then(function() {
+                if (window.BeeKit && BeeKit.toast) BeeKit.toast('ID скопирован');
+            });
+        });
+    }
+
+    /* Форматирование дат */
+    var months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    var monthsFull = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+    document.querySelectorAll('[data-ts-short]').forEach(function(el) {
+        var ts = el.getAttribute('data-ts-short');
+        if (!ts) return;
+        try {
+            var d = new Date(ts);
+            el.textContent = 'с ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+        } catch(e) {}
+    });
+
+    /* Форматирование оценочной даты создания аккаунта */
+    document.querySelectorAll('[data-est-date]').forEach(function(el) {
+        var dateStr = el.getAttribute('data-est-date');
+        if (!dateStr) return;
+        try {
+            var d = new Date(dateStr);
+            el.textContent = '~' + monthsFull[d.getMonth()] + ' ' + d.getFullYear();
+        } catch(e) {}
+    });
+
+    /* Аватар из photo_url (fallback если нет avatar_url) */
+    var photoUrl = '{{ target.photo_url or "" }}';
+    if (photoUrl) {
+        var ava = document.getElementById('profile-avatar');
+        if (ava && !ava.style.backgroundImage) {
+            ava.style.backgroundImage = 'url(' + photoUrl + ')';
+            ava.style.color = 'transparent';
+        }
+    }
+})();
+</script>
+{% endblock %}

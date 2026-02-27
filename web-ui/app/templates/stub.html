@@ -1,0 +1,41 @@
+{# Заглушка: no_chats (нет чатов с ботом) / no_access (нет общих чатов с юзером) #}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="bee-stub">
+
+    {% if mode == 'no_access' %}
+    {# ── Нет общих чатов с пользователем ── #}
+    <div class="bee-stub__icon">🔒</div>
+    <h2 class="bee-stub__title">Нет доступа</h2>
+    <p class="bee-stub__text">
+        У вас нет общих чатов с этим пользователем.
+    </p>
+    <p class="bee-stub__subtext">
+        Профили доступны только участникам общих чатов.
+    </p>
+    <button class="bee-stub__btn" onclick="history.back()">← Назад</button>
+
+    {% else %}
+    {# ── Пользователь не состоит ни в одном чате с ботом ── #}
+    <lottie-player
+        src="https://assets-v2.lottiefiles.com/a/0dc4d50e-1153-11ee-9df9-8b85d9c9c325/nXV2n0EVQY.json"
+        background="transparent"
+        speed="1"
+        style="width: 160px; height: 160px; margin: 0 auto;"
+        loop autoplay>
+    </lottie-player>
+    <h1 class="bee-stub__title">NeuronSwarm</h1>
+    <p class="bee-stub__text">
+        Платформа для управления чатами: голосования, предсказания, аналитика, governance и&nbsp;многое другое.
+    </p>
+    <p class="bee-stub__subtext">
+        Добавьте бота в ваш чат, чтобы начать использовать все возможности.
+    </p>
+    <a class="bee-stub__btn" href="https://t.me/NeuronSwarmBot" target="_blank">
+        Открыть бота →
+    </a>
+    {% endif %}
+
+</div>
+{% endblock %}

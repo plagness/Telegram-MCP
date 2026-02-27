@@ -63,6 +63,17 @@ class PageTypeHandler:
         Маршруты должны быть вида /p/{slug}/governance/data и т.д.
         """
 
+    def validate_layout(self, config: dict) -> list[str]:
+        """Валидировать 3-tier layout в config.
+
+        3-tier структура: profile_buttons → banner → content.
+        Базовая реализация не требует layout (обратная совместимость).
+        Подклассы переопределяют для строгой проверки.
+
+        Возвращает список ошибок (пусто = валидно).
+        """
+        return []
+
     def get_config_schema(self) -> dict[str, Any]:
         """JSON Schema для config этого page_type (для валидации)."""
         return {"type": "object"}

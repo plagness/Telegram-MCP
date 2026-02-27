@@ -88,6 +88,13 @@ async def create_page(payload: CreatePageIn):
             detail=f"Unknown page_type: {payload.page_type}",
         )
 
+    layout_errors = handler.validate_layout(payload.config)
+    if layout_errors:
+        raise HTTPException(
+            status_code=400,
+            detail={"layout_errors": layout_errors},
+        )
+
     try:
         page = await pages_svc.create_page(
             slug=payload.slug,
@@ -161,6 +168,10 @@ async def validate_page(payload: ValidatePageIn):
 
     if not payload.title or len(payload.title) < 1:
         errors.append("Title is required")
+
+    if handler:
+        layout_errors = handler.validate_layout(payload.config)
+        errors.extend(layout_errors)
 
     return {
         "ok": len(errors) == 0,

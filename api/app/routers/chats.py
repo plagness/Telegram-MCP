@@ -105,6 +105,39 @@ async def get_chat_by_alias_api(alias: str) -> dict[str, Any]:
     return {"chat": row}
 
 
+@router.put("/{chat_id}/hub-settings")
+async def set_hub_settings_api(chat_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Обновить Hub-настройки чата (hub_description, hub_links)."""
+    exists = await fetch_one("SELECT chat_id FROM chats WHERE chat_id = %s", [chat_id])
+    if not exists:
+        raise HTTPException(status_code=404, detail="chat not found")
+
+    updates: list[str] = []
+    values: list[Any] = []
+
+    if "hub_description" in payload:
+        updates.append("hub_description = %s")
+        values.append(payload["hub_description"])
+
+    if "hub_links" in payload:
+        updates.append("hub_links = %s::jsonb")
+        values.append(json.dumps(payload["hub_links"]))
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="no fields to update")
+
+    updates.append("updated_at = NOW()")
+    values.append(chat_id)
+
+    await execute(
+        f"UPDATE chats SET {', '.join(updates)} WHERE chat_id = %s",
+        values,
+    )
+
+    chat = await fetch_one("SELECT * FROM chats WHERE chat_id = %s", [chat_id])
+    return {"chat": chat}
+
+
 @router.get("/{chat_id}/history")
 async def get_chat_history_api(
     chat_id: str,

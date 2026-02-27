@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tgapi-data-pvc
+  namespace: ns-telegram
+  labels:
+    app.kubernetes.io/name: tgapi
+    ns.module: telegram
+    ns.component: api
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ns-db-local
+  resources:
+    requests:
+      storage: 1Gi

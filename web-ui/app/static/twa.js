@@ -24,12 +24,27 @@
         // start_param используется для Direct Link
         var startParam = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
 
-        // Direct Link: start_param → редирект на /p/{slug} или /c/{chat_id}
+        // Direct Link: start_param → редирект на /p/{slug}, /c/{chat_id}, /u/{user_id}
         if (startParam && window.location.pathname === "/") {
+            // start_param с префиксом "cm_" → manage (/c/{chat_id}/manage[/section[/sub]])
+            if (startParam.indexOf("cm_") === 0) {
+                var cmParts = startParam.substring(3).split('_');
+                var cmChatId = cmParts[0];
+                var cmSection = cmParts.slice(1).join('/');
+                var cmTarget = "/c/" + cmChatId + "/manage" + (cmSection ? "/" + cmSection : "");
+                window.location.replace(cmTarget + "?initData=" + encodeURIComponent(tg.initData));
+                return;
+            }
             // start_param с префиксом "c_" → чат-хаб (/c/{chat_id})
             if (startParam.indexOf("c_") === 0) {
                 var chatId = startParam.substring(2);
                 window.location.replace("/c/" + chatId + "?initData=" + encodeURIComponent(tg.initData));
+                return;
+            }
+            // start_param с префиксом "u_" → профиль (/u/{user_id})
+            if (startParam.indexOf("u_") === 0) {
+                var profileId = startParam.substring(2);
+                window.location.replace("/u/" + profileId + "?initData=" + encodeURIComponent(tg.initData));
                 return;
             }
             // Иначе → страница (/p/{slug})
@@ -54,6 +69,15 @@
         if (tg.initData && window.location.pathname === "/profile" && window.location.search.indexOf("initData") === -1) {
             var sep2 = window.location.search ? "&" : "?";
             window.location.replace("/profile" + window.location.search + sep2 + "initData=" + encodeURIComponent(tg.initData));
+            return;
+        }
+
+        // Страница /u/{id} (профиль) без initData → добавить initData
+        if (tg.initData && window.location.pathname.indexOf("/u/") === 0
+            && window.location.search.indexOf("initData") === -1) {
+            var sepU = window.location.search ? "&" : "?";
+            window.location.replace(window.location.pathname + window.location.search
+                + sepU + "initData=" + encodeURIComponent(tg.initData));
             return;
         }
 
@@ -323,25 +347,30 @@
                 avatar.textContent = '';
             }
 
-            // Аватар на странице профиля
+            // Аватар на странице профиля (только если это свой профиль)
             var profileAvatar = document.getElementById('profile-avatar');
             if (profileAvatar && u.photo_url) {
-                profileAvatar.style.backgroundImage = 'url(' + u.photo_url + ')';
-                profileAvatar.textContent = '';
+                var isOwnProfile = profileAvatar.getAttribute('data-own') === '1';
+                if (isOwnProfile) {
+                    profileAvatar.style.backgroundImage = 'url(' + u.photo_url + ')';
+                    profileAvatar.textContent = '';
+                }
             }
         }
 
-        // Клик по pill → переход на профиль
-        var pillEl = bar.querySelector('.bee-bar__center');
+        // Клик по pill → переход на профиль (/u/{id})
+        var pillEl = bar.querySelector('.bee-bar__profile-link');
         if (pillEl) {
             pillEl.style.cursor = 'pointer';
-            pillEl.addEventListener('click', function() {
+            pillEl.addEventListener('click', function(e) {
+                e.preventDefault();
                 if (window.haptic) window.haptic('impact', 'light');
                 var tgApp = window.Telegram && window.Telegram.WebApp;
+                var href = pillEl.getAttribute('href') || '/profile';
                 if (tgApp && tgApp.initData) {
-                    window.location.href = '/profile?initData=' + encodeURIComponent(tgApp.initData);
+                    window.location.href = href + '?initData=' + encodeURIComponent(tgApp.initData);
                 } else {
-                    window.location.href = '/profile';
+                    window.location.href = href;
                 }
             });
         }

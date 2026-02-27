@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -9,7 +10,11 @@ from fastapi import APIRouter, HTTPException, Query
 from ..db import fetch_all, fetch_one, execute
 from ..models import UpdatesAckIn
 from ..services.bots import BotRegistry
+from ..services import updates as update_service
 from ..telegram_client import call_api
+from ..utils import resolve_bot_context
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/updates", tags=["updates"])
 
@@ -205,6 +210,14 @@ async def poll_updates(
         max_update_id = max(u["update_id"] for u in updates)
         new_offset = max_update_id + 1
 
+        # Инжестим каждый update в tgdb (сохраняем сообщения, юзеров, чаты)
+        _, resolved_bot_id = await resolve_bot_context(bot_id)
+        for upd in updates:
+            try:
+                await update_service.ingest_update(upd, bot_id=resolved_bot_id)
+            except Exception:
+                logger.warning("Ошибка инжеста update %s", upd.get("update_id"), exc_info=True)
+
     return {
         "ok": True,
         "result": updates,
@@ -291,88 +304,53 @@ async def get_current_offset(bot_id: int | None = Query(None, description="ID б
     }
 
 
-@router.post("/process")
-async def process_update(update: dict[str, Any]) -> dict[str, Any]:
-    """
-    Обработка одного обновления (из вебхука или polling).
-
-    Сохраняет обновление в БД и маркирует его как обработанное.
-
-    **Body**: Telegram Update object
-    ```json
-    {
-      "update_id": 123456,
-      "message": {...}
-    }
-    ```
-    """
-    update_id = update.get("update_id")
-    if not update_id:
-        raise HTTPException(status_code=400, detail="update_id is required")
-
-    # Сохраняем в updates таблице (если ещё нет)
-    existing = await fetch_one("SELECT id FROM updates WHERE update_id = %s", [update_id])
-    if not existing:
-        await execute(
-            "INSERT INTO updates (update_id, update_data, processed) VALUES (%s, %s::jsonb, TRUE)",
-            [update_id, update],
-        )
-    else:
-        # Маркируем как обработанное
-        await execute(
-            "UPDATE updates SET processed = TRUE, processed_at = NOW() WHERE update_id = %s",
-            [update_id],
-        )
-
-    return {"ok": True, "update_id": update_id}
-
-
 @router.get("/history")
 async def get_update_history(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    processed: bool | None = Query(None, description="Фильтр по статусу обработки"),
+    update_type: str | None = Query(None, description="Фильтр по типу обновления"),
+    chat_id: str | None = Query(None, description="Фильтр по чату"),
 ) -> dict[str, Any]:
     """
-    История обновлений из БД.
+    История обновлений из БД (webhook_updates).
 
     **Параметры**:
     - limit: Количество обновлений
     - offset: Смещение
-    - processed: True (обработанные), False (необработанные), None (все)
-
-    **Возвращает**:
-    ```json
-    {
-      "updates": [...],
-      "total": 150,
-      "limit": 50,
-      "offset": 0
-    }
-    ```
+    - update_type: Тип обновления (message, callback_query, edited_message и т.д.)
+    - chat_id: Фильтр по чату
     """
-    where_clause = ""
+    conditions: list[str] = []
     params: list[Any] = []
 
-    if processed is not None:
-        where_clause = "WHERE processed = %s"
-        params.append(processed)
+    if update_type:
+        conditions.append("update_type = %s")
+        params.append(update_type)
+    if chat_id:
+        conditions.append("chat_id = %s")
+        params.append(chat_id)
 
-    # Получаем total
-    count_sql = f"SELECT COUNT(*) as total FROM updates {where_clause}"
-    count_row = await fetch_one(count_sql, params if params else None)
+    where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    count_row = await fetch_one(
+        f"SELECT COUNT(*) as total FROM webhook_updates {where_clause}",
+        params if params else None,
+    )
     total = count_row["total"] if count_row else 0
 
-    # Получаем updates
-    sql = f"""
-        SELECT id, update_id, update_data, processed, processed_at, created_at
-        FROM updates
+    query_params = list(params)
+    query_params.extend([limit, offset])
+    rows = await fetch_all(
+        f"""
+        SELECT id, update_id, update_type, chat_id, user_id, message_id,
+               payload_json, received_at, bot_id
+        FROM webhook_updates
         {where_clause}
-        ORDER BY created_at DESC
+        ORDER BY received_at DESC
         LIMIT %s OFFSET %s
-    """
-    params.extend([limit, offset])
-    rows = await fetch_all(sql, params)
+        """,
+        query_params,
+    )
 
     return {
         "updates": rows,

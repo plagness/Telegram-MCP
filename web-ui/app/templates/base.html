@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#FFC107">
     <title>{% block title %}Bee{% endblock %}</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20260213b">
+    <link rel="stylesheet" href="/static/style.css?v=20260223b">
     {% block head %}{% endblock %}
     {% block head_libs %}{% endblock %}
 </head>
@@ -31,14 +31,16 @@
             <div class="bee-bar__left">
                 {% block bar_left %}{% endblock %}
             </div>
-            <div class="bee-bar__center">
-                {% if bar_user is defined and bar_user %}
+            {% if bar_user is defined and bar_user %}
+            <a class="bee-bar__center bee-bar__profile-link" href="/u/{{ bar_user.id }}" id="bar-profile-link">
                 <div class="bee-bar__avatar" id="bar-avatar">
                     {{ bar_user.first_name[0] if bar_user.first_name else '?' }}
                 </div>
                 <span class="bee-bar__name">{{ bar_user.first_name }}{% if bar_user.last_name %} {{ bar_user.last_name }}{% endif %}</span>
-                {% endif %}
-            </div>
+            </a>
+            {% else %}
+            <div class="bee-bar__center"></div>
+            {% endif %}
             <div class="bee-bar__right">
                 {% block bar_right %}{% endblock %}
             </div>

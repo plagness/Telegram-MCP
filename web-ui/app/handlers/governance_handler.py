@@ -151,6 +151,25 @@ class GovernanceHandler(PageTypeHandler):
                 headers={"X-Init-Data": init_data},
             )
 
+        @router.post(f"/p/{{slug}}/{_PAGE_TYPE}/change-regime")
+        async def governance_change_regime_proxy(slug: str, request: Request):
+            """Смена режима правления через Democracy."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            if not init_data:
+                raise HTTPException(status_code=401, detail="initData required")
+
+            body = await request.json()
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+
+            return await proxy_post(
+                f"{settings.democracy_url}/v1/governance/{chat_id}/change-regime",
+                json_body=body,
+                headers={"X-Init-Data": init_data},
+            )
+
         @router.post(f"/p/{{slug}}/{_PAGE_TYPE}/sync")
         async def governance_sync_proxy(slug: str, request: Request):
             """Синхронизация участников чата через Democracy."""
@@ -168,4 +187,155 @@ class GovernanceHandler(PageTypeHandler):
                 json_body=None,
                 headers={"X-Init-Data": init_data},
                 timeout=15.0,
+            )
+
+        # === Council ===
+        @router.get(f"/p/{{slug}}/{_PAGE_TYPE}/council")
+        async def governance_council_proxy(slug: str, request: Request):
+            """Список членов совета."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            headers = {"X-Init-Data": init_data} if init_data else {}
+            return await proxy_get(
+                f"{settings.democracy_url}/v1/council/{chat_id}",
+                headers=headers,
+            )
+
+        # === Petitions ===
+        @router.post(f"/p/{{slug}}/{_PAGE_TYPE}/petition")
+        async def governance_create_petition_proxy(slug: str, request: Request):
+            """Создание петиции."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            if not init_data:
+                raise HTTPException(status_code=401, detail="initData required")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            body = await request.json()
+            return await proxy_post(
+                f"{settings.democracy_url}/v1/petitions/{chat_id}",
+                json_body=body,
+                headers={"X-Init-Data": init_data},
+            )
+
+        @router.get(f"/p/{{slug}}/{_PAGE_TYPE}/petitions")
+        async def governance_list_petitions_proxy(slug: str, request: Request):
+            """Список петиций."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            headers = {"X-Init-Data": init_data} if init_data else {}
+            qs = request.url.query
+            url = f"{settings.democracy_url}/v1/petitions/{chat_id}"
+            if qs:
+                url += f"?{qs}"
+            return await proxy_get(url, headers=headers)
+
+        @router.post(f"/p/{{slug}}/{_PAGE_TYPE}/petition/{{petition_id}}/sign")
+        async def governance_sign_petition_proxy(
+            slug: str, petition_id: int, request: Request
+        ):
+            """Подписать петицию."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            if not init_data:
+                raise HTTPException(status_code=401, detail="initData required")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            return await proxy_post(
+                f"{settings.democracy_url}/v1/petitions/{chat_id}/{petition_id}/sign",
+                json_body=None,
+                headers={"X-Init-Data": init_data},
+            )
+
+        @router.get(f"/p/{{slug}}/{_PAGE_TYPE}/petition/{{petition_id}}")
+        async def governance_get_petition_proxy(
+            slug: str, petition_id: int, request: Request
+        ):
+            """Детали петиции."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            headers = {"X-Init-Data": init_data} if init_data else {}
+            return await proxy_get(
+                f"{settings.democracy_url}/v1/petitions/{chat_id}/{petition_id}",
+                headers=headers,
+            )
+
+        # === Delegations (Liquid Democracy) ===
+        @router.post(f"/p/{{slug}}/{_PAGE_TYPE}/delegate")
+        async def governance_create_delegation_proxy(slug: str, request: Request):
+            """Делегировать голос."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            if not init_data:
+                raise HTTPException(status_code=401, detail="initData required")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            body = await request.json()
+            return await proxy_post(
+                f"{settings.democracy_url}/v1/delegations/{chat_id}",
+                json_body=body,
+                headers={"X-Init-Data": init_data},
+            )
+
+        @router.delete(f"/p/{{slug}}/{_PAGE_TYPE}/delegate")
+        async def governance_delete_delegation_proxy(slug: str, request: Request):
+            """Отозвать делегирование."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            if not init_data:
+                raise HTTPException(status_code=401, detail="initData required")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            body = await request.json()
+            qs = "&".join(f"{k}={v}" for k, v in body.items())
+            url = f"{settings.democracy_url}/v1/delegations/{chat_id}"
+            if qs:
+                url += f"?{qs}"
+            return await proxy_delete(
+                url,
+                headers={"X-Init-Data": init_data},
+            )
+
+        @router.get(f"/p/{{slug}}/{_PAGE_TYPE}/delegations")
+        async def governance_list_delegations_proxy(slug: str, request: Request):
+            """Мои делегирования."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            if not init_data:
+                raise HTTPException(status_code=401, detail="initData required")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            return await proxy_get(
+                f"{settings.democracy_url}/v1/delegations/{chat_id}",
+                headers={"X-Init-Data": init_data},
+            )
+
+        @router.get(f"/p/{{slug}}/{_PAGE_TYPE}/voting-power/{{user_id}}")
+        async def governance_voting_power_proxy(
+            slug: str, user_id: int, request: Request
+        ):
+            """Voting power пользователя."""
+            page, _user = await validate_page_request(slug, _PAGE_TYPE, request)
+            init_data = request.headers.get("X-Init-Data", "")
+            chat_id = (page.get("config") or {}).get("chat_id", "")
+            if not chat_id:
+                raise HTTPException(status_code=400, detail="chat_id not configured")
+            headers = {"X-Init-Data": init_data} if init_data else {}
+            return await proxy_get(
+                f"{settings.democracy_url}/v1/delegations/{chat_id}/{user_id}/power",
+                headers=headers,
             )

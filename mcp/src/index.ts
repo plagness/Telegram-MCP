@@ -32,6 +32,7 @@ import * as forumsModule from "./tools/forums.js";
 import * as storiesModule from "./tools/stories.js";
 import * as suggestedPostsModule from "./tools/suggested_posts.js";
 import * as iconsModule from "./tools/icons.js";
+import * as statsModule from "./tools/stats.js";
 
 const app = express();
 app.use(cors());
@@ -157,6 +158,7 @@ const modules = [
   forumsModule,
   storiesModule,
   suggestedPostsModule,
+  statsModule,
 ];
 
 for (const mod of modules) {
@@ -258,11 +260,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function start() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  app.listen(config.port, () => {
-    logger.info("mcp.server.started", { port: config.port });
-  });
+  const mode = config.mode;
+
+  if (mode === "stdio" || mode === "dual") {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+  }
+
+  if (mode === "http" || mode === "dual") {
+    app.listen(config.port, () => {
+      logger.info("mcp.server.started", { port: config.port, mode });
+    });
+  }
 }
 
 start().catch((err) => {

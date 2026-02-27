@@ -43,6 +43,7 @@ services:
       - "127.0.0.1:${PORT_HTTP_TGAPI:-${API_PORT:-8081}}:8000"
     volumes:
       - ./templates:/app/templates:ro
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

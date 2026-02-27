@@ -13,7 +13,7 @@ from .db import init_pool, close_pool, execute
 from .telegram_client import close_client
 from .services import templates as template_service
 from .services.bots import BotRegistry, auto_register_from_env
-from .routers import health, messages, media, templates, commands, callbacks, chats, webhook, polls, reactions, updates, actions, checklists, predictions, balance, bots, webui, calendar, forums, stories, suggested_posts
+from .routers import health, messages, media, templates, commands, callbacks, chats, webhook, polls, reactions, updates, actions, checklists, predictions, balance, bots, webui, calendar, forums, stories, suggested_posts, sync, chat_data, users, stats
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -83,3 +83,9 @@ app.include_router(calendar.router)
 app.include_router(forums.router)
 app.include_router(stories.router)
 app.include_router(suggested_posts.router)
+app.include_router(sync.router)
+app.include_router(sync.avatar_router)
+app.include_router(chat_data.router)
+app.include_router(users.router)
+app.include_router(users.emoji_router)
+app.include_router(stats.router)

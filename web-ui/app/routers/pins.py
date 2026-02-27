@@ -108,15 +108,18 @@ async def _collect_democracy_data(chat_id: str) -> dict[str, Any]:
                 logger.debug("democracy API %s for chat %s", r.status_code, chat_id)
                 return {}
             gov = r.json()
-            regime = gov.get("regime") or {}
-            stats = gov.get("stats") or {}
+            # Democracy API возвращает {dashboard: {regime, stats, treasury}}
+            dash = gov.get("dashboard") or {}
+            regime = dash.get("regime") or {}
+            stats = dash.get("stats") or {}
+            treasury = dash.get("treasury") or {}
             proposals = gov.get("active_proposals") or []
             top = proposals[0] if proposals else None
             return {
-                "regime_type": regime.get("regime_type", "democracy"),
-                "citizens": stats.get("citizens", 0),
+                "regime_type": regime.get("type", "democracy"),
+                "citizens": stats.get("citizen_count", 0),
                 "active_proposals": stats.get("active_proposals", 0),
-                "treasury": stats.get("treasury_balance", 0),
+                "treasury": treasury.get("balance", 0),
                 "total_votes": stats.get("total_votes", 0),
                 "proposal_title": top.get("title") if top else None,
                 "proposal_status": top.get("status") if top else None,

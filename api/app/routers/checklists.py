@@ -8,7 +8,7 @@ Endpoints:
   - POST /v1/gifts/premium — подарить премиум за звёзды
   - GET /v1/gifts/user/{user_id} — подарки пользователя
   - GET /v1/gifts/chat/{chat_id} — подарки в чате
-  - POST /v1/stories/repost — репост истории
+  - POST /v1/stories/repost — репост истории (требует Telegram Business)
 """
 
 from __future__ import annotations
@@ -284,7 +284,8 @@ async def repost_story_api(payload: RepostStoryIn):
     """
     Репост истории в канал (Bot API 9.3).
 
-    Позволяет боту репостить истории из других каналов.
+    Требует Telegram Business подключение (business_connection_id).
+    Оба бизнес-аккаунта должны быть подключены к одному боту.
     """
     telegram_payload = {
         "chat_id": payload.chat_id,

@@ -83,6 +83,8 @@ spec:
             - name: templates
               mountPath: /app/templates
               readOnly: true
+            - name: tgapi-data
+              mountPath: /app/data
           livenessProbe:
             httpGet:
               path: /health
@@ -109,3 +111,6 @@ spec:
           hostPath:
             path: /opt/telegram-mcp/templates
             type: Directory
+        - name: tgapi-data
+          persistentVolumeClaim:
+            claimName: tgapi-data-pvc

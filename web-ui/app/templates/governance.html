@@ -4,6 +4,7 @@
 
 {% block head_libs %}
 <script src="/static/echarts.min.js"></script>
+<script src="/static/governance.js"></script>
 {% endblock %}
 
 {% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
@@ -43,18 +44,49 @@
             <div style="font-size:48px;margin-bottom:12px">&#127963;</div>
             <div class="bee-title">Установить Governance</div>
             <div class="bee-subtitle" style="margin-bottom:24px">Выберите форму правления</div>
-            <div style="display:flex;gap:12px;justify-content:center">
-                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('democracy')" style="flex:1;max-width:160px;padding:16px 12px;flex-direction:column;display:flex;align-items:center;gap:4px">
-                    <span style="font-size:28px">&#128499;</span>
-                    <span style="font-weight:600">Демократия</span>
-                    <span style="font-size:11px;opacity:0.7">Решения через голосование</span>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:360px;margin:0 auto">
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('democracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#128499;</span>
+                    <span style="font-weight:600;font-size:13px">Демократия</span>
+                    <span style="font-size:10px;opacity:0.7">Решения голосованием</span>
                 </button>
-                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('autocracy')" style="flex:1;max-width:160px;padding:16px 12px;flex-direction:column;display:flex;align-items:center;gap:4px">
-                    <span style="font-size:28px">&#128081;</span>
-                    <span style="font-weight:600">Автократия</span>
-                    <span style="font-size:11px;opacity:0.7">Правитель решает</span>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('autocracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#128081;</span>
+                    <span style="font-weight:600;font-size:13px">Автократия</span>
+                    <span style="font-size:10px;opacity:0.7">Правитель решает</span>
                 </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('technocracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#9881;&#65039;</span>
+                    <span style="font-weight:600;font-size:13px">Технократия</span>
+                    <span style="font-size:10px;opacity:0.7">Совет админов</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('demarchy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#127922;</span>
+                    <span style="font-weight:600;font-size:13px">Демархия</span>
+                    <span style="font-size:10px;opacity:0.7">Совет по жребию</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('gerontocracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#127963;</span>
+                    <span style="font-weight:600;font-size:13px">Геронтократия</span>
+                    <span style="font-size:10px;opacity:0.7">Совет старейшин</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('consensus')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#129309;</span>
+                    <span style="font-weight:600;font-size:13px">Консенсус</span>
+                    <span style="font-size:10px;opacity:0.7">90%+ согласие</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('liquid_democracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#128279;</span>
+                    <span style="font-weight:600;font-size:13px">Liquid</span>
+                    <span style="font-size:10px;opacity:0.7">Делегируй голос</span>
+                </button>
+                <div style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px;opacity:0.35;pointer-events:none;border:1px dashed var(--tg-theme-hint-color);border-radius:12px">
+                    <span style="font-size:24px">&#127963;</span>
+                    <span style="font-weight:600;font-size:13px">Парламент</span>
+                    <span style="font-size:10px">Скоро</span>
+                </div>
             </div>
+            <div style="margin-top:12px;font-size:11px;opacity:0.5">Ещё 3 формы правления в разработке</div>
         </div>
     </div>
 
@@ -111,6 +143,34 @@
         {# Treasury — compact row #}
         <div class="bee-card bee-fade-in bee-ripple" data-haptic="selection" id="gov-treasury" style="display:none;cursor:pointer" onclick="openTreasurySheet()"></div>
 
+        {# Council (for technocracy, demarchy, gerontocracy) #}
+        <div class="bee-card bee-fade-in" id="gov-council-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128101; Совет <span class="bee-badge bee-badge--outline" id="gov-council-count" style="font-size:11px;margin-left:4px;vertical-align:middle"></span></div>
+            </div>
+            <div class="bee-list" id="gov-council-list"></div>
+        </div>
+
+        {# Petitions #}
+        <div class="bee-card bee-fade-in" id="gov-petitions-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128221; Петиции <span class="bee-badge bee-badge--outline" id="gov-petitions-count" style="font-size:11px;margin-left:4px;vertical-align:middle"></span></div>
+                <span class="gov-link" data-haptic="selection" onclick="openCreatePetitionSheet()">+ новая</span>
+            </div>
+            <div class="bee-list" id="gov-petitions-list"></div>
+            <div id="gov-petitions-empty" style="text-align:center;padding:12px 0;font-size:13px;color:var(--tg-theme-hint-color)">Нет активных петиций</div>
+        </div>
+
+        {# Delegations (for liquid_democracy) #}
+        <div class="bee-card bee-fade-in" id="gov-delegations-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128279; Делегирования</div>
+                <span class="gov-link" data-haptic="selection" onclick="openDelegateSheet()">+ делегировать</span>
+            </div>
+            <div id="gov-deleg-power" style="text-align:center;padding:8px 0;font-size:13px"></div>
+            <div class="bee-list" id="gov-delegations-list"></div>
+        </div>
+
         {# Plugins #}
         <div class="bee-card bee-fade-in" id="gov-plugins-card" style="display:none">
             <div class="bee-card-title">&#128268; Плагины</div>
@@ -126,654 +186,19 @@
 (function() {
     'use strict';
     var SLUG = document.getElementById('gov-root').dataset.slug;
-    var D = null;
-    var initData = window.Telegram && Telegram.WebApp.initData;
-    var _cuDone = false;
-    var _sheetChart = null;
-
-    var urlP = new URLSearchParams(window.location.search);
-    var deepPID = urlP.get('proposal');
-
-    function $(id) { return document.getElementById(id); }
-    function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
-
-    // ── Sheet Stack ──
-    var _sheetStack = [];
-    function sheetOpen(title, body, toolbar) {
-        var cur = document.getElementById('bee-sheet-body');
-        if (document.querySelector('.bee-sheet.active') && cur) {
-            _sheetStack.push({
-                title: document.getElementById('bee-sheet-title').textContent,
-                body: cur.innerHTML,
-                toolbar: document.getElementById('bee-sheet-toolbar').innerHTML
-            });
-        }
-        BeeKit.sheet.open(title, body, toolbar);
-    }
-    function sheetBack() {
-        if (_sheetStack.length) {
-            var prev = _sheetStack.pop();
-            BeeKit.sheet.open(prev.title, prev.body, prev.toolbar);
-        } else {
-            BeeKit.sheet.close();
-        }
-    }
-    function sheetClose() {
-        _sheetStack = [];
-        if (_sheetChart) { _sheetChart.dispose(); _sheetChart = null; }
-        BeeKit.sheet.close();
-    }
-    // Override close button to clear stack
-    var _origSheetClose = BeeKit.sheet.close;
-    BeeKit.sheet.close = function() {
-        _sheetStack = [];
-        if (_sheetChart) { _sheetChart.dispose(); _sheetChart = null; }
-        _origSheetClose();
-    };
-
-    // ── Poll ──
-    BeeKit.poll('/p/' + SLUG + '/governance/data', 15000, {
-        initData: initData,
-        onData: function(data) {
-            $('gov-loading').style.display = 'none';
-            if (data.setup_required) {
-                $('gov-setup').style.display = '';
-                $('gov-dashboard').style.display = 'none';
-                return;
-            }
-            $('gov-setup').style.display = 'none';
-            $('gov-dashboard').style.display = '';
-            D = data;
-            render(data);
-            if (deepPID) { openProposalSheet(parseInt(deepPID)); deepPID = null; }
-        }
+    GovernanceModule.init({
+        apiBase: '/p/' + SLUG + '/governance',
+        pollInterval: 15000
     });
-
-    // ── Name helper ──
-    function cName(c) { return c.first_name || (c.username ? '@' + c.username : 'ID ' + c.user_id); }
-    function profileUrl(uid) { return '/profile?user_id=' + uid + '&initData=' + encodeURIComponent(initData || ''); }
-
-    // ── Render Dashboard ──
-    function render(data) {
-        var d = data.dashboard || data;
-        var regime = d.regime || {};
-        var stats = d.stats || {};
-        var treasury = d.treasury || {};
-        var cfg = data.regime_config || {};
-        var my = d.my_citizenship;
-        var vr = data.vote_results || {};
-
-        // Context header
-        var rI = {democracy:'\ud83d\uddf3',autocracy:'\ud83d\udc51',parliament:'\ud83c\udfe3',technocracy:'\u2699\ufe0f'};
-        var rN = {democracy:'\u0414\u0435\u043c\u043e\u043a\u0440\u0430\u0442\u0438\u044f',autocracy:'\u0410\u0432\u0442\u043e\u043a\u0440\u0430\u0442\u0438\u044f',parliament:'\u041f\u0430\u0440\u043b\u0430\u043c\u0435\u043d\u0442',technocracy:'\u0422\u0435\u0445\u043d\u043e\u043a\u0440\u0430\u0442\u0438\u044f'};
-        $('gov-ctx-title').textContent = (rI[regime.type]||'\ud83c\udfe3') + ' ' + (rN[regime.type]||regime.type||'Governance');
-        var mc = stats.member_count || 0;
-        var sub = [];
-        if (cfg.quorum) sub.push('\u041a\u0432\u043e\u0440\u0443\u043c ' + Math.round(cfg.quorum*100) + '%');
-        if (cfg.threshold) sub.push('\u041f\u043e\u0440\u043e\u0433 ' + Math.round(cfg.threshold*100) + '%');
-        if (mc) sub.push(mc + ' \u0443\u0447.');
-        $('gov-ctx-sub').textContent = sub.join(' \u00b7 ');
-
-        // My status — compact row
-        if (my) {
-            var myEl = $('gov-my');
-            myEl.style.display = '';
-            var sL = {guest:'\ud83d\udc64 \u0413\u043e\u0441\u0442\u044c',citizen:'\ud83c\udfe3 \u0413\u0440\u0430\u0436\u0434\u0430\u043d\u0438\u043d',exile:'\ud83d\udeab \u0418\u0437\u0433\u043d\u0430\u043d'};
-            var sB = my.status==='citizen'?'bee-badge--success':my.status==='exile'?'bee-badge--error':'bee-badge--outline';
-            myEl.innerHTML =
-                '<div style="display:flex;align-items:center;gap:10px">' +
-                '<span class="bee-badge ' + sB + '">' + (sL[my.status]||my.status) + '</span>' +
-                (my.role ? '<span class="bee-badge">' + esc(my.role) + '</span>' : '') +
-                '<span style="flex:1"></span>' +
-                '<span style="font-size:18px;font-weight:700;color:var(--accent)" id="gov-my-ip">' + (my.ip_balance||0).toFixed(1) + '</span>' +
-                '<span style="font-size:12px;color:var(--tg-theme-hint-color)">IP</span>' +
-                '<span style="font-size:14px;color:var(--tg-theme-hint-color)">\u203a</span>' +
-                '</div>';
-            if (!_cuDone && typeof BeeFX !== 'undefined') {
-                BeeFX.countUp($('gov-my-ip'), 0, my.ip_balance||0, {decimals:1});
-            }
-        }
-
-        // Stats grid
-        var cl = mc > 0 ? (stats.citizen_count||0)+'/'+mc : ''+(stats.citizen_count||0);
-        $('gov-stats').innerHTML =
-            '<div class="bee-stat"><div class="bee-stat-value">' + cl + '</div><div class="bee-stat-label">\u0413\u0440\u0430\u0436\u0434\u0430\u043d</div></div>' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + mc + '</div><div class="bee-stat-label">\u0423\u0447\u0430\u0441\u0442\u043d.</div></div>' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + (stats.total_proposals||0) + '</div><div class="bee-stat-label">\u041f\u0440\u0435\u0434\u043b\u043e\u0436.</div></div>' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + (stats.active_proposals||0) + '</div><div class="bee-stat-label">\u0410\u043a\u0442\u0438\u0432\u043d.</div></div>';
-
-        // Treasury
-        if (treasury && treasury.balance !== undefined) {
-            var tEl = $('gov-treasury'); tEl.style.display = '';
-            tEl.innerHTML =
-                '<div style="display:flex;align-items:center;gap:10px">' +
-                '<span style="font-size:20px">\ud83c\udfe6</span>' +
-                '<span style="font-weight:600">Казна</span>' +
-                '<span style="flex:1"></span>' +
-                '<span style="font-size:16px;font-weight:700;color:var(--accent)" id="gov-tr-bal">' + (treasury.balance||0).toFixed(1) + '</span>' +
-                '<span style="font-size:12px;color:var(--tg-theme-hint-color)">IP \u00b7 ' + Math.round((treasury.tax_rate||0)*100) + '%</span>' +
-                '<span style="font-size:14px;color:var(--tg-theme-hint-color)">\u203a</span>' +
-                '</div>';
-            if (!_cuDone && typeof BeeFX !== 'undefined') {
-                BeeFX.countUp($('gov-tr-bal'), 0, treasury.balance||0, {decimals:1});
-            }
-        }
-        _cuDone = true;
-
-        // Active proposals
-        var active = d.active_proposals || [];
-        var aList = $('gov-active-list');
-        $('gov-active-count').textContent = active.length || '';
-        if (active.length) {
-            aList.innerHTML = active.map(function(p) { return pCard(p, vr[p.id]); }).join('');
-            $('gov-active-empty').style.display = 'none';
-        } else {
-            aList.innerHTML = '';
-            $('gov-active-empty').style.display = '';
-        }
-
-        // Create button
-        $('gov-create-wrap').style.display = (my && my.status === 'citizen') ? '' : 'none';
-
-        // Recent decisions
-        var recent = d.recent_decisions || [];
-        if (recent.length) {
-            $('gov-recent-card').style.display = '';
-            $('gov-recent-list').innerHTML = recent.map(function(p) { return pCard(p, vr[p.id]); }).join('');
-        }
-
-        // Top citizens — podium
-        var top = data.top_citizens || [];
-        if (top.length) {
-            $('gov-top-card').style.display = '';
-            // Podium (top 3)
-            var podium = top.slice(0, 3);
-            $('gov-top-podium').innerHTML = podium.map(function(c, i) {
-                var colors = ['var(--medal-gold,#FFD700)','var(--medal-silver,#C0C0C0)','var(--medal-bronze,#CD7F32)'];
-                var sizes = ['48px','40px','40px'];
-                var name = cName(c);
-                var letter = name.charAt(0).toUpperCase();
-                return '<div class="bee-podium-item" onclick="window.location=\'' + profileUrl(c.user_id) + '\'" style="cursor:pointer">' +
-                    '<div class="bee-medal bee-medal--' + ['gold','silver','bronze'][i] + '" style="width:'+sizes[i]+';height:'+sizes[i]+';font-size:16px;display:flex;align-items:center;justify-content:center;margin:0 auto">' + letter + '</div>' +
-                    '<div class="bee-podium-name">' + esc(name) + '</div>' +
-                    '<div class="bee-podium-value">' + (c.ip_balance||0).toFixed(1) + ' IP</div>' +
-                    '</div>';
-            }).join('');
-            // Rest (4th, 5th)
-            var rest = top.slice(3);
-            $('gov-top-rest').innerHTML = rest.map(function(c, i) {
-                return '<div class="bee-rank-item bee-ripple" data-haptic="selection" onclick="window.location=\'' + profileUrl(c.user_id) + '\'" style="cursor:pointer">' +
-                    '<div class="bee-rank-pos">' + (i+4) + '</div>' +
-                    '<div class="bee-rank-name">' + esc(cName(c)) + '</div>' +
-                    '<div class="bee-rank-value">' + (c.ip_balance||0).toFixed(1) + ' IP</div>' +
-                    '</div>';
-            }).join('');
-        }
-
-        // Constitution preview
-        var constitution = data.constitution || [];
-        if (constitution.length) {
-            $('gov-const-card').style.display = '';
-            $('gov-const-count').textContent = constitution.length;
-            var preview = constitution.slice(0, 3);
-            $('gov-const-preview').innerHTML = preview.map(function(a) {
-                return '<div class="bee-list-item bee-ripple" data-haptic="selection" onclick="openConstitutionSheet()" style="cursor:pointer">' +
-                    '<div class="bee-list-icon" style="font-size:12px;color:var(--tg-theme-hint-color);min-width:28px;text-align:center">\u00a7' + esc(a.article_num) + '</div>' +
-                    '<div class="bee-list-content"><div class="bee-list-title" style="font-size:13px">' + esc(a.title) + '</div></div>' +
-                    (a.immutable ? '<div class="bee-list-right"><span style="font-size:12px">\ud83d\udd12</span></div>' : '') +
-                    '</div>';
-            }).join('');
-        }
-
-        // Plugins
-        var plugins = data.plugins || [];
-        if (plugins.length) {
-            $('gov-plugins-card').style.display = '';
-            $('gov-plugins-list').innerHTML = plugins.map(function(pl) {
-                return '<span class="bee-badge" style="margin:0 4px 4px 0">' + esc(pl.plugin_slug) + '</span>';
-            }).join('');
-        }
-
-        if (typeof BeeFX !== 'undefined') BeeFX.initFadeIn();
-    }
-
-    // ── Proposal Card ──
-    var sIc = {discussion:'\ud83d\udcac',voting:'\ud83d\uddf3',passed:'\u2705',rejected:'\u274c',expired:'\u23f0',decided_yes:'\ud83d\udc51\u2705',decided_no:'\ud83d\udc51\u274c'};
-
-    function pCard(p, vr) {
-        var myV = D && D.my_votes ? D.my_votes[p.id] : null;
-        var mvH = myV ? ' <span style="font-size:11px;vertical-align:middle">' + ({for:'\u2705',against:'\u274c',abstain:'\ud83e\udd37'}[myV]||'') + '</span>' : '';
-        var authorName = p.author_name || '';
-        var progH = '';
-        if (vr && vr.quorum_progress) {
-            var pct = Math.round(vr.quorum_progress * 100);
-            progH = '<div class="gov-micro-progress" style="margin-top:6px"><div class="gov-micro-fill" style="width:'+pct+'%"></div></div>';
-        }
-        return '<div class="bee-list-item bee-ripple gov-proposal-card" data-haptic="selection" onclick="openProposalSheet('+p.id+')" style="cursor:pointer">' +
-            '<div class="bee-list-icon" style="font-size:18px">' + (sIc[p.status]||'\ud83d\udccb') + '</div>' +
-            '<div class="bee-list-content">' +
-            '<div class="bee-list-title">' + esc(p.title) + mvH + '</div>' +
-            '<div class="bee-list-subtitle">' +
-            (authorName ? '<span class="gov-author-link" onclick="event.stopPropagation();window.location=\'' + profileUrl(p.author_id) + '\'">' + esc(authorName) + '</span> \u00b7 ' : '') +
-            timeAgo(p.created_at) +
-            '</div>' +
-            progH +
-            '</div></div>';
-    }
-
-    // ── SHEET: Proposal Detail ──
-    window.openProposalSheet = function(pid) {
-        var d = D ? (D.dashboard || D) : {};
-        var all = (d.active_proposals||[]).concat(d.recent_decisions||[]);
-        var p = null;
-        for (var i=0;i<all.length;i++) { if (all[i].id===pid) { p=all[i]; break; } }
-        var vr = D && D.vote_results ? D.vote_results[pid] : null;
-
-        var h = '';
-        if (p) h = buildProposalHTML(p, vr, pid);
-        else h = '<div style="text-align:center;padding:20px;color:var(--tg-theme-hint-color)">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...</div>';
-
-        sheetOpen(p ? p.title : '\u041f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435', h, '');
-
-        // Fetch full detail
-        fetch('/p/'+SLUG+'/governance/proposal/'+pid, {headers:{'X-Init-Data':initData||''}})
-        .then(function(r){return r.json()})
-        .then(function(data) {
-            if (data.error) return;
-            var pp = data.proposal || p;
-            var rr = data.results || vr;
-            if (data.my_vote && D) {
-                if(!D.my_votes)D.my_votes={};
-                D.my_votes[pid]=data.my_vote;
-            }
-            // Re-render sheet body
-            var body = document.getElementById('bee-sheet-body');
-            if (body) {
-                body.innerHTML = buildProposalHTML(pp, rr, pid, data.arguments, data.my_vote);
-                initSheetChart(rr);
-                BeeKit.initAccordions();
-            }
-        }).catch(function(){});
-
-        // Init chart after DOM update
-        setTimeout(function() { initSheetChart(vr); }, 50);
-    };
-
-    function buildProposalHTML(p, vr, pid, args, myVote) {
-        if (!myVote && D && D.my_votes) myVote = D.my_votes[pid];
-        var h = '';
-
-        // Meta
-        var meta = [];
-        if (p.author_name) {
-            meta.push('<a style="color:var(--accent);text-decoration:none" href="' + profileUrl(p.author_id) + '">' + esc(p.author_name) + '</a>');
-        }
-        if (p.proposal_type) meta.push(p.proposal_type);
-        meta.push(timeAgo(p.created_at));
-        h += '<div style="font-size:13px;color:var(--tg-theme-hint-color);margin-bottom:8px">' + meta.join(' \u00b7 ') + '</div>';
-
-        // Description
-        if (p.description) {
-            h += '<div style="font-size:14px;line-height:1.5;margin-bottom:12px">' + esc(p.description) + '</div>';
-        }
-
-        // Timeline
-        var phases = ['discussion','voting','result'];
-        var icons = {discussion:'\ud83d\udcac',voting:'\ud83d\uddf3',result:'\ud83d\udcca'};
-        var labels = {discussion:'\u041e\u0431\u0441\u0443\u0436\u0434.',voting:'\u0413\u043e\u043b\u043e\u0441\u043e\u0432.',result:'\u0420\u0435\u0437\u0443\u043b\u044c\u0442.'};
-        var ci = p.status==='discussion'?0:p.status==='voting'?1:2;
-        h += '<div class="gov-timeline">';
-        for (var i=0;i<3;i++) {
-            var cls = i<ci?'gov-tl--done':i===ci?'gov-tl--active':'';
-            h += '<div class="gov-tl ' + cls + '"><span class="gov-tl-icon">' + icons[phases[i]] + '</span><span class="gov-tl-label">' + labels[phases[i]] + '</span></div>';
-            if (i<2) h += '<div class="gov-tl-conn"></div>';
-        }
-        var dl = p.status==='discussion'?p.discussion_end:p.status==='voting'?p.voting_end:null;
-        if (dl) {
-            var diff = new Date(dl).getTime()-Date.now();
-            var urgent = diff>0 && diff<36e5;
-            h += '<div class="gov-timer' + (urgent?' gov-timer--urgent':'') + '">\u23f1 ' + timerStr(dl) + '</div>';
-        }
-        h += '</div>';
-
-        // Result badge
-        if (['passed','rejected','expired','decided_yes','decided_no'].indexOf(p.status)>=0) {
-            var ri={passed:['\u2705','\u041f\u0420\u0418\u041d\u042f\u0422\u041e','passed'],rejected:['\u274c','\u041e\u0422\u041a\u041b\u041e\u041d\u0415\u041d\u041e','rejected'],expired:['\u23f0','\u0418\u0421\u0422\u0415\u041a\u041b\u041e','expired'],decided_yes:['\ud83d\udc51\u2705','\u041e\u0414\u041e\u0411\u0420\u0415\u041d\u041e','passed'],decided_no:['\ud83d\udc51\u274c','\u041e\u0422\u041a\u041b\u041e\u041d\u0415\u041d\u041e','rejected']};
-            var r=ri[p.status]||['\ud83d\udccb',p.status,''];
-            h += '<div class="gov-result gov-result--'+r[2]+'"><span class="gov-result-icon">'+r[0]+'</span><span class="gov-result-text">'+r[1]+'</span></div>';
-        }
-
-        // Chart + Quorum
-        if (vr) {
-            var qPct = Math.round((vr.quorum_progress||0)*100);
-            h += '<div style="margin:12px 0">';
-            h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:12px;color:var(--tg-theme-hint-color)">\u041a\u0432\u043e\u0440\u0443\u043c</span>' +
-                '<div class="bee-progress" style="flex:1"><div class="bee-progress-fill" style="width:'+qPct+'%"></div></div>' +
-                '<span style="font-size:12px;color:var(--tg-theme-hint-color)">' + vr.total_votes + ' (' + qPct + '%)</span></div>';
-            h += '<div id="gov-sheet-chart" style="height:200px;width:100%"></div>';
-            h += '</div>';
-        }
-
-        // Vote buttons
-        var canVote = p.status==='voting'||p.status==='discussion';
-        if (canVote) {
-            var choices = [
-                {c:'for',icon:'\u2705',label:'\u0417\u0430',color:'#4CAF50'},
-                {c:'against',icon:'\u274c',label:'\u041f\u0440\u043e\u0442\u0438\u0432',color:'#F44336'},
-                {c:'abstain',icon:'\ud83e\udd37',label:'\u0412\u043e\u0437\u0434\u0435\u0440\u0436.',color:'#9E9E9E'}
-            ];
-            h += '<div class="gov-vote-group">';
-            choices.forEach(function(ch) {
-                var sel = myVote===ch.c ? ' gov-vote-btn--sel' : '';
-                h += '<button class="bee-btn bee-ripple gov-vote-btn' + sel + '" data-haptic="impact" onclick="castVote('+pid+',\''+ch.c+'\')" style="flex:1">' + ch.icon + ' ' + ch.label + '</button>';
-            });
-            h += '</div>';
-            if (myVote) {
-                var cL = {for:'\u2705 \u0417\u0430',against:'\u274c \u041f\u0440\u043e\u0442\u0438\u0432',abstain:'\ud83e\udd37 \u0412\u043e\u0437\u0434\u0435\u0440\u0436\u0443\u0441\u044c'};
-                h += '<div style="text-align:center;font-size:13px;color:var(--tg-theme-hint-color);margin-top:8px">\u0412\u0430\u0448 \u0433\u043e\u043b\u043e\u0441: <b>' + (cL[myVote]||myVote) + '</b> <button class="gov-cancel-btn" onclick="cancelVote('+pid+')">\u043e\u0442\u043c\u0435\u043d\u0438\u0442\u044c</button></div>';
-            }
-        }
-
-        // AI summary
-        if (p.llm_summary) {
-            h += '<div style="margin-top:12px;padding:12px;border-radius:8px;background:var(--accent-glow,rgba(255,193,7,.08))">' +
-                '<div class="bee-badge" style="margin-bottom:6px">\ud83e\udd16 AI</div>' +
-                '<div style="font-size:13px;line-height:1.5;white-space:pre-wrap">' + esc(p.llm_summary) + '</div></div>';
-        }
-
-        // Arguments
-        if (args) {
-            var fA = args['for']||[], aA = args['against']||[];
-            h += '<div style="margin-top:12px">';
-            h += '<div style="display:flex;gap:12px">';
-            h += '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#4CAF50;margin-bottom:4px">\ud83d\udcd7 \u0417\u0430 (' + fA.length + ')</div>';
-            h += fA.length ? fA.map(function(a) {
-                return '<div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1);font-size:12px;line-height:1.4">' + esc(a.text) + '<div style="font-size:10px;color:var(--tg-theme-hint-color);margin-top:2px">' + timeAgo(a.created_at) + '</div></div>';
-            }).join('') : '<div style="font-size:12px;color:var(--tg-theme-hint-color);padding:4px 0">\u2014</div>';
-            h += '</div>';
-            h += '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#F44336;margin-bottom:4px">\ud83d\udcd5 \u041f\u0440\u043e\u0442\u0438\u0432 (' + aA.length + ')</div>';
-            h += aA.length ? aA.map(function(a) {
-                return '<div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1);font-size:12px;line-height:1.4">' + esc(a.text) + '<div style="font-size:10px;color:var(--tg-theme-hint-color);margin-top:2px">' + timeAgo(a.created_at) + '</div></div>';
-            }).join('') : '<div style="font-size:12px;color:var(--tg-theme-hint-color);padding:4px 0">\u2014</div>';
-            h += '</div></div>';
-            if (canVote && p.status==='discussion') {
-                h += '<button class="bee-btn bee-btn--outline bee-ripple" data-haptic="selection" style="width:100%;margin-top:8px" onclick="openArgSheet('+pid+')">\u002b \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442</button>';
-            }
-            h += '</div>';
-        }
-
-        return h;
-    }
-
-    function initSheetChart(vr) {
-        if (!vr || typeof echarts === 'undefined') return;
-        var el = document.getElementById('gov-sheet-chart');
-        if (!el) return;
-        if (_sheetChart) { _sheetChart.dispose(); _sheetChart = null; }
-        _sheetChart = echarts.init(el, null, {renderer:'svg'});
-        var votes = vr.votes || {};
-        var hint = getComputedStyle(document.body).getPropertyValue('--tg-hint').trim()||'#999';
-        _sheetChart.setOption({
-            tooltip: {trigger:'item', formatter:'{b}: {c} ({d}%)'},
-            legend: {bottom:0, textStyle:{color:hint, fontSize:11}},
-            series: [{
-                type:'pie', radius:['42%','70%'], center:['50%','44%'],
-                avoidLabelOverlap:true,
-                itemStyle: {borderRadius:6, borderColor:'transparent', borderWidth:2},
-                label: {show:true, position:'inside', formatter:'{c}', fontSize:13, fontWeight:600, color:'#fff'},
-                data: [
-                    {value:votes['for']||0, name:'\u0417\u0430', itemStyle:{color:'#4CAF50'}},
-                    {value:votes['against']||0, name:'\u041f\u0440\u043e\u0442\u0438\u0432', itemStyle:{color:'#F44336'}},
-                    {value:votes['abstain']||0, name:'\u0412\u043e\u0437\u0434\u0435\u0440\u0436.', itemStyle:{color:'#9E9E9E'}}
-                ].filter(function(d){return d.value>0}),
-                emphasis: {itemStyle:{shadowBlur:10, shadowColor:'rgba(0,0,0,.3)'}}
-            }]
-        });
-    }
-
-    // ── SHEET: My Status ──
-    window.openMySheet = function() {
-        var d = D ? (D.dashboard || D) : {};
-        var my = d.my_citizenship;
-        if (!my) return;
-        var sL = {guest:'\ud83d\udc64 \u0413\u043e\u0441\u0442\u044c',citizen:'\ud83c\udfe3 \u0413\u0440\u0430\u0436\u0434\u0430\u043d\u0438\u043d',exile:'\ud83d\udeab \u0418\u0437\u0433\u043d\u0430\u043d\u043d\u0438\u043a'};
-        var sB = my.status==='citizen'?'bee-badge--success':my.status==='exile'?'bee-badge--error':'bee-badge--outline';
-        var h = '<div style="text-align:center;margin-bottom:16px">' +
-            '<span class="bee-badge ' + sB + '" style="font-size:14px;padding:6px 14px">' + (sL[my.status]||my.status) + '</span>' +
-            (my.role ? ' <span class="bee-badge" style="font-size:14px;padding:6px 14px">' + esc(my.role) + '</span>' : '') +
-            '</div>';
-        h += '<div class="bee-stat-grid" style="margin-bottom:16px">' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + (my.ip_balance||0).toFixed(1) + '</div><div class="bee-stat-label">\ud83d\udcb0 IP \u0431\u0430\u043b\u0430\u043d\u0441</div></div>' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + (my.total_earned||0).toFixed(1) + '</div><div class="bee-stat-label">\u0417\u0430\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043e</div></div>' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + (my.total_spent||0).toFixed(1) + '</div><div class="bee-stat-label">\u041f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043e</div></div>' +
-            '</div>';
-        if (my.citizen_since) {
-            h += '<div style="font-size:13px;color:var(--tg-theme-hint-color);text-align:center">\u0413\u0440\u0430\u0436\u0434\u0430\u043d\u0438\u043d \u0441 ' + new Date(my.citizen_since).toLocaleDateString('ru-RU') + '</div>';
-        }
-        if (my.status === 'guest') {
-            h += '<div style="text-align:center;margin-top:16px;padding:12px;border-radius:8px;background:var(--accent-glow,rgba(255,193,7,.08))">' +
-                '<div style="font-size:14px;font-weight:600;margin-bottom:4px">\u0421\u0442\u0430\u043d\u044c\u0442\u0435 \u0433\u0440\u0430\u0436\u0434\u0430\u043d\u0438\u043d\u043e\u043c</div>' +
-                '<div style="font-size:12px;color:var(--tg-theme-hint-color)">\u0423\u0447\u0430\u0441\u0442\u0432\u0443\u0439\u0442\u0435 \u0432 \u0433\u043e\u043b\u043e\u0441\u043e\u0432\u0430\u043d\u0438\u044f\u0445 \u0438 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u044f\u0445</div></div>';
-        }
-        h += '<a class="bee-btn bee-btn--outline bee-ripple" data-haptic="selection" href="' + profileUrl(my.user_id) + '" style="display:block;margin-top:16px;text-align:center;text-decoration:none">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c</a>';
-        sheetOpen('\u041c\u043e\u0439 \u0441\u0442\u0430\u0442\u0443\u0441', h, '');
-    };
-
-    // ── SHEET: Regime Config ──
-    window.openRegimeSheet = function() {
-        var cfg = D ? D.regime_config || {} : {};
-        var d = D ? (D.dashboard || D) : {};
-        var regime = d.regime || {};
-        var rN = {democracy:'\u0414\u0435\u043c\u043e\u043a\u0440\u0430\u0442\u0438\u044f',autocracy:'\u0410\u0432\u0442\u043e\u043a\u0440\u0430\u0442\u0438\u044f'};
-        var h = '<div class="bee-list">';
-        h += listRow('\ud83c\udfe3', '\u0422\u0438\u043f \u0440\u0435\u0436\u0438\u043c\u0430', rN[regime.type]||regime.type);
-        h += listRow('\ud83d\uddf3', '\u041a\u0432\u043e\u0440\u0443\u043c', Math.round((cfg.quorum||0.25)*100)+'%');
-        h += listRow('\u2696\ufe0f', '\u041f\u043e\u0440\u043e\u0433 \u043f\u0440\u0438\u043d\u044f\u0442\u0438\u044f', Math.round((cfg.threshold||0.5)*100)+'%');
-        h += listRow('\ud83d\udcac', '\u041e\u0431\u0441\u0443\u0436\u0434\u0435\u043d\u0438\u0435', (cfg.discussion_hours||24)+'\u0447');
-        h += listRow('\u23f1', '\u0413\u043e\u043b\u043e\u0441\u043e\u0432\u0430\u043d\u0438\u0435', (cfg.voting_hours||48)+'\u0447');
-        h += listRow('\ud83d\udcb0', '\u041d\u0430\u043b\u043e\u0433', Math.round((cfg.tax_rate||0.1)*100)+'%');
-        h += listRow('\ud83c\udf1f', '\u041d\u0430\u0447\u0430\u043b\u044c\u043d\u044b\u0439 IP', ''+(cfg.initial_ip||20));
-        h += listRow('\ud83d\udccb', '\u041c\u0430\u043a\u0441. \u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0445', ''+(cfg.max_active_proposals||3));
-        if (regime.installed_at) {
-            h += listRow('\ud83d\udcc5', '\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e', new Date(regime.installed_at).toLocaleDateString('ru-RU'));
-        }
-        h += '</div>';
-        sheetOpen('\u2699\ufe0f \u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0440\u0435\u0436\u0438\u043c\u0430', h, '');
-    };
-
-    function listRow(icon, title, value) {
-        return '<div class="bee-list-item"><div class="bee-list-icon" style="font-size:16px">' + icon + '</div><div class="bee-list-content"><div class="bee-list-title" style="font-size:14px">' + title + '</div></div><div class="bee-list-right" style="font-size:14px;font-weight:500">' + value + '</div></div>';
-    }
-
-    // ── SHEET: Leaderboard ──
-    window.openLeaderboardSheet = function() {
-        var top = D ? D.top_citizens || [] : [];
-        var h = '';
-        if (!top.length) {
-            h = '<div style="text-align:center;padding:20px;color:var(--tg-theme-hint-color)">\u041d\u0435\u0442 \u0433\u0440\u0430\u0436\u0434\u0430\u043d</div>';
-        } else {
-            h = '<div class="bee-rank-list">';
-            top.forEach(function(c, i) {
-                var medals = ['\ud83e\udd47','\ud83e\udd48','\ud83e\udd49'];
-                var m = i < 3 ? medals[i] : (i+1)+'.';
-                var hi = c.user_id === (D.dashboard && D.dashboard.my_citizenship ? D.dashboard.my_citizenship.user_id : 0);
-                h += '<div class="bee-rank-item' + (hi?' highlighted':'') + ' bee-ripple" data-haptic="selection" onclick="window.location=\'' + profileUrl(c.user_id) + '\'" style="cursor:pointer">' +
-                    '<div class="bee-rank-pos" style="font-size:16px">' + m + '</div>' +
-                    '<div class="bee-rank-name">' + esc(cName(c)) + '</div>' +
-                    '<div class="bee-rank-value">' + (c.ip_balance||0).toFixed(1) + ' IP</div>' +
-                    '</div>';
-            });
-            h += '</div>';
-        }
-        sheetOpen('\ud83c\udfc6 \u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0433\u0440\u0430\u0436\u0434\u0430\u043d', h, '');
-    };
-
-    // ── SHEET: Constitution ──
-    window.openConstitutionSheet = function() {
-        var articles = D ? D.constitution || [] : [];
-        var h = '';
-        if (!articles.length) {
-            h = '<div style="text-align:center;padding:20px;color:var(--tg-theme-hint-color)">\u041a\u043e\u043d\u0441\u0442\u0438\u0442\u0443\u0446\u0438\u044f \u043d\u0435 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430</div>';
-        } else {
-            h = articles.map(function(a) {
-                return '<div data-bee-accordion>' +
-                    '<div class="bee-accordion__header" style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer">' +
-                    '<span style="font-size:12px;color:var(--tg-theme-hint-color);min-width:28px">\u00a7' + esc(a.article_num) + '</span>' +
-                    '<span style="font-size:14px;font-weight:500;flex:1">' + esc(a.title) + '</span>' +
-                    (a.immutable ? '<span class="bee-badge bee-badge--outline" style="font-size:10px">\ud83d\udd12</span>' : '') +
-                    '</div>' +
-                    '<div class="bee-accordion__content" style="padding:0 0 12px 36px;font-size:13px;line-height:1.5;color:var(--tg-theme-hint-color)">' +
-                    esc(a.text) +
-                    '</div></div>';
-            }).join('<div class="bee-divider"></div>');
-        }
-        sheetOpen('\ud83d\udcdc \u041a\u043e\u043d\u0441\u0442\u0438\u0442\u0443\u0446\u0438\u044f (' + articles.length + ' \u0441\u0442.)', h, '');
-        setTimeout(function() { BeeKit.initAccordions(); }, 50);
-    };
-
-    // ── SHEET: Treasury ──
-    window.openTreasurySheet = function() {
-        var d = D ? (D.dashboard || D) : {};
-        var t = d.treasury || {};
-        var h = '<div class="bee-stat-grid">' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + (t.balance||0).toFixed(1) + '</div><div class="bee-stat-label">\ud83d\udcb0 \u0411\u0430\u043b\u0430\u043d\u0441 IP</div></div>' +
-            '<div class="bee-stat"><div class="bee-stat-value">' + Math.round((t.tax_rate||0)*100) + '%</div><div class="bee-stat-label">\u041d\u0430\u043b\u043e\u0433\u043e\u0432\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430</div></div>' +
-            '</div>' +
-            '<div class="bee-divider" style="margin:12px 0"></div>' +
-            '<div class="bee-list">' +
-            listRow('\ud83d\udcb8', '\u0421\u043e\u0431\u0440\u0430\u043d\u043e \u043d\u0430\u043b\u043e\u0433\u043e\u0432', (t.total_taxed||0).toFixed(1)+' IP') +
-            listRow('\ud83d\udcb3', '\u041f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043e', (t.total_spent||0).toFixed(1)+' IP') +
-            '</div>';
-        sheetOpen('\ud83c\udfe6 \u041a\u0430\u0437\u043d\u0430', h, '');
-    };
-
-    // ── SHEET: Create Proposal ──
-    window.openCreateSheet = function() {
-        sheetOpen(
-            '\u041d\u043e\u0432\u043e\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435',
-            '<input id="cp-title" type="text" maxlength="100" placeholder="\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435" class="bee-input" style="width:100%;margin-bottom:8px">'+
-            '<textarea id="cp-desc" maxlength="2000" rows="3" placeholder="\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 (\u043d\u0435\u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e)" class="bee-textarea" style="width:100%;margin-bottom:8px"></textarea>'+
-            '<select id="cp-type" class="bee-select" style="width:100%"><option value="general">\u041e\u0431\u0449\u0435\u0435</option><option value="rule">\u041f\u0440\u0430\u0432\u0438\u043b\u043e</option><option value="budget">\u0411\u044e\u0434\u0436\u0435\u0442</option></select>',
-            '<button class="bee-btn bee-ripple" data-haptic="impact" onclick="submitProposal()">\u0421\u043e\u0437\u0434\u0430\u0442\u044c</button>'
-        );
-    };
-
-    // ── SHEET: Add Argument (sub-sheet) ──
-    window.openArgSheet = function(pid) {
-        sheetOpen(
-            '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442',
-            '<div style="margin-bottom:12px"><label class="bee-radio"><input type="radio" name="arg-side" value="for" checked> \ud83d\udcd7 \u0417\u0430</label> <label class="bee-radio"><input type="radio" name="arg-side" value="against"> \ud83d\udcd5 \u041f\u0440\u043e\u0442\u0438\u0432</label></div>'+
-            '<textarea id="arg-text" maxlength="500" rows="4" placeholder="\u0412\u0430\u0448 \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442..." class="bee-textarea" style="width:100%"></textarea>' +
-            '<input type="hidden" id="arg-pid" value="'+pid+'">',
-            '<button class="bee-btn bee-ripple" data-haptic="impact" onclick="submitArgument()">\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c</button>'
-        );
-    };
-
-    // ── Actions ──
-    window.castVote = function(pid, choice) {
-        haptic('impact','medium');
-        // Spark effect
-        if (typeof BeeFX !== 'undefined' && BeeFX.clickSpark) {
-            var sheetBody = document.getElementById('bee-sheet-body');
-            if (sheetBody) BeeFX.clickSpark(sheetBody);
-        }
-        fetch('/p/'+SLUG+'/governance/vote', {
-            method:'POST', headers:{'Content-Type':'application/json','X-Init-Data':initData||''},
-            body:JSON.stringify({proposal_id:pid,choice:choice})
-        }).then(function(r){return r.json()}).then(function(data) {
-            if (!data.error) {
-                haptic('notification','success'); showToast('\u0413\u043e\u043b\u043e\u0441 \u0443\u0447\u0442\u0451\u043d','success');
-                if(D){if(!D.my_votes)D.my_votes={};D.my_votes[pid]=choice;}
-                // Re-open proposal sheet
-                if (data.current_results && D && D.vote_results) D.vote_results[pid] = data.current_results;
-                openProposalSheet(pid);
-            } else { haptic('notification','error'); showToast(data.message||data.error,'error'); }
-        }).catch(function(){showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438','error')});
-    };
-
-    window.cancelVote = function(pid) {
-        haptic('impact','light');
-        fetch('/p/'+SLUG+'/governance/vote', {
-            method:'DELETE', headers:{'Content-Type':'application/json','X-Init-Data':initData||''},
-            body:JSON.stringify({proposal_id:pid})
-        }).then(function(r){return r.json()}).then(function(data) {
-            if (!data.error) {
-                haptic('notification','success'); showToast('\u0413\u043e\u043b\u043e\u0441 \u043e\u0442\u043c\u0435\u043d\u0451\u043d','success');
-                if(D&&D.my_votes)delete D.my_votes[pid];
-                if (data.current_results && D && D.vote_results) D.vote_results[pid] = data.current_results;
-                openProposalSheet(pid);
-            } else { showToast(data.message||data.error,'error'); }
-        }).catch(function(){showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438','error')});
-    };
-
-    window.submitProposal = function() {
-        var t=$('cp-title'); if(!t||!t.value.trim()){showToast('\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435','error');return;}
-        fetch('/p/'+SLUG+'/governance/proposal', {
-            method:'POST', headers:{'Content-Type':'application/json','X-Init-Data':initData||''},
-            body:JSON.stringify({chat_id:D&&D.dashboard?D.dashboard.chat_id:0,title:t.value.trim(),description:($('cp-desc')||{}).value||'',proposal_type:($('cp-type')||{}).value||'general'})
-        }).then(function(r){return r.json()}).then(function(data) {
-            if(!data.error){haptic('notification','success');showToast('\u041f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0441\u043e\u0437\u0434\u0430\u043d\u043e','success');BeeKit.sheet.close();}
-            else showToast(data.message||data.error,'error');
-        });
-    };
-
-    window.submitArgument = function() {
-        var side=document.querySelector('input[name="arg-side"]:checked');
-        var text=$('arg-text'); var pidEl=$('arg-pid');
-        if(!side||!text||!text.value.trim()){showToast('\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442','error');return;}
-        var pid=pidEl?parseInt(pidEl.value):0;
-        fetch('/p/'+SLUG+'/governance/argument', {
-            method:'POST', headers:{'Content-Type':'application/json','X-Init-Data':initData||''},
-            body:JSON.stringify({proposal_id:pid,side:side.value,text:text.value.trim()})
-        }).then(function(r){return r.json()}).then(function(data) {
-            if(!data.error){haptic('notification','success');showToast('\u0410\u0440\u0433\u0443\u043c\u0435\u043d\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d','success');BeeKit.sheet.close();openProposalSheet(pid);}
-            else showToast(data.message||'\u041e\u0448\u0438\u0431\u043a\u0430','error');
-        });
-    };
-
-    window.setupRegime = function(type) {
-        haptic('impact','heavy');
-        fetch('/p/'+SLUG+'/governance/setup', {
-            method:'POST', headers:{'Content-Type':'application/json','X-Init-Data':initData||''},
-            body:JSON.stringify({regime_type:type})
-        }).then(function(r){return r.json()}).then(function(data) {
-            if(!data.error){haptic('notification','success');showToast('Governance \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d!','success');$('gov-setup').style.display='none';}
-            else showToast(data.message||data.error,'error');
-        });
-    };
-
-    window.doSync = function() {
-        haptic('impact','light');
-        var btn=$('gov-sync-btn'); if(btn)btn.style.opacity='0.4';
-        fetch('/p/'+SLUG+'/governance/sync', {
-            method:'POST', headers:{'X-Init-Data':initData||''}
-        }).then(function(r){return r.json()}).then(function(data) {
-            if(btn)btn.style.opacity='';
-            if(!data.error) showToast('\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0430','success');
-            else showToast(data.error,'error');
-        }).catch(function(){if(btn)btn.style.opacity='';showToast('\u041e\u0448\u0438\u0431\u043a\u0430','error')});
-    };
-
-    // ── Utils ──
-    function timerStr(dl) {
-        var diff = new Date(dl).getTime()-Date.now();
-        if(diff<=0) return '\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e';
-        var d=Math.floor(diff/864e5),h=Math.floor((diff%864e5)/36e5),m=Math.floor((diff%36e5)/6e4);
-        var parts=[];if(d)parts.push(d+'\u0434');if(h)parts.push(h+'\u0447');parts.push(m+'\u043c');
-        return parts.join(' ');
-    }
-
-    function timeAgo(iso) {
-        if(!iso)return'';var diff=Date.now()-new Date(iso).getTime();
-        var m=Math.floor(diff/6e4);if(m<60)return m+'\u043c \u043d\u0430\u0437\u0430\u0434';
-        var h=Math.floor(m/60);if(h<24)return h+'\u0447 \u043d\u0430\u0437\u0430\u0434';
-        return Math.floor(h/24)+'\u0434 \u043d\u0430\u0437\u0430\u0434';
-    }
 })();
 </script>
 
+<!-- Весь JS перенесён в /static/governance.js -->
+<!-- Далее: только CSS -->
+
 <style>
 /* Governance v2 — minimal custom CSS */
+
 
 /* My status compact row */
 .gov-my-row { padding:14px 16px !important }
@@ -820,5 +245,9 @@
 
 /* Cancel */
 .gov-cancel-btn { background:none;border:none;color:var(--accent);font-size:13px;cursor:pointer;text-decoration:underline;padding:0 4px }
+
+/* Toast */
+.bee-toast { position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;z-index:10001;opacity:0;transition:opacity .3s;pointer-events:none;max-width:80vw;text-align:center }
+.bee-toast--visible { opacity:1 }
 </style>
 {% endblock %}

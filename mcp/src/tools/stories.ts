@@ -1,12 +1,12 @@
 import { z } from "zod";
 import type { ToolDef, ApiRequestFn } from "../types.js";
 
-/** Инструменты для работы с историями (Bot API 9.0+) */
+/** Инструменты для работы с историями (Bot API 9.0+). Требуют Telegram Business подключение. */
 export function register(apiRequest: ApiRequestFn): ToolDef[] {
   return [
     {
       name: "stories.post",
-      description: "Опубликовать историю в канал (Bot API 9.0).",
+      description: "Опубликовать историю (Bot API 9.0). Требует Telegram Business подключение (business_connection_id). Фото/видео передаётся как файл.",
       parameters: z.object({
         chat_id: z.union([z.string(), z.number()]),
         bot_id: z.number().int().optional(),
@@ -24,7 +24,7 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
     },
     {
       name: "stories.edit",
-      description: "Редактировать опубликованную историю.",
+      description: "Редактировать опубликованную историю. Требует Telegram Business подключение.",
       parameters: z.object({
         chat_id: z.union([z.string(), z.number()]),
         story_id: z.number().int(),
@@ -41,7 +41,7 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
     },
     {
       name: "stories.delete",
-      description: "Удалить историю.",
+      description: "Удалить историю. Требует Telegram Business подключение.",
       parameters: z.object({
         chat_id: z.union([z.string(), z.number()]),
         story_id: z.number().int(),

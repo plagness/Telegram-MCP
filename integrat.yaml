@@ -1,0 +1,193 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/plagness/Integrat/main/spec/integrat.schema.json
+# Integrat — плагин telegram-chat-data
+# Полные данные из Telegram-чатов: участники, сообщения, реакции, события, статистика
+
+plugin:
+  slug: telegram-chat-data
+  name: Telegram Chat Data
+  description: "Полные данные из Telegram-чатов: участники, сообщения, реакции, события, статистика"
+  version: "2026.02.23"
+  icon: "💬"
+  homepage: https://github.com/plagness/Telegram-MCP
+
+provider:
+  base_url: "${TELEGRAM_API_URL:-http://tgapi-service.ns-telegram.svc.cluster.local:8081}"
+  health_path: /health
+
+endpoints:
+  - slug: chat.info
+    name: "Информация о чате"
+    description: "Метаданные чата: название, описание, количество участников, аватарка, Hub-настройки"
+    path: /v1/chat-data/{chat_id}/info
+    method: GET
+    access: gated
+    cache_ttl: 300
+    data_type: basic
+    params_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+          description: "Telegram chat ID"
+      required: [chat_id]
+
+  - slug: chat.members
+    name: "Участники чата"
+    description: "Список известных участников с профилями, статусами, аватарками"
+    path: /v1/chat-data/{chat_id}/members
+    method: GET
+    access: gated
+    cache_ttl: 120
+    data_type: medium
+    params_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+          description: "Telegram chat ID"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+        offset:
+          type: integer
+          default: 0
+        status:
+          type: string
+          description: "Фильтр: member, administrator, creator, left, kicked"
+        search:
+          type: string
+          description: "Поиск по username или имени"
+      required: [chat_id]
+
+  - slug: chat.messages
+    name: "Сообщения чата"
+    description: "Сообщения с фильтрацией по дате, автору, типу медиа, текстовому поиску"
+    path: /v1/chat-data/{chat_id}/messages
+    method: GET
+    access: gated
+    cache_ttl: 60
+    data_type: complex
+    params_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+        offset:
+          type: integer
+          default: 0
+        date_from:
+          type: string
+          description: "ISO date/datetime начала"
+        date_to:
+          type: string
+          description: "ISO date/datetime конца"
+        user_id:
+          type: string
+          description: "Фильтр по автору"
+        media_type:
+          type: string
+          description: "photo, video, document, audio, voice, sticker..."
+        search:
+          type: string
+          description: "Текстовый поиск (ILIKE)"
+      required: [chat_id]
+
+  - slug: chat.reactions
+    name: "Реакции чата"
+    description: "Реакции на сообщения с агрегацией по типу"
+    path: /v1/chat-data/{chat_id}/reactions
+    method: GET
+    access: gated
+    cache_ttl: 120
+    data_type: medium
+    params_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        telegram_message_id:
+          type: integer
+          description: "Фильтр по конкретному сообщению"
+        user_id:
+          type: string
+        aggregate:
+          type: boolean
+          default: true
+          description: "Добавить группировку по типу реакции"
+        limit:
+          type: integer
+          default: 100
+        offset:
+          type: integer
+          default: 0
+      required: [chat_id]
+
+  - slug: chat.events
+    name: "События чата"
+    description: "Лог системных событий: вступления, выходы, закрепления, смена фото/названия"
+    path: /v1/chat-data/{chat_id}/events
+    method: GET
+    access: gated
+    cache_ttl: 60
+    data_type: medium
+    params_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        event_type:
+          type: string
+          description: "Фильтр: join, leave, kick, pin, unpin, new_photo, delete_photo, title_change, migrate"
+        date_from:
+          type: string
+        date_to:
+          type: string
+        user_id:
+          type: string
+        limit:
+          type: integer
+          default: 100
+        offset:
+          type: integer
+          default: 0
+      required: [chat_id]
+
+  - slug: chat.stats
+    name: "Статистика чата"
+    description: "Агрегированная статистика: активность по дням, топ авторы, распределение медиа, тренды"
+    path: /v1/chat-data/{chat_id}/stats
+    method: GET
+    access: gated
+    cache_ttl: 300
+    data_type: complex
+    params_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        period:
+          type: string
+          description: "7d, 30d, 90d, all"
+          default: "30d"
+      required: [chat_id]
+
+config_fields:
+  - slug: default_chat_id
+    label: "Chat ID по умолчанию"
+    type: string
+    required: false
+    help: "ID чата для запросов без явного chat_id"
+
+  - slug: sync_on_subscribe
+    label: "Синхронизация при подписке"
+    type: boolean
+    required: false
+    default: true
+    help: "Автоматически синхронизировать данные чата при первом подключении плагина"

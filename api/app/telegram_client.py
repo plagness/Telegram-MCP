@@ -511,6 +511,16 @@ async def get_chat_member_count(payload: dict[str, Any], bot_token: str | None =
     return await _call("getChatMemberCount", payload, bot_token=bot_token)
 
 
+async def get_chat_administrators(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getChatAdministrators — список администраторов чата."""
+    return await _call("getChatAdministrators", payload, bot_token=bot_token)
+
+
+async def get_user_profile_photos(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getUserProfilePhotos — фото профиля пользователя."""
+    return await _call("getUserProfilePhotos", payload, bot_token=bot_token)
+
+
 # === Bot commands ===
 
 
@@ -615,6 +625,14 @@ async def send_checklist(payload: dict[str, Any], bot_token: str | None = None) 
 async def edit_message_checklist(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
     """editMessageChecklist."""
     return await _call("editMessageChecklist", payload, bot_token=bot_token)
+
+
+# === Stickers / Custom Emoji ===
+
+
+async def get_custom_emoji_stickers(payload: dict[str, Any], bot_token: str | None = None) -> dict[str, Any]:
+    """getCustomEmojiStickers — стикеры по массиву custom_emoji_id."""
+    return await _call("getCustomEmojiStickers", payload, bot_token=bot_token)
 
 
 # === Stars & Gifts (Bot API 9.1+) ===

@@ -2,22 +2,11 @@
 
 {% block title %}{{ chat.title or 'Чат' }}{% endblock %}
 
-{% set page_icons = {
-    'calendar': '\U0001f4c5',
-    'prediction': '\U0001f3af',
-    'dashboard': '\U0001f4ca',
-    'survey': '\U0001f4dd',
-    'leaderboard': '\U0001f3c6',
-    'llm': '\U0001f916',
-    'infra': '\U0001f5a5',
-    'page': '\U0001f4c4'
-} %}
-
 {% set page_labels = {
     'calendar': 'Календарь',
-    'prediction': 'Предсказания',
+    'prediction': 'Ставки',
     'dashboard': 'Дашборд',
-    'survey': 'Опрос',
+    'survey': 'Опросы',
     'leaderboard': 'Рейтинг',
     'llm': 'LLM',
     'infra': 'Инфра',
@@ -26,278 +15,351 @@
     'governance': 'Governance'
 } %}
 
-{# ── Макрос карточки temporal event (орбитальная система) ── #}
-{% macro hub_card(page, idx) %}
+{# ── Governance variables ── #}
+{% set gov_regime = governance.regime.regime_type if governance and governance.regime else '' %}
+{% set gov_leader = governance.regime.leader_username if governance and governance.regime else '' %}
+{% set gov_citizens = governance.stats.citizens if governance and governance.stats else 0 %}
+{% set gov_proposals = governance.stats.active_proposals if governance and governance.stats else 0 %}
+{% set gov_treasury = governance.stats.treasury if governance and governance.stats else 0 %}
+{% set ci_members = chat_info.member_count if chat_info and chat_info.member_count else (chat.member_count or 0) %}
+{% set st_mpd = stats.messages_per_day if stats and stats.messages_per_day else 0 %}
+{% set st_active = stats.active_users if stats and stats.active_users else 0 %}
+
+{# ── Regime display ── #}
+{% set regime_labels = {
+    'democracy': 'Демократия',
+    'autocracy': 'Автократия',
+    'technocracy': 'Технократия',
+    'demarchy': 'Демархия',
+    'gerontocracy': 'Геронтократия',
+    'consensus': 'Консенсус',
+    'liquid_democracy': 'Liquid Democracy',
+    'parliament': 'Парламент',
+    'meritocracy': 'Меритократия',
+    'oligarchy': 'Олигархия',
+    'constitutional_monarchy': 'Конст. Монархия'
+} %}
+{% set regime_icons = {
+    'democracy': '🗳',
+    'autocracy': '👑',
+    'technocracy': '⚙️',
+    'demarchy': '🎲',
+    'gerontocracy': '🏛',
+    'consensus': '🤝',
+    'liquid_democracy': '🔗',
+    'parliament': '🏛',
+    'meritocracy': '📊',
+    'oligarchy': '💰',
+    'constitutional_monarchy': '👑🏛'
+} %}
+{% set leader_titles = {
+    'democracy': 'Президент',
+    'autocracy': 'Правитель',
+    'technocracy': 'Совет',
+    'demarchy': 'Совет',
+    'gerontocracy': 'Старейшины',
+    'consensus': 'Координатор',
+    'liquid_democracy': 'Координатор'
+} %}
+
+{# ── Макрос hot-карточки v3 ── #}
+{% macro hot_card(page) %}
 {% set meta = page._meta if page._meta is defined else {} %}
-<a class="bee-hub-card bee-fade-in bee-chat-page-link" href="/p/{{ page.slug }}"
-   data-type="{{ page.page_type }}"
-   data-deadline="{{ meta.deadline or '' }}"
-   data-status="{{ meta.status or '' }}"
-   data-search="{{ page.title | lower }} {{ page.slug | lower }} {{ (page.page_type or '') | lower }}">
-
-    {# ── Визуальная панель (орбитальная система) ── #}
-    {% set o = page._orbital %}
-    <div class="bee-hub-card__visual{% if o.is_binary %} bee-hub-card__visual--binary{% endif %}"
-         style="--orbit-phase: {{ o.orbit_phase }};
-                --activity: {{ o.activity }};
-                --urgency: {{ o.urgency }};
-                --star-scale: {{ o.star_scale }};
-                --glow-color: {{ o.glow_color }};
-                --orbit1-period: calc(6s - {{ o.activity }} * 3s);
-                --orbit2-period: calc(10s - {{ o.activity }} * 4s);
-                --orbit3-period: calc(14s - {{ o.activity }} * 5s);
-                --binary-period: calc(4s - {{ o.activity }} * 1.5s);">
-        <div class="bee-hub-card__visual-emojis{% if o.emojis.orbit1 is defined and o.emojis.orbit1 %} --has-orbit1{% endif %}{% if o.emojis.orbit2 is defined and o.emojis.orbit2 %} --has-orbit2{% endif %}">
-            <span class="bee-hub-card__emoji bee-hub-card__emoji--star">
-                {%- if o.chat_photo_url -%}
-                <img src="{{ o.chat_photo_url }}" alt="" class="bee-hub-card__star-avatar"
-                     onerror="this.style.display='none';this.nextElementSibling.style.display=''">
-                <span style="display:none">{{ o.emojis.star }}</span>
-                {%- else -%}
-                {{ o.emojis.star }}
-                {%- endif -%}
-            </span>
-            {% if o.emojis.star2 is defined and o.emojis.star2 %}
-            <span class="bee-hub-card__emoji bee-hub-card__emoji--star2">{{ o.emojis.star2 }}</span>
-            {% endif %}
-            {% if o.emojis.orbit1 is defined and o.emojis.orbit1 %}
-            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit1">{{ o.emojis.orbit1 }}</span>
-            {% endif %}
-            {% if o.emojis.orbit2 is defined and o.emojis.orbit2 %}
-            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit2">{{ o.emojis.orbit2 }}</span>
-            {% endif %}
-            {% if o.emojis.orbit3 is defined and o.emojis.orbit3 %}
-            <span class="bee-hub-card__emoji bee-hub-card__emoji--orbit3">{{ o.emojis.orbit3 }}</span>
-            {% endif %}
-        </div>
-        {% if page._icon %}
-        <img src="{{ page._icon.icon_url }}" alt="" class="bee-hub-card__visual-brand">
+<a class="bee-hot__card bee-fade-in bee-chat-page-link" href="/p/{{ page.slug }}"
+   data-type="{{ page.page_type }}">
+    <div class="bee-hot__card-head">
+        {% if page._icon_slug %}
+        <img src="/static/icons/{{ page._icon_slug }}.svg" alt=""
+             class="bee-hot__card-svg">
         {% endif %}
+        <span class="bee-hub-badge bee-hub-badge--{{ page.page_type }}">
+            {{ page_labels.get(page.page_type, page.page_type) }}
+        </span>
     </div>
+    <div class="bee-hot__card-title">{{ page.title }}</div>
 
-    <div class="bee-hub-card__body">
-        <div class="bee-hub-card__head">
-            <span class="bee-hub-card__title">{{ page.title }}</span>
-            {% if meta.status %}
-            <span class="bee-hub-card__status bee-hub-card__status--{{ meta.status }}" title="{{ meta.status }}"></span>
-            {% endif %}
+    {# Prediction с pie chart #}
+    {% if page.page_type == 'prediction' and meta.top_option_pct is defined and meta.top_option_pct %}
+    <div class="bee-hot__card-body">
+        <div class="bee-hot__mini-pie" style="--pct:{{ meta.top_option_pct }}">
+            <span>{{ meta.top_option_pct }}%</span>
         </div>
-
-        {% if page.config and page.config.description %}
-        <div class="bee-hub-card__desc">{{ page.config.description }}</div>
-        {% endif %}
-
-        <div class="bee-hub-card__meta-row">
-            <span class="bee-hub-badge bee-hub-badge--{{ page.page_type }}">
-                {{ page_labels.get(page.page_type, page.page_type) }}
-            </span>
+        <div class="bee-hot__card-metrics">
+            <span>{{ meta.total_pool or 0 }} 💰</span>
+            <span>{{ meta.bet_count or 0 }} став.</span>
         </div>
-
-        {# ── Prediction виджеты ── #}
-        {% if meta.type == 'prediction' and meta.status != 'hub' %}
-        <div class="bee-hub-card__widgets">
-            <span class="bee-hub-widget">&#128176; {{ meta.total_pool }} {{ meta.currency_symbol }}</span>
-            <span class="bee-hub-widget">{{ meta.bet_count }} став.</span>
-        </div>
-        {% if meta.deadline %}
-        <div class="bee-hub-card__countdown" data-deadline="{{ meta.deadline }}" data-status="{{ meta.status }}"></div>
-        {% endif %}
-        {% if meta.user_bet %}
-        <div class="bee-hub-card__user-action">
-            &#10003; Ваша ставка: {{ meta.user_bet.amount }} {{ meta.currency_symbol }} на &laquo;{{ meta.user_bet.option_text }}&raquo;
-        </div>
-        {% endif %}
-        {% endif %}
-
-        {# ── Calendar виджеты ── #}
-        {% if meta.type == 'calendar' %}
-        <div class="bee-hub-card__widgets">
-            <span class="bee-hub-widget">{{ meta.entry_count }} событий</span>
-            {% if meta.next_entry %}
-            <span class="bee-hub-widget">&#8594; {{ meta.next_entry.title }}</span>
-            {% endif %}
-        </div>
-        {% if meta.next_entry and meta.next_entry.start_at %}
-        <div class="bee-hub-card__countdown" data-deadline="{{ meta.next_entry.start_at }}"
-             data-prefix="Через "></div>
-        {% endif %}
-        {% endif %}
-
-        {# ── Survey виджеты ── #}
-        {% if meta.type == 'survey' %}
-        <div class="bee-hub-card__widgets">
-            <span class="bee-hub-widget">{{ meta.submission_count }} ответов</span>
-            {% if meta.user_submitted %}
-            <span class="bee-hub-widget bee-hub-widget--done">&#10003; Отправлено</span>
-            {% endif %}
-        </div>
-        {% endif %}
     </div>
+    {% elif page.page_type == 'prediction' %}
+    <div class="bee-hot__card-metrics">
+        <span>{{ meta.total_pool or 0 }} 💰</span>
+        <span>{{ meta.bet_count or 0 }} став.</span>
+    </div>
+    {# Survey с крупной цифрой #}
+    {% elif page.page_type == 'survey' %}
+    <div class="bee-hot__card-body">
+        <div class="bee-hot__metric-big bee-countup" data-val="{{ meta.submission_count or 0 }}">{{ meta.submission_count or 0 }}</div>
+        <div class="bee-hot__metric-label">ответов</div>
+    </div>
+    {% elif page.page_type == 'calendar' %}
+    <div class="bee-hot__card-metrics">
+        <span>{{ meta.entry_count or 0 }} соб.</span>
+    </div>
+    {% endif %}
+
+    {% if meta.deadline %}
+    <div class="bee-hot__card-deadline" data-deadline="{{ meta.deadline }}"></div>
+    {% endif %}
 </a>
 {% endmacro %}
 
-{% block bar_left %}<a class="bee-bar__back" href="/">&#8249;</a>{% endblock %}
+{% block bar_left %}<a class="bee-bar__back" href="/">‹</a>{% endblock %}
 
 {% block context %}
-<div class="bee-card bee-hex-bg" style="text-align: center; padding: 24px 20px;">
-    <div class="bee-chat-detail__avatar">
+{# ── Chat Banner (кликабельная плашка → manage) ── #}
+<a class="bee-chat-banner bee-chat-page-link" href="/c/{{ chat.chat_id }}/manage" id="chat-banner">
+    <div class="bee-chat-banner__ava">
         {% if chat._photo_url %}
         <img src="{{ chat._photo_url }}" alt=""
              onerror="this.style.display='none';this.nextElementSibling.style.display=''">
-        <span class="bee-chat-detail__fallback" style="display:none">{{ (chat.title or '?')[0] | upper }}</span>
+        <span class="bee-chat-banner__ava-fb" style="display:none">{{ (chat.title or '?')[0] | upper }}</span>
         {% else %}
-        <span class="bee-chat-detail__fallback">{{ (chat.title or '?')[0] | upper }}</span>
+        <span class="bee-chat-banner__ava-fb">{{ (chat.title or '?')[0] | upper }}</span>
         {% endif %}
     </div>
-    <div class="bee-chat-detail__name">{{ chat.title or 'Без названия' }}</div>
-    {% if chat.description %}
-    <div class="bee-chat-detail__desc">{{ chat.description }}</div>
-    {% endif %}
-    <div class="bee-chat-detail__badges">
-        <span class="bee-hub-badge">{{ chat.member_count or 0 }} участников</span>
-        {% if chat.type %}
-        <span class="bee-hub-badge bee-hub-badge--{{ chat.type }}">{{ chat.type }}</span>
-        {% endif %}
+    <div class="bee-chat-banner__body">
+        <div class="bee-chat-banner__title">{{ chat.title or 'Без названия' }}</div>
+        <div class="bee-chat-banner__meta">
+            {% if gov_regime %}
+                {{ regime_icons.get(gov_regime, '🏳') }} {{ regime_labels.get(gov_regime, gov_regime) }}{% if gov_leader %} · {{ leader_titles.get(gov_regime, '') }} @{{ gov_leader }}{% endif %}
+            {% elif ci_members %}
+                {{ ci_members }} участников
+            {% endif %}
+        </div>
+        <div class="bee-chat-banner__chips">
+            {% if ci_members %}<span class="bee-banner-chip">{{ ci_members }} участников</span>{% endif %}
+            {% if gov_citizens %}<span class="bee-banner-chip">{{ gov_citizens }} граждан</span>{% endif %}
+            {% if temporal_pages %}<span class="bee-banner-chip">{{ temporal_pages | length }} актив.</span>{% endif %}
+        </div>
     </div>
-</div>
-
-{# ── Поиск по чат-хабу ── #}
-<div class="bee-hub-search-row">
-    <div class="bee-hub-search-wrap" id="hub-search-wrap">
-        <input type="text" class="bee-hub-search" id="hub-search"
-               placeholder="Поиск..." autocomplete="off">
-    </div>
-</div>
+    <span class="bee-chat-banner__arrow">›</span>
+</a>
 {% endblock %}
 
 {% block content %}
 
-{# ── Секция: Активные события ── #}
-{% if temporal_pages %}
-<div class="bee-hub-section-header" id="section-temporal">
-    <span>&#9201;</span> Активные
-    <span class="bee-hub-section-header__count">{{ temporal_pages | length }}</span>
-</div>
-{% for page in temporal_pages %}
-{{ hub_card(page, loop.index) }}
-{% endfor %}
-{% endif %}
+{# ── Search (всегда видим) ── #}
+<div class="bee-search" id="search-panel">
+    <div class="bee-search__input-wrap">
+        <svg class="bee-search__icon-svg" viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" class="bee-search__input" id="search-input"
+               placeholder="Поиск действий и страниц..." autocomplete="off">
+    </div>
 
-{# ── Секция: Democracy (Governance) ── #}
-{% if governance %}
-<div class="bee-card" data-search="governance демократия голосование">
-    <div class="bee-card-title">&#127987; Governance</div>
-    <div style="padding:0 16px 12px">
-        {% if governance.regime %}
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <span class="bee-hub-badge bee-hub-badge--governance">{{ governance.regime.regime_type or 'N/A' }}</span>
-            {% if governance.stats %}
-            <span style="color:var(--tg-hint);font-size:12px">
-                {{ governance.stats.citizens or 0 }} граждан &middot;
-                {{ governance.stats.active_proposals or 0 }} предложений
-            </span>
+    {# Backdrop blur #}
+    <div class="bee-search__overlay hidden" id="search-overlay"></div>
+
+    {# Dropdown: история + категории + действия #}
+    <div class="bee-search__dropdown hidden" id="search-dropdown">
+        <div class="bee-search__history" id="search-history"></div>
+
+        <div class="bee-search__cats-title">Категории</div>
+        <div class="bee-search__cats" id="search-cats">
+            {% if categories.predictions %}
+            <a class="bee-search__cat-chip bee-chat-page-link"
+               href="/c/{{ chat.chat_id }}?filter=prediction">
+                <img src="/static/icons/{{ cat_icon_slugs.prediction }}.svg" alt="" class="bee-search__cat-icon">
+                <span>Ставки</span>
+                <span class="bee-search__cat-count">{{ categories.predictions }}</span>
+            </a>
+            {% endif %}
+            {% if categories.surveys %}
+            <a class="bee-search__cat-chip bee-chat-page-link"
+               href="/c/{{ chat.chat_id }}?filter=survey">
+                <img src="/static/icons/{{ cat_icon_slugs.survey }}.svg" alt="" class="bee-search__cat-icon">
+                <span>Опросы</span>
+                <span class="bee-search__cat-count">{{ categories.surveys }}</span>
+            </a>
+            {% endif %}
+            {% if categories.calendars %}
+            <a class="bee-search__cat-chip bee-chat-page-link"
+               href="/c/{{ chat.chat_id }}?filter=calendar">
+                <img src="/static/icons/{{ cat_icon_slugs.calendar }}.svg" alt="" class="bee-search__cat-icon">
+                <span>Календарь</span>
+                <span class="bee-search__cat-count">{{ categories.calendars }}</span>
+            </a>
+            {% endif %}
+            {% if categories.leaderboards %}
+            <a class="bee-search__cat-chip bee-chat-page-link"
+               href="/c/{{ chat.chat_id }}?filter=leaderboard">
+                <img src="/static/icons/{{ cat_icon_slugs.leaderboard }}.svg" alt="" class="bee-search__cat-icon">
+                <span>Рейтинг</span>
+                <span class="bee-search__cat-count">{{ categories.leaderboards }}</span>
+            </a>
+            {% endif %}
+            {% if governance and governance_slug %}
+            <a class="bee-search__cat-chip bee-chat-page-link"
+               href="/p/{{ governance_slug }}">
+                <img src="/static/icons/{{ cat_icon_slugs.governance or 'civicrm' }}.svg" alt="" class="bee-search__cat-icon">
+                <span>Governance</span>
+            </a>
             {% endif %}
         </div>
-        {% endif %}
 
-        {% if governance.active_proposals %}
-        <div style="margin-bottom:8px">
-            {% for proposal in governance.active_proposals[:3] %}
-            <div class="bee-list-item" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
-                <div class="bee-list-content">
-                    <div class="bee-list-title" style="font-size:13px">{{ proposal.title }}</div>
-                    <div class="bee-list-subtitle" style="font-size:11px">
-                        {{ proposal.status }} &middot; {{ proposal.votes_count or 0 }} голосов
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+        {% if governance and governance_slug %}
+        <div class="bee-search__actions">
+            <div class="bee-search__actions-title">Быстрые действия</div>
+            <a class="bee-search__action-link bee-chat-page-link" href="/p/{{ governance_slug }}">
+                <span class="bee-search__action-icon">📜</span>
+                <span>Предложить закон</span>
+            </a>
+            <a class="bee-search__action-link bee-chat-page-link" href="/p/{{ governance_slug }}">
+                <span class="bee-search__action-icon">🗳</span>
+                <span>Голосовать</span>
+            </a>
         </div>
         {% endif %}
+    </div>
 
-        {% if governance_slug %}
-        <a class="bee-btn bee-btn--primary bee-chat-page-link" href="/p/{{ governance_slug }}"
-           style="width:100%;text-align:center;display:block;text-decoration:none">
-            Открыть Governance
-        </a>
+    {# Результаты текстового поиска #}
+    <div class="bee-search__results hidden" id="search-results"></div>
+</div>
+
+{# ── Quick Stats Strip ── #}
+{% if not filter_type %}
+{% set has_gov_stats = governance and (gov_citizens or gov_proposals or gov_treasury) %}
+{% set has_any_stats = has_gov_stats or st_mpd or st_active %}
+{% if has_any_stats %}
+<div class="bee-gov-strip">
+    {% if gov_citizens %}<div class="bee-gov-strip__item"><div class="bee-gov-strip__val bee-countup" data-val="{{ gov_citizens }}">{{ gov_citizens }}</div><div class="bee-gov-strip__label">граждан</div></div>{% endif %}
+    {% if gov_proposals %}<div class="bee-gov-strip__item"><div class="bee-gov-strip__val bee-countup" data-val="{{ gov_proposals }}">{{ gov_proposals }}</div><div class="bee-gov-strip__label">предложений</div></div>{% endif %}
+    {% if gov_treasury %}<div class="bee-gov-strip__item"><div class="bee-gov-strip__val bee-countup" data-val="{{ gov_treasury | round(0) | int }}">{{ gov_treasury | round(0) | int }}</div><div class="bee-gov-strip__label">💰 казна</div></div>{% endif %}
+    {% if st_mpd %}<div class="bee-gov-strip__item"><div class="bee-gov-strip__val bee-countup" data-val="{{ st_mpd | round(0) | int }}">{{ st_mpd | round(1) }}</div><div class="bee-gov-strip__label">сообщ/день</div></div>{% endif %}
+    {% if st_active %}<div class="bee-gov-strip__item"><div class="bee-gov-strip__val bee-countup" data-val="{{ st_active }}">{{ st_active }}</div><div class="bee-gov-strip__label">активных</div></div>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+{# ── Календарь inline ── #}
+{% if upcoming_events and not filter_type %}
+<div class="bee-section">
+    <div class="bee-section__header">
+        <span>📅 {{ 'Недавние' if upcoming_events and upcoming_events[0].get('_past') else 'Ближайшее' }}</span>
+        {% if calendar_slug %}
+        <a class="bee-section__more bee-chat-page-link" href="/p/{{ calendar_slug }}">Все →</a>
         {% endif %}
+    </div>
+    {% for ev in upcoming_events %}
+    <div class="bee-cal-item{% if ev.get('_past') %} bee-cal-item--past{% endif %}">
+        <span class="bee-cal-item__date" data-ts="{{ ev.start_at or ev.date or '' }}"></span>
+        <span class="bee-cal-item__emoji">{{ ev.emoji or '📌' }}</span>
+        <span class="bee-cal-item__title">{{ ev.title or ev.name or '' }}</span>
+        {% if ev.get('_past') %}<span class="bee-cal-item__past-tag">прошло</span>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{# ── Hot Items ── #}
+{% if temporal_pages and not filter_type %}
+<div class="bee-section" id="section-hot">
+    <div class="bee-section__header">
+        <span>🔥 Горячее</span>
+        <span class="bee-section__count">{{ temporal_pages | length }}</span>
+    </div>
+    <div class="bee-hot__scroll">
+        {% for page in temporal_pages[:5] %}
+        {{ hot_card(page) }}
+        {% endfor %}
     </div>
 </div>
 {% endif %}
 
-{# ── Секция: Страницы чата ── #}
-{% if pages %}
-<div class="bee-card">
-    <div class="bee-card-title">&#128196; Страницы</div>
-    <div class="bee-list">
-        {% for page in pages %}
-        <a class="bee-list-item bee-chat-page-link" href="/p/{{ page.slug }}"
-           data-search="{{ page.title | lower }} {{ (page.page_type or '') | lower }}">
-            <div class="bee-list-icon">
-                {% if page._icon %}
-                <img src="{{ page._icon.icon_url }}" alt=""
-                     style="width:24px;height:24px;filter:brightness(0) invert(0.7)">
-                {% endif %}
-            </div>
-            <div class="bee-list-content">
-                <div class="bee-list-title">{{ page.title }}</div>
-                <div class="bee-list-subtitle">
-                    <span class="bee-hub-badge bee-hub-badge--{{ page.page_type }}" style="font-size:10px">
-                        {{ page_labels.get(page.page_type, page.page_type) }}
-                    </span>
-                    {% if page.config and page.config.description %}
-                    {{ page.config.description }}
-                    {% endif %}
-                </div>
-            </div>
-            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">&#8250;</div>
+{# ── Все страницы (compact list) ── #}
+{% if pages and not filter_type %}
+<div class="bee-section">
+    <div class="bee-section__header">
+        <span>📄 Страницы</span>
+        <span class="bee-section__count">{{ pages | length }}</span>
+    </div>
+    <div class="bee-pages-list">
+        {% for page in pages[:8] %}
+        <a class="bee-pages-list__item bee-chat-page-link" href="/p/{{ page.slug }}">
+            {% if page._icon %}
+            <img src="{{ page._icon.icon_url }}" alt="" class="bee-pages-list__icon">
+            {% endif %}
+            <span class="bee-pages-list__title">{{ page.title }}</span>
+            <span class="bee-hub-badge bee-hub-badge--{{ page.page_type }}">{{ page_labels.get(page.page_type, page.page_type) }}</span>
         </a>
         {% endfor %}
     </div>
 </div>
 {% endif %}
 
-{# ── Секция: Плагины Integrat (lazy-loaded) ── #}
-<div class="bee-card" id="plugins-card">
-    <div class="bee-card-title">&#9889; Плагины Integrat</div>
-    <div id="plugins-container">
-        <div class="bee-skel" style="height:48px;border-radius:8px;margin:8px 0"></div>
-        <div class="bee-skel" style="height:48px;border-radius:8px;margin:8px 0"></div>
+{# ── Расширения чата ── #}
+{% if chat_extensions and not filter_type %}
+<div class="bee-section">
+    <div class="bee-section__header">
+        <span>🔌 Расширения</span>
+        <span class="bee-section__count">{{ chat_extensions | length }}</span>
     </div>
-    <div style="padding:8px 16px 12px">
-        <a class="bee-btn bee-chat-page-link" href="/marketplace"
-           style="width:100%;text-align:center;display:block;text-decoration:none;font-size:13px">
-            &#128722; Магазин плагинов
-        </a>
+    <div class="bee-ext-row">
+        {% for ext in chat_extensions[:4] %}
+        <span class="bee-ext-chip">{{ ext.name or ext.slug or '' }}</span>
+        {% endfor %}
+        {% if chat_extensions | length > 4 %}
+        <span class="bee-ext-chip bee-ext-chip--more">+{{ chat_extensions | length - 4 }}</span>
+        {% endif %}
     </div>
 </div>
+{% endif %}
 
-{# ── Конфигурация плагина (открывается inline) ── #}
-<div class="bee-card" id="config-card" style="display:none">
-    <div class="bee-card-title" id="config-title">Настройки</div>
-    <div id="config-form-container"></div>
-    <div style="padding:0 0 12px;display:flex;gap:8px">
-        <button class="bee-btn bee-btn--primary" id="config-save-btn" style="flex:1">Сохранить</button>
-        <button class="bee-btn" id="config-close-btn">Закрыть</button>
+{# ── Filter View ── #}
+{% if filter_type and filtered_pages %}
+<div class="bee-section">
+    <div class="bee-section__header">
+        <a class="bee-section__back bee-chat-page-link" href="/c/{{ chat.chat_id }}">‹</a>
+        <span>{{ page_labels.get(filter_type, filter_type) }}</span>
+        <span class="bee-section__count">{{ filtered_pages | length }}</span>
     </div>
-    <div id="config-status" style="display:none;padding:0 0 8px;font-size:13px"></div>
+    <div class="bee-list">
+        {% for page in filtered_pages %}
+        <a class="bee-list-item bee-chat-page-link" href="/p/{{ page.slug }}">
+            <div class="bee-list-icon">
+                <img src="{{ page._icon.icon_url if page._icon else '/static/icons/' ~ (page._icon_slug or 'readme') ~ '.svg' }}" alt=""
+                     style="width:24px;height:24px;filter:brightness(0) invert(1)">
+            </div>
+            <div class="bee-list-content">
+                <div class="bee-list-title">{{ page.title }}</div>
+                {% if page.config and page.config.description %}
+                <div class="bee-list-subtitle">{{ page.config.description }}</div>
+                {% endif %}
+            </div>
+            <div class="bee-list-right" style="font-size:18px;color:var(--tg-hint)">›</div>
+        </a>
+        {% endfor %}
+    </div>
 </div>
+{% elif filter_type %}
+<div class="bee-section">
+    <div class="bee-section__header">
+        <a class="bee-section__back bee-chat-page-link" href="/c/{{ chat.chat_id }}">‹</a>
+        <span>{{ page_labels.get(filter_type, filter_type) }}</span>
+    </div>
+    <div class="bee-hub-empty" style="padding:24px 0">
+        <div class="bee-hub-empty-text">Пока пусто</div>
+    </div>
+</div>
+{% endif %}
 
 {# ── Пустое состояние ── #}
-{% if not temporal_pages and not pages and not governance %}
+{% if not filter_type and not temporal_pages and not upcoming_events and not pages and categories.predictions == 0 and categories.surveys == 0 and categories.calendars == 0 and not governance %}
 <div class="bee-hub-empty">
-    <div class="bee-hub-empty-icon">&#128172;</div>
+    <div class="bee-hub-empty-icon">💬</div>
     <div class="bee-hub-empty-text">Пока пусто</div>
     <div class="bee-hub-empty-hint">Страницы и события появятся здесь</div>
 </div>
 {% endif %}
 
-{# Нет результатов поиска #}
-<div class="bee-hub-no-results hidden" id="hub-no-results">
-    <div class="bee-hub-empty-icon">&#128269;</div>
-    <div class="bee-hub-empty-text">Ничего не найдено</div>
-    <div class="bee-hub-empty-hint">Попробуйте другой запрос</div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -308,331 +370,195 @@
     var chatId = '{{ chat.chat_id }}';
     var tgApp = window.Telegram && window.Telegram.WebApp;
     var initData = tgApp ? tgApp.initData : '';
-    var headers = { 'X-Init-Data': initData };
-    var activePluginId = null;
 
-    // ── Поиск по чат-хабу ──────────────────────
-    var searchEl = document.getElementById('hub-search');
-    var noResultsEl = document.getElementById('hub-no-results');
+    // ── Search: focus → overlay + dropdown ──────────
+    var searchInput = document.getElementById('search-input');
+    var searchOverlay = document.getElementById('search-overlay');
+    var searchDropdown = document.getElementById('search-dropdown');
+    var searchResults = document.getElementById('search-results');
+    var searchHistory = document.getElementById('search-history');
+    var HISTORY_KEY = 'search_' + chatId;
 
-    if (searchEl) {
-        searchEl.addEventListener('input', function() {
-            var q = this.value.toLowerCase().trim();
-            var allCards = document.querySelectorAll('.bee-hub-card, .bee-list-item[data-search], .bee-card[data-search]');
-            var visibleCount = 0;
-
-            allCards.forEach(function(card) {
-                var show = !q || (card.dataset.search || '').indexOf(q) >= 0;
-                card.style.display = show ? '' : 'none';
-                if (show) visibleCount++;
+    function getHistory() {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+        catch(e) { return []; }
+    }
+    function addHistory(q) {
+        if (!q) return;
+        var h = getHistory().filter(function(x) { return x !== q; });
+        h.unshift(q);
+        if (h.length > 5) h = h.slice(0, 5);
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch(e) {}
+    }
+    function renderHistory() {
+        if (!searchHistory) return;
+        var h = getHistory();
+        if (!h.length) { searchHistory.innerHTML = ''; return; }
+        searchHistory.innerHTML = '<div class="bee-search__section-title">Недавнее</div>' +
+            h.map(function(q) {
+                return '<a class="bee-search__history-item" data-q="' + esc(q) + '">' +
+                    '<svg viewBox="0 0 24 24" width="14" height="14" style="opacity:.4"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="12,7 12,12 15,15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
+                    '<span>' + esc(q) + '</span>' +
+                    '</a>';
+            }).join('');
+        searchHistory.querySelectorAll('.bee-search__history-item').forEach(function(el) {
+            el.addEventListener('click', function() {
+                searchInput.value = el.dataset.q;
+                searchInput.dispatchEvent(new Event('input'));
             });
-
-            var temporalHeader = document.getElementById('section-temporal');
-            if (temporalHeader) {
-                var hasVisible = Array.from(document.querySelectorAll('.bee-hub-card')).some(function(c) { return c.style.display !== 'none'; });
-                temporalHeader.style.display = hasVisible ? '' : 'none';
-            }
-
-            if (noResultsEl) {
-                noResultsEl.classList.toggle('hidden', visibleCount > 0 || allCards.length === 0);
-            }
         });
     }
 
-    // ── Таймер обратного отсчёта ─────────────
+    function showDropdown() {
+        renderHistory();
+        if (searchOverlay) searchOverlay.classList.remove('hidden');
+        if (searchDropdown) searchDropdown.classList.remove('hidden');
+        if (searchResults) searchResults.classList.add('hidden');
+    }
+    function hideAll() {
+        if (searchOverlay) searchOverlay.classList.add('hidden');
+        if (searchDropdown) searchDropdown.classList.add('hidden');
+        if (searchResults) searchResults.classList.add('hidden');
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('focus', function() {
+            if (!this.value.trim()) showDropdown();
+        });
+    }
+    if (searchOverlay) {
+        var closeSearch = function() { hideAll(); if (searchInput) searchInput.blur(); };
+        searchOverlay.addEventListener('click', closeSearch);
+        searchOverlay.addEventListener('touchend', function(e) { e.preventDefault(); closeSearch(); });
+    }
+
+    // ── Smart Search ──────────────────────────────
+    var searchIndex = {{ search_index_json | safe }};
+    var activeResultIdx = -1;
+
+    if (searchInput && searchResults) {
+        searchInput.addEventListener('input', function() {
+            var q = this.value.toLowerCase().trim();
+            if (!q) { showDropdown(); activeResultIdx = -1; return; }
+
+            if (searchDropdown) searchDropdown.classList.add('hidden');
+
+            var matches = searchIndex.filter(function(item) {
+                return item.keywords.indexOf(q) >= 0 || item.title.toLowerCase().indexOf(q) >= 0;
+            }).slice(0, 8);
+
+            if (!matches.length) {
+                searchResults.innerHTML = '<div class="bee-search__empty">Ничего не найдено</div>';
+                searchResults.classList.remove('hidden');
+                if (searchOverlay) searchOverlay.classList.remove('hidden');
+                activeResultIdx = -1;
+                return;
+            }
+
+            searchResults.innerHTML = matches.map(function(item, i) {
+                var badge = item.type === 'action' ? ' bee-search__badge--action' :
+                            item.type === 'nav' ? ' bee-search__badge--nav' : '';
+                return '<a class="bee-search__item" href="' + esc(item.url) + '" data-idx="' + i + '">' +
+                    '<span class="bee-search__item-icon">' + item.icon + '</span>' +
+                    '<span class="bee-search__item-title">' + esc(item.title) + '</span>' +
+                    '<span class="bee-search__badge' + badge + '">' + esc(item.type) + '</span>' +
+                '</a>';
+            }).join('');
+            searchResults.classList.remove('hidden');
+            if (searchOverlay) searchOverlay.classList.remove('hidden');
+            activeResultIdx = -1;
+
+            searchResults.querySelectorAll('.bee-search__item').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    addHistory(searchInput.value.trim());
+                    if (window.haptic) window.haptic('impact', 'light');
+                    if (tgApp && initData) {
+                        e.preventDefault();
+                        var href = link.getAttribute('href');
+                        var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                        window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
+                    }
+                });
+            });
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            var items = searchResults.querySelectorAll('.bee-search__item');
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); activeResultIdx = Math.min(activeResultIdx + 1, items.length - 1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); activeResultIdx = Math.max(activeResultIdx - 1, 0); }
+            else if (e.key === 'Enter' && activeResultIdx >= 0) { e.preventDefault(); items[activeResultIdx].click(); }
+            items.forEach(function(it, i) { it.classList.toggle('bee-search__item--active', i === activeResultIdx); });
+        });
+    }
+
+    // ── Обратный отсчёт ─────────────────────────
     function updateCountdowns() {
         var now = Date.now();
         document.querySelectorAll('[data-deadline]').forEach(function(el) {
             var dl = el.dataset.deadline;
             if (!dl) return;
             var diff = new Date(dl).getTime() - now;
-            var prefix = el.dataset.prefix || '&#9201; ';
-
-            if (diff <= 0) {
-                el.innerHTML = '&#9201; Завершено';
-                el.classList.add('expired');
-                return;
-            }
-
+            if (diff <= 0) { el.innerHTML = '⏱ Завершено'; el.classList.add('expired'); return; }
             el.classList.remove('expired');
-            var d = Math.floor(diff / 86400000);
-            var h = Math.floor((diff % 86400000) / 3600000);
-            var m = Math.floor((diff % 3600000) / 60000);
-
-            if (d > 0) {
-                el.innerHTML = prefix + d + 'д ' + h + 'ч';
-            } else if (h > 0) {
-                el.innerHTML = prefix + h + 'ч ' + m + 'м';
-            } else {
-                el.innerHTML = prefix + m + 'м';
-            }
-
+            var d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000), m = Math.floor((diff % 3600000) / 60000);
+            el.innerHTML = d > 0 ? ('⏱ ' + d + 'д ' + h + 'ч') : h > 0 ? ('⏱ ' + h + 'ч ' + m + 'м') : ('⏱ ' + m + 'м');
             el.classList.toggle('urgent', diff < 3600000);
         });
     }
     updateCountdowns();
     setInterval(updateCountdowns, 30000);
 
-    // ── Загрузка маркетплейса ────────────────────
-    if (initData) {
-        fetch('/chat/' + chatId + '/marketplace', { headers: headers })
-        .then(function(r) { return r.ok ? r.json() : { plugins: [] }; })
-        .then(function(data) {
-            var plugins = data.plugins || [];
-            var container = document.getElementById('plugins-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (!plugins.length) {
-                container.innerHTML = '<div style="padding:12px 0;color:var(--tg-hint);font-size:13px">Плагины пока недоступны</div>';
-                return;
-            }
-
-            plugins.forEach(function(p) {
-                var div = document.createElement('div');
-                div.className = 'bee-plugin-item';
-                div.dataset.pluginId = p.id;
-
-                var enabledClass = p.enabled ? ' bee-plugin-item--enabled' : '';
-                div.innerHTML =
-                    '<div class="bee-plugin-item__row' + enabledClass + '">' +
-                        '<div class="bee-plugin-item__icon">&#9889;</div>' +
-                        '<div class="bee-plugin-item__body">' +
-                            '<div class="bee-plugin-item__name">' + esc(p.name || p.slug) + '</div>' +
-                            '<div class="bee-plugin-item__meta">' +
-                                (p.version ? 'v' + esc(p.version) : '') +
-                                (p.description ? ' &middot; ' + esc(p.description) : '') +
-                            '</div>' +
-                        '</div>' +
-                        '<div class="bee-plugin-item__actions">' +
-                            (p.enabled
-                                ? '<button class="bee-btn-sm bee-btn-sm--settings" data-action="config" data-id="' + p.id + '" data-name="' + esc(p.name || p.slug) + '">&#9881;</button>'
-                                : '<button class="bee-btn-sm bee-btn-sm--enable" data-action="enable" data-id="' + p.id + '">Включить</button>') +
-                        '</div>' +
-                    '</div>';
-                container.appendChild(div);
-            });
-
-            container.addEventListener('click', function(e) {
-                var btn = e.target.closest('[data-action]');
-                if (!btn) return;
-                var action = btn.dataset.action;
-                var pluginId = parseInt(btn.dataset.id);
-
-                if (action === 'enable') {
-                    enablePlugin(pluginId, btn);
-                } else if (action === 'config') {
-                    openConfig(pluginId, btn.dataset.name);
-                }
-            });
-        })
-        .catch(function() {
-            var container = document.getElementById('plugins-container');
-            if (container) {
-                container.innerHTML = '<div style="padding:12px 0;color:var(--tg-hint);font-size:13px">Не удалось загрузить плагины</div>';
-            }
+    // ── Календарь: форматирование дат ───────────
+    (function() {
+        var months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+        document.querySelectorAll('.bee-cal-item__date[data-ts]').forEach(function(el) {
+            var ts = el.dataset.ts;
+            if (!ts) return;
+            var d = new Date(ts);
+            var now = new Date();
+            var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            var tmrw = new Date(today); tmrw.setDate(tmrw.getDate() + 1);
+            var tgt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            if (tgt.getTime() === today.getTime()) el.textContent = 'сегодня';
+            else if (tgt.getTime() === tmrw.getTime()) el.textContent = 'завтра';
+            else el.textContent = d.getDate() + ' ' + months[d.getMonth()];
         });
-    }
+    })();
 
-    // ── Включить плагин ──────────────────────────
-    function enablePlugin(pluginId, btn) {
-        if (window.haptic) window.haptic('impact', 'medium');
-        btn.disabled = true;
-        btn.textContent = '...';
-
-        fetch('/chat/' + chatId + '/plugins/' + pluginId + '/enable', {
-            method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.status === 'enabled') {
-                if (window.haptic) window.haptic('notification', 'success');
-                window.location.reload();
-            } else {
-                btn.disabled = false;
-                btn.textContent = 'Включить';
-                if (window.showToast) window.showToast('Ошибка включения', 'error');
-            }
-        })
-        .catch(function() {
-            btn.disabled = false;
-            btn.textContent = 'Включить';
-            if (window.showToast) window.showToast('Ошибка сети', 'error');
-        });
-    }
-
-    // ── Открыть настройки плагина ─────────────────
-    function openConfig(pluginId, pluginName) {
-        if (window.haptic) window.haptic('impact', 'light');
-        activePluginId = pluginId;
-
-        var card = document.getElementById('config-card');
-        var title = document.getElementById('config-title');
-        var container = document.getElementById('config-form-container');
-        var status = document.getElementById('config-status');
-
-        title.innerHTML = '&#9881; ' + esc(pluginName);
-        container.innerHTML = '<div class="bee-skel" style="height:40px;border-radius:8px;margin:8px 0"></div>';
-        status.style.display = 'none';
-        card.style.display = '';
-        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        fetch('/chat/' + chatId + '/plugins/' + pluginId + '/config', { headers: headers })
-        .then(function(r) { return r.ok ? r.json() : {}; })
-        .then(function(data) {
-            var fields = [];
-            try { fields = JSON.parse(data.fields || '[]'); } catch(e) {}
-            var values = data.values || {};
-            renderConfigForm(container, fields, values);
-        })
-        .catch(function() {
-            container.innerHTML = '<div style="color:var(--tg-hint);padding:8px 0">Не удалось загрузить настройки</div>';
-        });
-    }
-
-    // ── Рендер формы настроек ──────────────────────
-    function renderConfigForm(container, fields, values) {
-        container.innerHTML = '';
-        if (!fields.length) {
-            container.innerHTML = '<div style="color:var(--tg-hint);padding:8px 0">Нет настраиваемых параметров</div>';
-            return;
-        }
-
-        fields.forEach(function(field) {
-            var group = document.createElement('div');
-            group.className = 'bee-form-group';
-
-            var label = document.createElement('label');
-            label.className = 'bee-form-label';
-            label.textContent = field.label || field.slug;
-            if (field.required) {
-                var req = document.createElement('span');
-                req.style.color = '#E74C3C';
-                req.textContent = ' *';
-                label.appendChild(req);
-            }
-            group.appendChild(label);
-
-            var input;
-            var currentValue = values[field.slug];
-            if (currentValue === undefined || currentValue === null) {
-                currentValue = field.default !== undefined ? field.default : '';
-            }
-
-            if (field.type === 'number') {
-                input = document.createElement('input');
-                input.type = 'number';
-                input.className = 'bee-form-input';
-                input.value = currentValue;
-            } else {
-                var strVal = typeof currentValue === 'object' ? JSON.stringify(currentValue) : String(currentValue);
-                if (strVal.length > 80 || field.slug.indexOf('json') >= 0) {
-                    input = document.createElement('textarea');
-                    input.className = 'bee-form-textarea';
-                    input.rows = 3;
-                    input.value = strVal;
-                } else {
-                    input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'bee-form-input';
-                    input.value = strVal;
-                }
-            }
-
-            input.dataset.slug = field.slug;
-            input.dataset.type = field.type || 'string';
-            if (field.placeholder) input.placeholder = field.placeholder;
-            group.appendChild(input);
-
-            if (field.help) {
-                var help = document.createElement('div');
-                help.className = 'bee-form-help';
-                help.textContent = field.help;
-                group.appendChild(help);
-            }
-
-            container.appendChild(group);
-        });
-    }
-
-    // ── Сохранить настройки ───────────────────────
-    var saveBtn = document.getElementById('config-save-btn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', function() {
-            if (!activePluginId) return;
-            if (window.haptic) window.haptic('impact', 'medium');
-
-            var inputs = document.querySelectorAll('#config-form-container [data-slug]');
-            var configValues = {};
-            inputs.forEach(function(inp) {
-                var val = inp.value;
-                if (inp.dataset.type === 'number') {
-                    val = parseFloat(val) || 0;
-                }
-                configValues[inp.dataset.slug] = val;
-            });
-
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Сохраняю...';
-            var status = document.getElementById('config-status');
-
-            fetch('/chat/' + chatId + '/plugins/' + activePluginId + '/config', {
-                method: 'PUT',
-                headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
-                body: JSON.stringify({ values: configValues }),
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Сохранить';
-                if (data.status === 'saved') {
-                    if (window.haptic) window.haptic('notification', 'success');
-                    status.style.display = '';
-                    status.style.color = '#10B981';
-                    status.textContent = 'Настройки сохранены';
-                    setTimeout(function() { status.style.display = 'none'; }, 3000);
-                } else {
-                    status.style.display = '';
-                    status.style.color = '#E74C3C';
-                    status.textContent = 'Ошибка сохранения';
-                }
-            })
-            .catch(function() {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Сохранить';
-                if (window.showToast) window.showToast('Ошибка сети', 'error');
-            });
-        });
-    }
-
-    // ── Закрыть настройки ─────────────────────────
-    var closeBtn = document.getElementById('config-close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
-            document.getElementById('config-card').style.display = 'none';
-            activePluginId = null;
-        });
-    }
-
-    // ── initData click handler для ссылок ─────
+    // ── initData click handler ─────────────────
     document.querySelectorAll('.bee-chat-page-link').forEach(function(link) {
+        var href = link.getAttribute('href');
+        if (!href || href.charAt(0) === '#') return;
         link.addEventListener('click', function(e) {
             if (window.haptic) window.haptic('impact', 'light');
             if (tgApp && initData) {
                 e.preventDefault();
-                var href = link.getAttribute('href');
                 var sep = href.indexOf('?') >= 0 ? '&' : '?';
                 window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
             }
         });
     });
 
-    // ── Утилиты ───────────────────────────────────
-    function esc(s) {
-        var d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ── BeeGlass + BeeFX ────────────────────────
+    if (typeof beeGlass !== 'undefined') {
+        var banner = document.getElementById('chat-banner');
+        if (banner) beeGlass.apply(banner, {
+            effect: 'clear',
+            borderRadius: 16,
+            displacementScale: 30,
+            shadow: false,
+            specular: false
+        });
+    }
+    if (typeof BeeFX !== 'undefined') {
+        BeeFX.initFadeIn();
+        document.querySelectorAll('.bee-countup').forEach(function(el) {
+            var val = parseInt(el.dataset.val) || 0;
+            if (val > 0) BeeFX.countUp(el, 0, val, { duration: 800 });
+        });
     }
 })();
 </script>

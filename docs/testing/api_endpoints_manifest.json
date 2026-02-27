@@ -1,6 +1,6 @@
 {
   "generated_from": "api/app/routers/*.py",
-  "count": 92,
+  "count": 187,
   "items": [
     {
       "method": "POST",
@@ -42,25 +42,187 @@
       "method": "GET",
       "declared_path": "/default",
       "file": "api/app/routers/bots.py",
-      "line": 30
+      "line": 38
     },
     {
       "method": "PUT",
       "declared_path": "/{bot_id}/default",
       "file": "api/app/routers/bots.py",
-      "line": 38
+      "line": 46
     },
     {
       "method": "GET",
       "declared_path": "/{bot_id}",
       "file": "api/app/routers/bots.py",
-      "line": 47
+      "line": 55
     },
     {
       "method": "DELETE",
       "declared_path": "/{bot_id}",
       "file": "api/app/routers/bots.py",
-      "line": 55
+      "line": 63
+    },
+    {
+      "method": "POST",
+      "declared_path": "/profile-photo",
+      "file": "api/app/routers/bots.py",
+      "line": 76
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/profile-photo",
+      "file": "api/app/routers/bots.py",
+      "line": 90
+    },
+    {
+      "method": "GET",
+      "declared_path": "/users/{user_id}/profile-audios",
+      "file": "api/app/routers/bots.py",
+      "line": 101
+    },
+    {
+      "method": "POST",
+      "declared_path": "/star-subscription/edit",
+      "file": "api/app/routers/bots.py",
+      "line": 122
+    },
+    {
+      "method": "POST",
+      "declared_path": "/calendars",
+      "file": "api/app/routers/calendar.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendars",
+      "file": "api/app/routers/calendar.py",
+      "line": 57
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendars/{calendar_id}",
+      "file": "api/app/routers/calendar.py",
+      "line": 73
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/calendars/{calendar_id}",
+      "file": "api/app/routers/calendar.py",
+      "line": 82
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/calendars/{calendar_id}",
+      "file": "api/app/routers/calendar.py",
+      "line": 97
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries",
+      "file": "api/app/routers/calendar.py",
+      "line": 107
+    },
+    {
+      "method": "GET",
+      "declared_path": "/entries/due",
+      "file": "api/app/routers/calendar.py",
+      "line": 154
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/expire",
+      "file": "api/app/routers/calendar.py",
+      "line": 164
+    },
+    {
+      "method": "GET",
+      "declared_path": "/budget",
+      "file": "api/app/routers/calendar.py",
+      "line": 171
+    },
+    {
+      "method": "GET",
+      "declared_path": "/entries",
+      "file": "api/app/routers/calendar.py",
+      "line": 186
+    },
+    {
+      "method": "GET",
+      "declared_path": "/entries/{entry_id}",
+      "file": "api/app/routers/calendar.py",
+      "line": 216
+    },
+    {
+      "method": "GET",
+      "declared_path": "/entries/{entry_id}/chain",
+      "file": "api/app/routers/calendar.py",
+      "line": 225
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/entries/{entry_id}",
+      "file": "api/app/routers/calendar.py",
+      "line": 232
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/{entry_id}/move",
+      "file": "api/app/routers/calendar.py",
+      "line": 246
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/{entry_id}/status",
+      "file": "api/app/routers/calendar.py",
+      "line": 262
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/{entry_id}/fire",
+      "file": "api/app/routers/calendar.py",
+      "line": 277
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/{entry_id}/tick",
+      "file": "api/app/routers/calendar.py",
+      "line": 293
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/entries/{entry_id}",
+      "file": "api/app/routers/calendar.py",
+      "line": 310
+    },
+    {
+      "method": "GET",
+      "declared_path": "/entries/{entry_id}/history",
+      "file": "api/app/routers/calendar.py",
+      "line": 321
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/bulk",
+      "file": "api/app/routers/calendar.py",
+      "line": 335
+    },
+    {
+      "method": "POST",
+      "declared_path": "/entries/bulk-delete",
+      "file": "api/app/routers/calendar.py",
+      "line": 345
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendars/{calendar_id}/upcoming",
+      "file": "api/app/routers/calendar.py",
+      "line": 358
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendars/{calendar_id}/preview.png",
+      "file": "api/app/routers/calendar.py",
+      "line": 371
     },
     {
       "method": "POST",
@@ -75,142 +237,298 @@
       "line": 81
     },
     {
+      "method": "GET",
+      "declared_path": "/{chat_id}/info",
+      "file": "api/app/routers/chat_data.py",
+      "line": 30
+    },
+    {
+      "method": "GET",
+      "declared_path": "/{chat_id}/members",
+      "file": "api/app/routers/chat_data.py",
+      "line": 39
+    },
+    {
+      "method": "GET",
+      "declared_path": "/{chat_id}/messages",
+      "file": "api/app/routers/chat_data.py",
+      "line": 53
+    },
+    {
+      "method": "GET",
+      "declared_path": "/{chat_id}/reactions",
+      "file": "api/app/routers/chat_data.py",
+      "line": 73
+    },
+    {
+      "method": "GET",
+      "declared_path": "/{chat_id}/events",
+      "file": "api/app/routers/chat_data.py",
+      "line": 91
+    },
+    {
+      "method": "GET",
+      "declared_path": "/{chat_id}/stats",
+      "file": "api/app/routers/chat_data.py",
+      "line": 111
+    },
+    {
       "method": "PUT",
       "declared_path": "/{chat_id}/alias",
       "file": "api/app/routers/chats.py",
-      "line": 59
+      "line": 79
     },
     {
       "method": "GET",
       "declared_path": "/by-alias/{alias}",
       "file": "api/app/routers/chats.py",
-      "line": 80
+      "line": 100
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/{chat_id}/hub-settings",
+      "file": "api/app/routers/chats.py",
+      "line": 108
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}/history",
       "file": "api/app/routers/chats.py",
-      "line": 88
+      "line": 141
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}/members",
       "file": "api/app/routers/chats.py",
-      "line": 114
+      "line": 167
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}",
       "file": "api/app/routers/chats.py",
-      "line": 146
+      "line": 199
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}/members/{user_id}",
       "file": "api/app/routers/chats.py",
-      "line": 180
+      "line": 233
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}/members/count",
       "file": "api/app/routers/chats.py",
-      "line": 206
+      "line": 259
     },
     {
       "method": "POST",
       "declared_path": "/{chat_id}/pin/{message_id}",
       "file": "api/app/routers/chats.py",
-      "line": 217
+      "line": 270
     },
     {
       "method": "DELETE",
       "declared_path": "/{chat_id}/pin/{message_id}",
       "file": "api/app/routers/chats.py",
-      "line": 234
+      "line": 287
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}/stored",
       "file": "api/app/routers/chats.py",
-      "line": 251
+      "line": 304
     },
     {
       "method": "GET",
       "declared_path": "/{chat_id}/stored-users",
       "file": "api/app/routers/chats.py",
-      "line": 260
+      "line": 313
     },
     {
       "method": "POST",
       "declared_path": "/{chat_id}/members/{user_id}/ban",
       "file": "api/app/routers/chats.py",
-      "line": 279
+      "line": 332
     },
     {
       "method": "POST",
       "declared_path": "/{chat_id}/members/{user_id}/unban",
       "file": "api/app/routers/chats.py",
-      "line": 304
+      "line": 357
     },
     {
       "method": "POST",
       "declared_path": "/{chat_id}/members/{user_id}/restrict",
       "file": "api/app/routers/chats.py",
-      "line": 326
+      "line": 379
     },
     {
       "method": "POST",
       "declared_path": "/{chat_id}/members/{user_id}/promote",
       "file": "api/app/routers/chats.py",
-      "line": 351
+      "line": 404
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/{chat_id}/title",
+      "file": "api/app/routers/chats.py",
+      "line": 449
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/{chat_id}/description",
+      "file": "api/app/routers/chats.py",
+      "line": 460
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/{chat_id}/photo",
+      "file": "api/app/routers/chats.py",
+      "line": 474
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/leave",
+      "file": "api/app/routers/chats.py",
+      "line": 485
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/unpin-all",
+      "file": "api/app/routers/chats.py",
+      "line": 496
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/invite-links",
+      "file": "api/app/routers/chats.py",
+      "line": 507
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/{chat_id}/invite-links",
+      "file": "api/app/routers/chats.py",
+      "line": 527
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/{chat_id}/invite-links",
+      "file": "api/app/routers/chats.py",
+      "line": 550
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/export-invite-link",
+      "file": "api/app/routers/chats.py",
+      "line": 564
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/subscription-links",
+      "file": "api/app/routers/chats.py",
+      "line": 575
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/{chat_id}/subscription-links",
+      "file": "api/app/routers/chats.py",
+      "line": 593
     },
     {
       "method": "POST",
       "declared_path": "/checklists/send",
       "file": "api/app/routers/checklists.py",
-      "line": 45
+      "line": 48
     },
     {
       "method": "PUT",
       "declared_path": "/messages/{message_id}/checklist",
       "file": "api/app/routers/checklists.py",
-      "line": 101
+      "line": 108
     },
     {
       "method": "GET",
       "declared_path": "/stars/balance",
       "file": "api/app/routers/checklists.py",
-      "line": 142
+      "line": 153
     },
     {
       "method": "POST",
       "declared_path": "/gifts/premium",
       "file": "api/app/routers/checklists.py",
-      "line": 161
+      "line": 172
     },
     {
       "method": "GET",
       "declared_path": "/gifts/user/{user_id}",
       "file": "api/app/routers/checklists.py",
-      "line": 183
+      "line": 198
     },
     {
       "method": "GET",
       "declared_path": "/gifts/chat/{chat_id}",
       "file": "api/app/routers/checklists.py",
-      "line": 199
+      "line": 214
+    },
+    {
+      "method": "POST",
+      "declared_path": "/gifts/send",
+      "file": "api/app/routers/checklists.py",
+      "line": 237
+    },
+    {
+      "method": "GET",
+      "declared_path": "/gifts/available",
+      "file": "api/app/routers/checklists.py",
+      "line": 267
     },
     {
       "method": "POST",
       "declared_path": "/stories/repost",
       "file": "api/app/routers/checklists.py",
-      "line": 218
+      "line": 282
     },
     {
       "method": "POST",
       "declared_path": "/sync",
       "file": "api/app/routers/commands.py",
       "line": 34
+    },
+    {
+      "method": "POST",
+      "declared_path": "/create",
+      "file": "api/app/routers/forums.py",
+      "line": 24
+    },
+    {
+      "method": "POST",
+      "declared_path": "/edit",
+      "file": "api/app/routers/forums.py",
+      "line": 44
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/{thread_id}/close",
+      "file": "api/app/routers/forums.py",
+      "line": 64
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/{thread_id}/reopen",
+      "file": "api/app/routers/forums.py",
+      "line": 78
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/{chat_id}/{thread_id}",
+      "file": "api/app/routers/forums.py",
+      "line": 92
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{chat_id}/{thread_id}/unpin-all",
+      "file": "api/app/routers/forums.py",
+      "line": 106
     },
     {
       "method": "GET",
@@ -228,103 +546,199 @@
       "method": "POST",
       "declared_path": "/send-photo",
       "file": "api/app/routers/media.py",
-      "line": 36
+      "line": 50
     },
     {
       "method": "POST",
       "declared_path": "/upload-photo",
       "file": "api/app/routers/media.py",
-      "line": 93
+      "line": 119
     },
     {
       "method": "POST",
       "declared_path": "/send-document",
       "file": "api/app/routers/media.py",
-      "line": 158
+      "line": 184
     },
     {
       "method": "POST",
       "declared_path": "/send-video",
       "file": "api/app/routers/media.py",
-      "line": 212
+      "line": 248
     },
     {
       "method": "POST",
       "declared_path": "/send-media-group",
       "file": "api/app/routers/media.py",
-      "line": 280
+      "line": 328
     },
     {
       "method": "POST",
       "declared_path": "/send-animation",
       "file": "api/app/routers/media.py",
-      "line": 371
+      "line": 429
     },
     {
       "method": "POST",
       "declared_path": "/send-audio",
       "file": "api/app/routers/media.py",
-      "line": 399
+      "line": 469
     },
     {
       "method": "POST",
       "declared_path": "/send-voice",
       "file": "api/app/routers/media.py",
-      "line": 433
+      "line": 513
     },
     {
       "method": "POST",
       "declared_path": "/send-sticker",
       "file": "api/app/routers/media.py",
-      "line": 463
+      "line": 553
+    },
+    {
+      "method": "POST",
+      "declared_path": "/get-file",
+      "file": "api/app/routers/media.py",
+      "line": 590
+    },
+    {
+      "method": "POST",
+      "declared_path": "/send-location",
+      "file": "api/app/routers/media.py",
+      "line": 604
+    },
+    {
+      "method": "POST",
+      "declared_path": "/send-venue",
+      "file": "api/app/routers/media.py",
+      "line": 667
+    },
+    {
+      "method": "POST",
+      "declared_path": "/send-contact",
+      "file": "api/app/routers/media.py",
+      "line": 732
+    },
+    {
+      "method": "POST",
+      "declared_path": "/send-dice",
+      "file": "api/app/routers/media.py",
+      "line": 791
+    },
+    {
+      "method": "POST",
+      "declared_path": "/send-video-note",
+      "file": "api/app/routers/media.py",
+      "line": 826
+    },
+    {
+      "method": "POST",
+      "declared_path": "/send-paid-media",
+      "file": "api/app/routers/media.py",
+      "line": 867
     },
     {
       "method": "POST",
       "declared_path": "/send",
       "file": "api/app/routers/messages.py",
-      "line": 33
+      "line": 51
     },
     {
       "method": "POST",
       "declared_path": "/{message_id}/edit",
       "file": "api/app/routers/messages.py",
-      "line": 100
+      "line": 132
     },
     {
       "method": "POST",
       "declared_path": "/{message_id}/delete",
       "file": "api/app/routers/messages.py",
-      "line": 153
+      "line": 189
     },
     {
       "method": "GET",
       "declared_path": "/{message_id}",
       "file": "api/app/routers/messages.py",
-      "line": 181
+      "line": 221
     },
     {
       "method": "POST",
       "declared_path": "/forward",
       "file": "api/app/routers/messages.py",
-      "line": 207
+      "line": 247
     },
     {
       "method": "POST",
       "declared_path": "/copy",
       "file": "api/app/routers/messages.py",
-      "line": 244
+      "line": 290
     },
     {
       "method": "POST",
       "declared_path": "/{message_id}/pin",
       "file": "api/app/routers/messages.py",
-      "line": 268
+      "line": 320
     },
     {
       "method": "DELETE",
       "declared_path": "/{message_id}/pin",
       "file": "api/app/routers/messages.py",
-      "line": 300
+      "line": 356
+    },
+    {
+      "method": "POST",
+      "declared_path": "/delete-batch",
+      "file": "api/app/routers/messages.py",
+      "line": 391
+    },
+    {
+      "method": "POST",
+      "declared_path": "/forward-batch",
+      "file": "api/app/routers/messages.py",
+      "line": 406
+    },
+    {
+      "method": "POST",
+      "declared_path": "/copy-batch",
+      "file": "api/app/routers/messages.py",
+      "line": 426
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{message_id}/edit-caption",
+      "file": "api/app/routers/messages.py",
+      "line": 445
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{message_id}/edit-markup",
+      "file": "api/app/routers/messages.py",
+      "line": 482
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{message_id}/edit-media",
+      "file": "api/app/routers/messages.py",
+      "line": 509
+    },
+    {
+      "method": "POST",
+      "declared_path": "/draft",
+      "file": "api/app/routers/messages.py",
+      "line": 544
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{message_id}/edit-live-location",
+      "file": "api/app/routers/messages.py",
+      "line": 566
+    },
+    {
+      "method": "POST",
+      "declared_path": "/{message_id}/stop-live-location",
+      "file": "api/app/routers/messages.py",
+      "line": 607
     },
     {
       "method": "POST",
@@ -430,6 +844,108 @@
     },
     {
       "method": "GET",
+      "declared_path": "/overview",
+      "file": "api/app/routers/stats.py",
+      "line": 25
+    },
+    {
+      "method": "GET",
+      "declared_path": "/active-users",
+      "file": "api/app/routers/stats.py",
+      "line": 45
+    },
+    {
+      "method": "GET",
+      "declared_path": "/active-chats",
+      "file": "api/app/routers/stats.py",
+      "line": 87
+    },
+    {
+      "method": "GET",
+      "declared_path": "/message-volume",
+      "file": "api/app/routers/stats.py",
+      "line": 113
+    },
+    {
+      "method": "GET",
+      "declared_path": "/update-types",
+      "file": "api/app/routers/stats.py",
+      "line": 149
+    },
+    {
+      "method": "POST",
+      "declared_path": "/post",
+      "file": "api/app/routers/stories.py",
+      "line": 30
+    },
+    {
+      "method": "PUT",
+      "declared_path": "/{chat_id}/{story_id}",
+      "file": "api/app/routers/stories.py",
+      "line": 56
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/{chat_id}/{story_id}",
+      "file": "api/app/routers/stories.py",
+      "line": 80
+    },
+    {
+      "method": "POST",
+      "declared_path": "/approve",
+      "file": "api/app/routers/suggested_posts.py",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "declared_path": "/decline",
+      "file": "api/app/routers/suggested_posts.py",
+      "line": 37
+    },
+    {
+      "method": "POST",
+      "declared_path": "/chat/{chat_id}",
+      "file": "api/app/routers/sync.py",
+      "line": 32
+    },
+    {
+      "method": "POST",
+      "declared_path": "/chat/{chat_id}/info",
+      "file": "api/app/routers/sync.py",
+      "line": 41
+    },
+    {
+      "method": "POST",
+      "declared_path": "/chat/{chat_id}/admins",
+      "file": "api/app/routers/sync.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "declared_path": "/chat/{chat_id}/avatar",
+      "file": "api/app/routers/sync.py",
+      "line": 60
+    },
+    {
+      "method": "POST",
+      "declared_path": "/user/{user_id}/avatar",
+      "file": "api/app/routers/sync.py",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "declared_path": "/user/{user_id}/profile",
+      "file": "api/app/routers/sync.py",
+      "line": 74
+    },
+    {
+      "method": "POST",
+      "declared_path": "/user/{user_id}/enrich",
+      "file": "api/app/routers/sync.py",
+      "line": 83
+    },
+    {
+      "method": "GET",
       "declared_path": "/{name}",
       "file": "api/app/routers/templates.py",
       "line": 32
@@ -450,31 +966,31 @@
       "method": "GET",
       "declared_path": "/poll",
       "file": "api/app/routers/updates.py",
-      "line": 139
+      "line": 144
     },
     {
       "method": "POST",
       "declared_path": "/ack",
       "file": "api/app/routers/updates.py",
-      "line": 216
+      "line": 229
     },
     {
       "method": "GET",
       "declared_path": "/offset",
       "file": "api/app/routers/updates.py",
-      "line": 234
-    },
-    {
-      "method": "POST",
-      "declared_path": "/process",
-      "file": "api/app/routers/updates.py",
-      "line": 294
+      "line": 247
     },
     {
       "method": "GET",
       "declared_path": "/history",
       "file": "api/app/routers/updates.py",
-      "line": 330
+      "line": 307
+    },
+    {
+      "method": "GET",
+      "declared_path": "/{user_id}/profile",
+      "file": "api/app/routers/users.py",
+      "line": 58
     },
     {
       "method": "POST",
@@ -553,6 +1069,60 @@
       "declared_path": "/pages/{slug}/submissions",
       "file": "api/app/routers/webui.py",
       "line": 105
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendar/{calendar_id}",
+      "file": "api/app/routers/webui.py",
+      "line": 118
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendar/{calendar_id}/entries",
+      "file": "api/app/routers/webui.py",
+      "line": 129
+    },
+    {
+      "method": "GET",
+      "declared_path": "/roles",
+      "file": "api/app/routers/webui.py",
+      "line": 155
+    },
+    {
+      "method": "GET",
+      "declared_path": "/roles/{user_id}",
+      "file": "api/app/routers/webui.py",
+      "line": 171
+    },
+    {
+      "method": "POST",
+      "declared_path": "/roles",
+      "file": "api/app/routers/webui.py",
+      "line": 177
+    },
+    {
+      "method": "DELETE",
+      "declared_path": "/roles/{user_id}/{role}",
+      "file": "api/app/routers/webui.py",
+      "line": 184
+    },
+    {
+      "method": "POST",
+      "declared_path": "/roles/check-access",
+      "file": "api/app/routers/webui.py",
+      "line": 190
+    },
+    {
+      "method": "GET",
+      "declared_path": "/nodes",
+      "file": "api/app/routers/webui.py",
+      "line": 200
+    },
+    {
+      "method": "GET",
+      "declared_path": "/calendar/{calendar_id}/upcoming",
+      "file": "api/app/routers/webui.py",
+      "line": 209
     }
   ]
 }

@@ -1,63 +1,570 @@
 {
   "generated_from": "mcp/src/tools/*.ts",
-  "count": 57,
+  "count": 141,
   "items": [
-    { "tool": "messages.send", "file": "mcp/src/tools/messages.ts" },
-    { "tool": "messages.edit", "file": "mcp/src/tools/messages.ts" },
-    { "tool": "messages.delete", "file": "mcp/src/tools/messages.ts" },
-    { "tool": "messages.fetch", "file": "mcp/src/tools/messages.ts" },
-    { "tool": "templates.list", "file": "mcp/src/tools/templates.ts" },
-    { "tool": "templates.render", "file": "mcp/src/tools/templates.ts" },
-    { "tool": "commands.sync", "file": "mcp/src/tools/templates.ts" },
-    { "tool": "commands.create", "file": "mcp/src/tools/templates.ts" },
-    { "tool": "commands.list", "file": "mcp/src/tools/templates.ts" },
-    { "tool": "media.send_photo", "file": "mcp/src/tools/media.ts" },
-    { "tool": "media.send_document", "file": "mcp/src/tools/media.ts" },
-    { "tool": "chats.get", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "chats.member", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "chats.list", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "chats.alias", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "chats.history", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "callbacks.answer", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "callbacks.list", "file": "mcp/src/tools/chats.ts" },
-    { "tool": "bots.list", "file": "mcp/src/tools/bots.ts" },
-    { "tool": "bots.register", "file": "mcp/src/tools/bots.ts" },
-    { "tool": "bots.default", "file": "mcp/src/tools/bots.ts" },
-    { "tool": "bot.info", "file": "mcp/src/tools/bots.ts" },
-    { "tool": "webhook.setup", "file": "mcp/src/tools/webhooks.ts" },
-    { "tool": "webhook.info", "file": "mcp/src/tools/webhooks.ts" },
-    { "tool": "webhook.delete", "file": "mcp/src/tools/webhooks.ts" },
-    { "tool": "polls.send", "file": "mcp/src/tools/polls.ts" },
-    { "tool": "polls.stop", "file": "mcp/src/tools/polls.ts" },
-    { "tool": "polls.list", "file": "mcp/src/tools/polls.ts" },
-    { "tool": "reactions.set", "file": "mcp/src/tools/polls.ts" },
-    { "tool": "updates.fetch", "file": "mcp/src/tools/polls.ts" },
-    { "tool": "checklists.send", "file": "mcp/src/tools/checklists.ts" },
-    { "tool": "checklists.edit", "file": "mcp/src/tools/checklists.ts" },
-    { "tool": "stars.balance", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "stars.invoice", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "stars.refund", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "stars.transactions", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "gifts.premium", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "gifts.user", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "gifts.chat", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "stories.repost", "file": "mcp/src/tools/stars.ts" },
-    { "tool": "predictions.create_event", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "predictions.place_bet", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "predictions.resolve", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "predictions.list", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "predictions.get", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "predictions.user_bets", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "predictions.currencies", "file": "mcp/src/tools/predictions.ts" },
-    { "tool": "balance.get", "file": "mcp/src/tools/balance.ts" },
-    { "tool": "balance.deposit", "file": "mcp/src/tools/balance.ts" },
-    { "tool": "balance.history", "file": "mcp/src/tools/balance.ts" },
-    { "tool": "balance.top", "file": "mcp/src/tools/balance.ts" },
-    { "tool": "webui.create_page", "file": "mcp/src/tools/webui.ts" },
-    { "tool": "webui.list_pages", "file": "mcp/src/tools/webui.ts" },
-    { "tool": "webui.create_link", "file": "mcp/src/tools/webui.ts" },
-    { "tool": "webui.get_submissions", "file": "mcp/src/tools/webui.ts" },
-    { "tool": "webui.create_prediction", "file": "mcp/src/tools/webui.ts" },
-    { "tool": "webui.create_survey", "file": "mcp/src/tools/webui.ts" }
+    {
+      "tool": "balance.get",
+      "file": "mcp/src/tools/balance.ts"
+    },
+    {
+      "tool": "balance.deposit",
+      "file": "mcp/src/tools/balance.ts"
+    },
+    {
+      "tool": "balance.history",
+      "file": "mcp/src/tools/balance.ts"
+    },
+    {
+      "tool": "balance.top",
+      "file": "mcp/src/tools/balance.ts"
+    },
+    {
+      "tool": "bots.list",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "bots.register",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "bots.default",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "bot.info",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "bots.set_profile_photo",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "bots.remove_profile_photo",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "bots.user_profile_audios",
+      "file": "mcp/src/tools/bots.ts"
+    },
+    {
+      "tool": "calendar.create",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.list",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.create_entry",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.list_entries",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.get_entry",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.get_chain",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.update_entry",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.move_entry",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.set_status",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.delete_entry",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.entry_history",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.bulk_create",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.bulk_delete",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.upcoming",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.get_due",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.fire",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.tick",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.budget",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.create_trigger",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "calendar.create_monitor",
+      "file": "mcp/src/tools/calendar.ts"
+    },
+    {
+      "tool": "chats.get",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.member",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.list",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.alias",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.history",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "callbacks.answer",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "callbacks.list",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.set_title",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.set_description",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.delete_photo",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.leave",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.unpin_all",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.create_invite_link",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.edit_invite_link",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.revoke_invite_link",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.export_invite_link",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.create_subscription_invite_link",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "chats.edit_subscription_invite_link",
+      "file": "mcp/src/tools/chats.ts"
+    },
+    {
+      "tool": "checklists.send",
+      "file": "mcp/src/tools/checklists.ts"
+    },
+    {
+      "tool": "checklists.edit",
+      "file": "mcp/src/tools/checklists.ts"
+    },
+    {
+      "tool": "forums.create",
+      "file": "mcp/src/tools/forums.ts"
+    },
+    {
+      "tool": "forums.edit",
+      "file": "mcp/src/tools/forums.ts"
+    },
+    {
+      "tool": "forums.close",
+      "file": "mcp/src/tools/forums.ts"
+    },
+    {
+      "tool": "forums.reopen",
+      "file": "mcp/src/tools/forums.ts"
+    },
+    {
+      "tool": "forums.delete",
+      "file": "mcp/src/tools/forums.ts"
+    },
+    {
+      "tool": "forums.unpin_all",
+      "file": "mcp/src/tools/forums.ts"
+    },
+    {
+      "tool": "icons.resolve",
+      "file": "mcp/src/tools/icons.ts"
+    },
+    {
+      "tool": "media.send_photo",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_document",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_video",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_animation",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_audio",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_voice",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_sticker",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_media_group",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.get_file",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_location",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_venue",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_contact",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_dice",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_video_note",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "media.send_paid_media",
+      "file": "mcp/src/tools/media.ts"
+    },
+    {
+      "tool": "messages.send",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.edit",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.delete",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.fetch",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.delete_batch",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.forward_batch",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.copy_batch",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.edit_caption",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.edit_markup",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.edit_media",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.draft",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.edit_live_location",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "messages.stop_live_location",
+      "file": "mcp/src/tools/messages.ts"
+    },
+    {
+      "tool": "polls.send",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "polls.stop",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "polls.list",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "reactions.set",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "updates.fetch",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "updates.poll",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "updates.ack",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "updates.offset",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "updates.history",
+      "file": "mcp/src/tools/polls.ts"
+    },
+    {
+      "tool": "predictions.create_event",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "predictions.place_bet",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "predictions.resolve",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "predictions.list",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "predictions.get",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "predictions.user_bets",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "predictions.currencies",
+      "file": "mcp/src/tools/predictions.ts"
+    },
+    {
+      "tool": "stars.balance",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "stars.invoice",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "stars.refund",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "stars.transactions",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "gifts.premium",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "gifts.user",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "gifts.chat",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "gifts.send",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "gifts.available",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "stars.edit_subscription",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "stories.repost",
+      "file": "mcp/src/tools/stars.ts"
+    },
+    {
+      "tool": "stats.overview",
+      "file": "mcp/src/tools/stats.ts"
+    },
+    {
+      "tool": "stats.active_users",
+      "file": "mcp/src/tools/stats.ts"
+    },
+    {
+      "tool": "stats.active_chats",
+      "file": "mcp/src/tools/stats.ts"
+    },
+    {
+      "tool": "stats.message_volume",
+      "file": "mcp/src/tools/stats.ts"
+    },
+    {
+      "tool": "stats.update_types",
+      "file": "mcp/src/tools/stats.ts"
+    },
+    {
+      "tool": "stories.post",
+      "file": "mcp/src/tools/stories.ts"
+    },
+    {
+      "tool": "stories.edit",
+      "file": "mcp/src/tools/stories.ts"
+    },
+    {
+      "tool": "stories.delete",
+      "file": "mcp/src/tools/stories.ts"
+    },
+    {
+      "tool": "suggested_posts.approve",
+      "file": "mcp/src/tools/suggested_posts.ts"
+    },
+    {
+      "tool": "suggested_posts.decline",
+      "file": "mcp/src/tools/suggested_posts.ts"
+    },
+    {
+      "tool": "templates.list",
+      "file": "mcp/src/tools/templates.ts"
+    },
+    {
+      "tool": "templates.render",
+      "file": "mcp/src/tools/templates.ts"
+    },
+    {
+      "tool": "commands.sync",
+      "file": "mcp/src/tools/templates.ts"
+    },
+    {
+      "tool": "commands.create",
+      "file": "mcp/src/tools/templates.ts"
+    },
+    {
+      "tool": "commands.list",
+      "file": "mcp/src/tools/templates.ts"
+    },
+    {
+      "tool": "webhook.setup",
+      "file": "mcp/src/tools/webhooks.ts"
+    },
+    {
+      "tool": "webhook.info",
+      "file": "mcp/src/tools/webhooks.ts"
+    },
+    {
+      "tool": "webhook.delete",
+      "file": "mcp/src/tools/webhooks.ts"
+    },
+    {
+      "tool": "webui.create_page",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.list_pages",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.create_link",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.get_submissions",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.create_prediction",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.create_survey",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.list_roles",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.grant_role",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.revoke_role",
+      "file": "mcp/src/tools/webui.ts"
+    },
+    {
+      "tool": "webui.check_access",
+      "file": "mcp/src/tools/webui.ts"
+    }
   ]
 }

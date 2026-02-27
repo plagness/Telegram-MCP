@@ -141,7 +141,7 @@ export function register(apiRequest: ApiRequestFn): ToolDef[] {
     // === Batch 8: Stories (repost, kept here for backward compatibility) ===
     {
       name: "stories.repost",
-      description: "Репостнуть историю из одного канала в другой (Bot API 9.3).",
+      description: "Репостнуть историю из одного канала в другой (Bot API 9.3). Требует Telegram Business подключение.",
       parameters: z.object({
         chat_id: z.union([z.string(), z.number()]).describe("ID канала-получателя"),
         from_chat_id: z.union([z.string(), z.number()]).describe("ID канала-источника"),

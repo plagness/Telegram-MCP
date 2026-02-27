@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -66,9 +67,11 @@ async def _upsert_user(user: dict[str, Any]) -> None:
             username,
             language_code,
             is_premium,
-            last_seen_at
+            added_to_attachment_menu,
+            last_seen_at,
+            first_seen_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         ON CONFLICT (user_id) DO UPDATE
         SET is_bot = EXCLUDED.is_bot,
             first_name = EXCLUDED.first_name,
@@ -76,6 +79,7 @@ async def _upsert_user(user: dict[str, Any]) -> None:
             username = EXCLUDED.username,
             language_code = EXCLUDED.language_code,
             is_premium = EXCLUDED.is_premium,
+            added_to_attachment_menu = COALESCE(EXCLUDED.added_to_attachment_menu, users.added_to_attachment_menu),
             last_seen_at = NOW(),
             updated_at = NOW()
         """,
@@ -87,12 +91,15 @@ async def _upsert_user(user: dict[str, Any]) -> None:
             user.get("username"),
             user.get("language_code"),
             bool(user.get("is_premium")) if user.get("is_premium") is not None else None,
+            bool(user.get("added_to_attachment_menu")) if user.get("added_to_attachment_menu") is not None else None,
         ],
     )
 
 
 async def _upsert_chat(chat: dict[str, Any], bot_id: int | None = None) -> None:
     photo = chat.get("photo") or {}
+    chat_id = str(chat.get("id"))
+
     await execute(
         """
         INSERT INTO chats (
@@ -121,7 +128,7 @@ async def _upsert_chat(chat: dict[str, Any], bot_id: int | None = None) -> None:
             updated_at = NOW()
         """,
         [
-            str(chat.get("id")),
+            chat_id,
             chat.get("type"),
             chat.get("title"),
             chat.get("username"),
@@ -134,37 +141,146 @@ async def _upsert_chat(chat: dict[str, Any], bot_id: int | None = None) -> None:
         ],
     )
 
+    # Авто-sync: запустить фоновую синхронизацию если member_count или photo_file_id не заполнены
+    if chat_id not in _syncing_chats:
+        _syncing_chats.add(chat_id)
+        asyncio.create_task(_auto_sync_chat_if_needed(chat_id, bot_id))
+
+
+# Множество чатов, для которых уже запущен/выполнен авто-sync (в рамках этого процесса)
+_syncing_chats: set[str] = set()
+
+
+async def _auto_sync_chat_if_needed(chat_id: str, bot_id: int | None) -> None:
+    """Фоновая синхронизация чата, если не хватает member_count или photo_file_id."""
+    try:
+        row = await fetch_one(
+            "SELECT member_count, photo_file_id FROM chats WHERE chat_id = %s",
+            [chat_id],
+        )
+        if not row:
+            return
+        if row.get("member_count") is not None and row.get("photo_file_id") is not None:
+            return  # Данные уже есть
+
+        from .sync import sync_chat_info, sync_chat_admins
+        info = await sync_chat_info(chat_id, bot_id=bot_id)
+        logger.info("Авто-sync для чата %s: member_count=%s, photo=%s",
+                     chat_id, info.get("member_count"), info.get("photo_file_id"))
+
+        # Если есть photo_file_id, попробуем скачать аватарку
+        if info.get("photo_file_id"):
+            from .sync import sync_chat_avatar
+            await sync_chat_avatar(chat_id, bot_id=bot_id)
+
+        # Синхронизируем администраторов (если их ещё нет)
+        admin_row = await fetch_one(
+            "SELECT 1 FROM chat_members WHERE chat_id = %s AND status IN ('administrator', 'creator') LIMIT 1",
+            [chat_id],
+        )
+        if not admin_row:
+            await sync_chat_admins(chat_id, bot_id=bot_id)
+
+    except Exception:
+        logger.debug("Авто-sync для чата %s не удался", chat_id, exc_info=True)
+
 
 async def _upsert_chat_member(
     chat_id: str | int | None,
     user_id: str | int | None,
     bot_id: int | None = None,
     status: str | None = None,
+    member_data: dict[str, Any] | None = None,
 ) -> None:
     if chat_id is None or user_id is None:
         return
 
+    # Извлечь расширенные поля из ChatMember object
+    md = member_data or {}
+    custom_title = md.get("custom_title")
+    is_anonymous = md.get("is_anonymous")
+    until_date_ts = md.get("until_date")
+    until_date = None
+    if until_date_ts and isinstance(until_date_ts, (int, float)):
+        from datetime import datetime, timezone
+        until_date = datetime.fromtimestamp(until_date_ts, tz=timezone.utc).isoformat()
+
+    # Собрать все can_* permissions в JSONB
+    permissions = {k: v for k, v in md.items() if k.startswith("can_") and isinstance(v, bool)} or None
+
     await execute(
         """
-        INSERT INTO chat_members (chat_id, user_id, bot_id, status, last_seen_at, metadata)
-        VALUES (%s, %s, %s, %s, NOW(), %s::jsonb)
+        INSERT INTO chat_members (chat_id, user_id, bot_id, status, custom_title,
+                                  is_anonymous, until_date, permissions, last_seen_at,
+                                  first_seen_at, metadata)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, NOW(), NOW(), %s::jsonb)
         ON CONFLICT (chat_id, user_id) DO UPDATE
         SET bot_id = COALESCE(EXCLUDED.bot_id, chat_members.bot_id),
             status = COALESCE(EXCLUDED.status, chat_members.status),
+            custom_title = COALESCE(EXCLUDED.custom_title, chat_members.custom_title),
+            is_anonymous = COALESCE(EXCLUDED.is_anonymous, chat_members.is_anonymous),
+            until_date = COALESCE(EXCLUDED.until_date, chat_members.until_date),
+            permissions = COALESCE(EXCLUDED.permissions, chat_members.permissions),
             last_seen_at = NOW(),
             metadata = EXCLUDED.metadata,
             updated_at = NOW()
         """,
-        [str(chat_id), str(user_id), bot_id, status or "member", json.dumps({})],
+        [
+            str(chat_id), str(user_id), bot_id, status or "member",
+            custom_title, is_anonymous, until_date,
+            json.dumps(permissions) if permissions else None,
+            json.dumps({}),
+        ],
     )
+
+
+async def _increment_message_count(user_id: str, chat_id: str) -> None:
+    """Инкремент счётчика сообщений в users и chat_members."""
+    await execute(
+        "UPDATE users SET message_count = COALESCE(message_count, 0) + 1 WHERE user_id = %s",
+        [user_id],
+    )
+    await execute(
+        """UPDATE chat_members SET message_count = COALESCE(message_count, 0) + 1
+           WHERE user_id = %s AND chat_id = %s""",
+        [user_id, chat_id],
+    )
+
+
+def _extract_media_type(message: dict[str, Any]) -> str | None:
+    """Определить тип медиа из сообщения Telegram."""
+    for media in (
+        "photo", "video", "document", "audio", "voice",
+        "sticker", "animation", "video_note", "contact",
+        "location", "venue", "poll", "dice",
+    ):
+        if media in message:
+            return media
+    return None
+
+
+def _extract_forward_origin(message: dict[str, Any]) -> dict[str, Any] | None:
+    """Извлечь информацию о пересылке (forward)."""
+    if "forward_origin" in message:
+        return message["forward_origin"]
+    if "forward_from" in message:
+        return {"type": "user", "sender_user": message["forward_from"]}
+    if "forward_from_chat" in message:
+        return {"type": "channel", "chat": message["forward_from_chat"]}
+    return None
 
 
 async def _insert_inbound_message(message: dict[str, Any], update_type: str, bot_id: int | None = None) -> None:
     message_id = message.get("message_id")
 
-    # Если нет message_id, пропускаем сохранение (например, для некоторых callback_query)
+    # Если нет message_id, пропускаем сохранение
     if not message_id:
         return
+
+    media_type = _extract_media_type(message)
+    forward_origin = _extract_forward_origin(message)
+    sender_chat = message.get("sender_chat")
+    entities = message.get("entities") or message.get("caption_entities")
 
     await execute(
         """
@@ -176,9 +292,17 @@ async def _insert_inbound_message(message: dict[str, Any], update_type: str, bot
             text,
             parse_mode,
             status,
-            payload_json
+            payload_json,
+            media_type,
+            caption,
+            forward_origin,
+            sender_chat_id,
+            entities,
+            has_media,
+            is_topic_message
         )
-        VALUES (%s, %s, %s, 'inbound', %s, NULL, %s, %s::jsonb)
+        VALUES (%s, %s, %s, 'inbound', %s, NULL, %s, %s::jsonb,
+                %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s)
         ON CONFLICT (chat_id, telegram_message_id) WHERE telegram_message_id IS NOT NULL DO NOTHING
         """,
         [
@@ -188,8 +312,191 @@ async def _insert_inbound_message(message: dict[str, Any], update_type: str, bot
             message.get("text"),
             update_type,
             json.dumps(message),
+            media_type,
+            message.get("caption"),
+            json.dumps(forward_origin) if forward_origin else None,
+            str(sender_chat["id"]) if sender_chat else None,
+            json.dumps(entities) if entities else None,
+            media_type is not None,
+            bool(message.get("is_topic_message")),
         ],
     )
+
+
+async def _insert_chat_event(
+    chat_id: str | int,
+    bot_id: int | None,
+    event_type: str,
+    actor_user_id: str | int | None = None,
+    target_user_id: str | int | None = None,
+    tg_msg_id: int | None = None,
+    event_data: dict[str, Any] | None = None,
+) -> None:
+    """Записать системное событие чата (join, leave, pin, title_change и т.д.)."""
+    await execute(
+        """
+        INSERT INTO chat_events
+            (chat_id, bot_id, event_type, actor_user_id, target_user_id,
+             telegram_message_id, event_data)
+        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
+        """,
+        [
+            str(chat_id),
+            bot_id,
+            event_type,
+            str(actor_user_id) if actor_user_id is not None else None,
+            str(target_user_id) if target_user_id is not None else None,
+            tg_msg_id,
+            json.dumps(event_data or {}),
+        ],
+    )
+
+
+async def _handle_message_reaction(update: dict[str, Any], bot_id: int | None = None) -> None:
+    """Обработка message_reaction: diff old/new реакций, upsert в message_reactions."""
+    reaction_update = update.get("message_reaction", {})
+    reaction_chat = reaction_update.get("chat", {})
+    reaction_user = reaction_update.get("user")
+    chat_id = str(reaction_chat["id"]) if reaction_chat.get("id") else None
+    tg_msg_id = reaction_update.get("message_id")
+
+    if not chat_id or not tg_msg_id:
+        return
+
+    # Upsert чат и юзер
+    if reaction_chat:
+        await _upsert_chat(reaction_chat, bot_id=bot_id)
+    user_id: str | None = None
+    if reaction_user:
+        user_id = str(reaction_user["id"])
+        await _upsert_user(reaction_user)
+        await _upsert_chat_member(chat_id, user_id, bot_id=bot_id)
+
+    # Найти внутренний message_id
+    msg_row = await fetch_one(
+        "SELECT id FROM messages WHERE chat_id = %s AND telegram_message_id = %s",
+        [chat_id, tg_msg_id],
+    )
+    internal_msg_id = msg_row["id"] if msg_row else 0
+
+    old_reactions = reaction_update.get("old_reaction", [])
+    new_reactions = reaction_update.get("new_reaction", [])
+
+    # Собрать ключи для diff
+    def _reaction_key(r: dict) -> tuple:
+        return (r.get("type", ""), r.get("emoji", ""), r.get("custom_emoji_id", ""))
+
+    old_set = {_reaction_key(r) for r in old_reactions}
+    new_set = {_reaction_key(r) for r in new_reactions}
+
+    # Удалить исчезнувшие реакции
+    removed = old_set - new_set
+    for rtype, emoji, custom_id in removed:
+        if user_id:
+            await execute(
+                """
+                DELETE FROM message_reactions
+                WHERE chat_id = %s AND telegram_message_id = %s
+                  AND user_id = %s AND reaction_type = %s
+                  AND COALESCE(reaction_emoji, '') = %s
+                """,
+                [chat_id, tg_msg_id, user_id, rtype, emoji],
+            )
+
+    # Добавить новые реакции
+    added = new_set - old_set
+    for rtype, emoji, custom_id in added:
+        await execute(
+            """
+            INSERT INTO message_reactions
+                (message_id, chat_id, telegram_message_id, user_id,
+                 reaction_type, reaction_emoji, reaction_custom_emoji_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT DO NOTHING
+            """,
+            [internal_msg_id, chat_id, tg_msg_id, user_id, rtype, emoji, custom_id or None],
+        )
+
+
+async def _handle_system_events(
+    message: dict[str, Any],
+    chat_id: str,
+    from_user_id: str | None,
+    bot_id: int | None,
+) -> None:
+    """Обработка системных событий внутри message (join, leave, pin, photo, title)."""
+    tg_msg_id = message.get("message_id")
+
+    # Новые участники чата
+    if message.get("new_chat_members"):
+        for new_member in message["new_chat_members"]:
+            await _upsert_user(new_member)
+            await _upsert_chat_member(
+                chat_id, new_member.get("id"), bot_id=bot_id, status="member",
+            )
+            await _insert_chat_event(
+                chat_id, bot_id, "join",
+                actor_user_id=from_user_id,
+                target_user_id=new_member.get("id"),
+                tg_msg_id=tg_msg_id,
+            )
+
+    # Участник вышел / был удалён
+    if message.get("left_chat_member"):
+        left = message["left_chat_member"]
+        await _upsert_user(left)
+        await _upsert_chat_member(
+            chat_id, left.get("id"), bot_id=bot_id, status="left",
+        )
+        await _insert_chat_event(
+            chat_id, bot_id, "leave",
+            actor_user_id=from_user_id,
+            target_user_id=left.get("id"),
+            tg_msg_id=tg_msg_id,
+        )
+
+    # Закреплённое сообщение
+    if message.get("pinned_message"):
+        pinned = message["pinned_message"]
+        await _insert_chat_event(
+            chat_id, bot_id, "pin",
+            actor_user_id=from_user_id,
+            tg_msg_id=tg_msg_id,
+            event_data={"pinned_message_id": pinned.get("message_id")},
+        )
+
+    # Новая фотография чата
+    if message.get("new_chat_photo"):
+        await _insert_chat_event(
+            chat_id, bot_id, "new_photo",
+            actor_user_id=from_user_id,
+            tg_msg_id=tg_msg_id,
+        )
+
+    # Удаление фотографии чата
+    if message.get("delete_chat_photo"):
+        await _insert_chat_event(
+            chat_id, bot_id, "delete_photo",
+            actor_user_id=from_user_id,
+            tg_msg_id=tg_msg_id,
+        )
+
+    # Смена названия чата
+    if message.get("new_chat_title"):
+        await _insert_chat_event(
+            chat_id, bot_id, "title_change",
+            actor_user_id=from_user_id,
+            tg_msg_id=tg_msg_id,
+            event_data={"new_title": message["new_chat_title"]},
+        )
+
+    # Миграция чата (supergroup upgrade)
+    if message.get("migrate_to_chat_id"):
+        await _insert_chat_event(
+            chat_id, bot_id, "migrate",
+            tg_msg_id=tg_msg_id,
+            event_data={"migrate_to_chat_id": message["migrate_to_chat_id"]},
+        )
 
 
 async def _insert_callback_query(callback_query: dict[str, Any], bot_id: int | None = None) -> None:
@@ -1352,12 +1659,20 @@ async def ingest_update(update: dict[str, Any], bot_id: int | None = None) -> di
         update_chat_id = str(chat.get("id")) if chat.get("id") is not None else None
         update_message_id = message.get("message_id")
         await _upsert_chat(chat, bot_id=bot_id)
+        from_user_id: str | None = None
         if message.get("from"):
             from_user = message.get("from") or {}
-            update_user_id = str(from_user.get("id")) if from_user.get("id") is not None else None
+            from_user_id = str(from_user.get("id")) if from_user.get("id") is not None else None
+            update_user_id = from_user_id
             await _upsert_user(from_user)
             await _upsert_chat_member(chat.get("id"), from_user.get("id"), bot_id=bot_id)
+            # Счётчик сообщений (только для inbound от реальных юзеров)
+            if update_type == "message" and from_user_id and update_chat_id:
+                await _increment_message_count(from_user_id, update_chat_id)
         await _insert_inbound_message(message, update_type, bot_id=bot_id)
+        # Системные события (join, leave, pin, photo, title)
+        if update_chat_id:
+            await _handle_system_events(message, update_chat_id, from_user_id, bot_id)
         # Обработка текстовых сообщений для FSM
         if update_type == "message" and message.get("text"):
             await _process_text_message(message)
@@ -1400,7 +1715,19 @@ async def ingest_update(update: dict[str, Any], bot_id: int | None = None) -> di
                 cm_chat["id"], cm_user["id"],
                 bot_id=bot_id,
                 status=cm_status,
+                member_data=cm_new,
             )
+
+    # Обработка message_reaction
+    if update_type == "message_reaction":
+        await _handle_message_reaction(update, bot_id=bot_id)
+        reaction_update = update.get("message_reaction", {})
+        rc = reaction_update.get("chat", {})
+        ru = reaction_update.get("user", {})
+        if rc.get("id"):
+            update_chat_id = str(rc["id"])
+        if ru.get("id"):
+            update_user_id = str(ru["id"])
 
     # Обработка pre_checkout_query (подтверждение перед оплатой)
     if update_type == "pre_checkout_query":

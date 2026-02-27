@@ -1,0 +1,1293 @@
+{% extends "base.html" %}
+
+{% block title %}{{ chat.title or 'Чат' }} — Управление{% endblock %}
+
+{# ── Governance variables ── #}
+{% set gov = governance or {} %}
+{% set gov_regime = gov.regime.regime_type if gov and gov.regime else '' %}
+{% set gov_leader = gov.regime.leader_username if gov and gov.regime else '' %}
+{% set gov_ruler_id = gov.regime.ruler_id if gov and gov.regime else '' %}
+{% set gov_citizens = gov.stats.citizens if gov and gov.stats else 0 %}
+{% set gov_proposals = gov.stats.active_proposals if gov and gov.stats else 0 %}
+{% set gov_treasury = gov.stats.treasury if gov and gov.stats else 0 %}
+{% set ci_members = chat_info.member_count if chat_info and chat_info.member_count else (chat.member_count or 0) %}
+{% set st_mpd = stats.messages_per_day if stats and stats.messages_per_day else 0 %}
+{% set st_active = stats.active_users if stats and stats.active_users else 0 %}
+
+{% set regime_icons = {
+    'democracy': '🏛', 'autocracy': '⚖', 'technocracy': '🔬',
+    'demarchy': '🎲', 'gerontocracy': '🏛', 'consensus': '🤝',
+    'liquid_democracy': '🌊', 'constitutional_monarchy': '👑',
+    'parliament': '🏛', 'meritocracy': '📊', 'oligarchy': '💎'
+} %}
+{% set regime_names = {
+    'democracy': 'Демократия', 'autocracy': 'Автократия', 'technocracy': 'Технократия',
+    'demarchy': 'Демархия', 'gerontocracy': 'Геронтократия', 'consensus': 'Консенсус',
+    'liquid_democracy': 'Жидкая демократия', 'constitutional_monarchy': 'Конст. монархия',
+    'parliament': 'Парламент', 'meritocracy': 'Меритократия', 'oligarchy': 'Олигархия'
+} %}
+
+{% block head_libs %}
+<script src="/static/echarts.min.js"></script>
+<script src="/static/governance.js"></script>
+{% endblock %}
+
+{% block bar_left %}<a class="bee-bar__back" href="/c/{{ chat.chat_id }}">‹</a>{% endblock %}
+
+{% block context %}
+{# ── Шапка чата ── #}
+<div style="text-align:center;padding:16px 20px 10px">
+    <div class="bee-chat-detail__avatar" style="width:56px;height:56px;margin:0 auto 10px">
+        {% if chat._photo_url %}
+        <img src="{{ chat._photo_url }}" alt=""
+             onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+        <span class="bee-chat-detail__fallback" style="display:none">{{ (chat.title or '?')[0] | upper }}</span>
+        {% else %}
+        <span class="bee-chat-detail__fallback">{{ (chat.title or '?')[0] | upper }}</span>
+        {% endif %}
+    </div>
+    <div class="bee-chat-detail__name" style="font-size:18px">{{ chat.title or 'Без названия' }}</div>
+    {% if gov_regime %}
+    <div class="cm-regime-badge">
+        {{ regime_icons.get(gov_regime, '🏳') }} {{ regime_names.get(gov_regime, gov_regime) }}
+        {% if gov_leader %} · @{{ gov_leader }}{% endif %}
+    </div>
+    {% endif %}
+    <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;flex-wrap:wrap">
+        {% if ci_members %}<span class="bee-banner-chip">{{ ci_members }} чел</span>{% endif %}
+        {% if gov_citizens %}<span class="bee-banner-chip">🏛 {{ gov_citizens }} гражд.</span>{% endif %}
+        {% if st_mpd %}<span class="bee-banner-chip">{{ st_mpd | round(1) }} msg/d</span>{% endif %}
+    </div>
+</div>
+
+{# ── Табы навигации ── #}
+<div class="bee-tabs" id="cm-tabs">
+    <button class="bee-tab" data-section="">📊 Обзор</button>
+    <button class="bee-tab" data-section="members">👥 Участники</button>
+    <button class="bee-tab" data-section="governance">🏛 Governance</button>
+    <button class="bee-tab" data-section="politics">📜 Политика</button>
+    <button class="bee-tab" data-section="settings">⚙</button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ═══ Таб 1: Обзор — Dashboard ═══ #}
+<div class="cm-panel active" id="panel-overview">
+    {# 1.1 Сводка #}
+    <div class="bee-card">
+        <div class="bee-card-title">📊 Сводка</div>
+        <div class="bee-stat-grid" id="overview-stats">
+            <div class="bee-stat"><div class="bee-stat-value">{{ ci_members }}</div><div class="bee-stat-label">Участники</div></div>
+            <div class="bee-stat"><div class="bee-stat-value">{{ gov_citizens }}</div><div class="bee-stat-label">Граждане</div></div>
+            <div class="bee-stat"><div class="bee-stat-value">{{ st_mpd | round(1) }}</div><div class="bee-stat-label">Сообщ./день</div></div>
+            <div class="bee-stat"><div class="bee-stat-value">{{ st_active }}</div><div class="bee-stat-label">Активных</div></div>
+            {% if gov_treasury %}<div class="bee-stat"><div class="bee-stat-value">{{ gov_treasury }}</div><div class="bee-stat-label">⭐ Казна</div></div>{% endif %}
+        </div>
+    </div>
+
+    {# 1.2 Мой статус #}
+    {% if governance %}
+    <div class="bee-card" id="cm-my-status">
+        <div class="bee-card-title">👤 Мой статус</div>
+        <div style="padding:0 16px 12px">
+            <div id="cm-citizen-info" class="cm-citizen-row">
+                <div class="cm-citizen-row__left">
+                    <span id="cm-my-role" class="cm-role-badge">Загрузка...</span>
+                </div>
+                <div class="cm-citizen-row__right">
+                    <span id="cm-my-balance" class="cm-balance">— ⭐</span>
+                </div>
+            </div>
+            <div class="cm-stubs-row">
+                <span class="cm-stub-badge" title="Скоро: Репутация (#5)">📊 R: —</span>
+                <span class="cm-stub-badge" title="Скоро: Популярность (#6)">🌟 P: —</span>
+                <span class="cm-stub-badge" title="Скоро: Верификация (#49)">🔵⚪⚪⚪</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# 1.3 Совет (для council-based режимов) #}
+    {% if governance and governance.council %}
+    <div class="bee-card" id="cm-council-card">
+        <div class="bee-card-title">👥 Совет</div>
+        <div class="bee-list" id="cm-council-list">
+            {% for c in governance.council[:5] %}
+            <div class="cd-member">
+                <div class="cd-member__avatar">{{ (c.first_name or '?')[0] | upper }}</div>
+                <div class="cd-member__body">
+                    <div class="cd-member__name">{{ c.first_name or '' }} {{ c.last_name or '' }}</div>
+                    {% if c.role %}<div class="cd-member__info">{{ c.role }}</div>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# 1.4 Активные голосования #}
+    <div class="bee-card" id="cm-proposals-card" {% if not governance %}style="display:none"{% endif %}>
+        <div class="bee-card-title">🗳 Активные голосования <span id="cm-proposals-count" style="color:var(--tg-hint);font-size:13px">({{ gov_proposals }})</span></div>
+        <div class="bee-list" id="cm-proposals-list">
+            {% if gov_proposals == 0 %}
+            <div class="cd-empty">Нет активных голосований</div>
+            {% else %}
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+            {% endif %}
+        </div>
+        {% if governance %}
+        <div style="padding:8px 16px 12px">
+            <button class="bee-btn bee-btn--primary" style="width:100%" onclick="window.openCreateSheet && openCreateSheet()">+ Предложение</button>
+        </div>
+        {% endif %}
+    </div>
+
+    {# 1.5 Топ активности #}
+    <div class="bee-card" id="cm-top-card">
+        <div class="bee-card-title">👑 Топ активности
+            <select class="bee-select" id="cm-top-period" style="display:inline;width:auto;font-size:13px;padding:2px 8px">
+                <option value="7d">7 дней</option>
+                <option value="30d" selected>30 дней</option>
+                <option value="90d">90 дней</option>
+            </select>
+        </div>
+        <div class="bee-list" id="cm-top-list">
+            <div class="bee-skel" style="height:42px;border-radius:8px;margin:4px 16px"></div>
+        </div>
+    </div>
+
+    {# 1.6 Петиции #}
+    <div class="bee-card" id="cm-petitions-overview" style="display:none">
+        <div class="bee-card-title">📜 Петиции</div>
+        <div class="bee-list" id="cm-petitions-brief"></div>
+    </div>
+
+    {# 1.7 Казна #}
+    {% if governance and gov_treasury %}
+    <div class="bee-card">
+        <div class="bee-card-title">💰 Казна</div>
+        <div style="padding:0 16px 12px">
+            <div style="font-size:24px;font-weight:700;color:var(--accent)">{{ gov_treasury }} ⭐</div>
+            {% set tax_rate = governance.dashboard.regime.config.tax_rate if governance.dashboard and governance.dashboard.regime and governance.dashboard.regime.config else 0 %}
+            {% if tax_rate %}
+            <div style="color:var(--tg-hint);font-size:13px;margin-top:4px">Налоговая ставка: {{ (tax_rate * 100) | round(1) }}%</div>
+            {% endif %}
+            <div class="cm-stub-card" style="margin-top:8px">
+                <span>📊 Полный отчёт казны</span><span class="cm-stub-soon">Скоро</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# 1.8 Стабы "Скоро" #}
+    <div class="cm-stubs-section">
+        <div class="cm-stub-card"><span>🎯 Задания</span><span class="cm-stub-desc">Создавай и выполняй задания за Stars ⭐</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>📊 Репутация</span><span class="cm-stub-desc">Рейтинг из активности, кода и поручительства</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🌟 Популярность</span><span class="cm-stub-desc">Подписчики, звёзды GitHub, упоминания</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>⚖ Суд</span><span class="cm-stub-desc">Разрешение конфликтов и защита прав</span><span class="cm-stub-soon">Скоро</span></div>
+    </div>
+</div>
+
+{# ═══ Таб 2: Участники ═══ #}
+<div class="cm-panel" id="panel-people" style="display:none">
+    {# 2.1 Поиск + фильтры #}
+    <div class="bee-card">
+        <div class="bee-card-title" id="members-title">👥 Участники</div>
+        <div style="padding:0 16px 8px">
+            <input type="text" class="bee-input" id="members-search"
+                   placeholder="Поиск по имени..." style="margin-bottom:8px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                <button class="bee-badge bee-badge--active" data-filter="">Все</button>
+                <button class="bee-badge" data-filter="administrator">Админы</button>
+                <button class="bee-badge" data-filter="creator">Создатель</button>
+                {% if governance %}<button class="bee-badge" data-filter="citizen">🏛 Граждане</button>{% endif %}
+                {% if governance and governance.council %}<button class="bee-badge" data-filter="council">👥 Совет</button>{% endif %}
+            </div>
+        </div>
+        <div class="bee-list" id="members-list">
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+            <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+        </div>
+        <div style="padding:8px 16px 12px">
+            <button class="bee-btn bee-btn--small bee-btn--outline" id="members-more" style="width:100%;display:none">Загрузить ещё</button>
+        </div>
+    </div>
+
+    {# 2.2 Лидерборд #}
+    {% if governance %}
+    <div class="bee-card" id="cm-leaderboard-card">
+        <div class="bee-card-title">🏆 Лидерборд
+            <span style="color:var(--tg-hint);font-size:12px">по Stars ⭐</span>
+        </div>
+        <div class="bee-list" id="cm-leaderboard-list">
+            <div class="bee-skel" style="height:42px;border-radius:8px;margin:4px 16px"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# 2.3 Стабы #}
+    <div class="cm-stubs-section">
+        <div class="cm-stub-card"><span>🎭 Партии</span><span class="cm-stub-desc">Политические партии и фракции</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🗳 Выборы</span><span class="cm-stub-desc">Парламентские и президентские выборы</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🛡 Верификация</span><span class="cm-stub-desc">4 уровня верификации гражданства</span><span class="cm-stub-soon">Скоро</span></div>
+    </div>
+</div>
+
+{# ═══ Таб 3: Governance — полный дашборд ═══ #}
+<div class="cm-panel" id="panel-governance" style="display:none">
+<div id="gov-root" data-chat-id="{{ chat.chat_id }}">
+
+    {# Skeleton #}
+    <div id="gov-loading">
+        <div class="bee-card bee-skel-card">
+            <div class="bee-skel bee-skel--title" style="width:40%"></div>
+            <div class="bee-stat-grid">
+                <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+                <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+                <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+                <div class="bee-stat"><div class="bee-skel bee-skel--value"></div><div class="bee-skel bee-skel--label"></div></div>
+            </div>
+        </div>
+        <div class="bee-card bee-skel-card">
+            <div class="bee-skel bee-skel--title" style="width:30%"></div>
+            <div class="bee-skel bee-skel--line" style="margin-top:8px"></div>
+            <div class="bee-skel bee-skel--line-sm" style="margin-top:4px"></div>
+        </div>
+    </div>
+
+    {# Setup #}
+    <div id="gov-setup" style="display:none">
+        <div class="bee-card" style="text-align:center;padding:32px 20px">
+            <div style="font-size:48px;margin-bottom:12px">&#127963;</div>
+            <div class="bee-title">Установить Governance</div>
+            <div class="bee-subtitle" style="margin-bottom:24px">Выберите форму правления</div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:360px;margin:0 auto">
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('democracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#128499;</span>
+                    <span style="font-weight:600;font-size:13px">Демократия</span>
+                    <span style="font-size:10px;opacity:0.7">Решения голосованием</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('autocracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#128081;</span>
+                    <span style="font-weight:600;font-size:13px">Автократия</span>
+                    <span style="font-size:10px;opacity:0.7">Правитель решает</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('technocracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#9881;&#65039;</span>
+                    <span style="font-weight:600;font-size:13px">Технократия</span>
+                    <span style="font-size:10px;opacity:0.7">Совет админов</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('demarchy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#127922;</span>
+                    <span style="font-weight:600;font-size:13px">Демархия</span>
+                    <span style="font-size:10px;opacity:0.7">Совет по жребию</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('gerontocracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#127963;</span>
+                    <span style="font-weight:600;font-size:13px">Геронтократия</span>
+                    <span style="font-size:10px;opacity:0.7">Совет старейшин</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('consensus')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#129309;</span>
+                    <span style="font-weight:600;font-size:13px">Консенсус</span>
+                    <span style="font-size:10px;opacity:0.7">90%+ согласие</span>
+                </button>
+                <button class="bee-btn bee-ripple" data-haptic="impact" onclick="setupRegime('liquid_democracy')" style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px">
+                    <span style="font-size:24px">&#128279;</span>
+                    <span style="font-weight:600;font-size:13px">Liquid</span>
+                    <span style="font-size:10px;opacity:0.7">Делегируй голос</span>
+                </button>
+                <div style="padding:14px 8px;flex-direction:column;display:flex;align-items:center;gap:4px;opacity:0.35;pointer-events:none;border:1px dashed var(--tg-theme-hint-color);border-radius:12px">
+                    <span style="font-size:24px">&#127963;</span>
+                    <span style="font-weight:600;font-size:13px">Парламент</span>
+                    <span style="font-size:10px">Скоро</span>
+                </div>
+            </div>
+            <div style="margin-top:12px;font-size:11px;opacity:0.5">Ещё 3 формы правления в разработке</div>
+        </div>
+    </div>
+
+    {# Dashboard #}
+    <div id="gov-dashboard" style="display:none">
+        {# My Status — compact row, clickable → sheet #}
+        <div class="bee-card bee-fade-in bee-ripple gov-my-row" data-haptic="selection" id="gov-my" style="display:none;cursor:pointer" onclick="openMySheet()"></div>
+
+        {# Stats grid #}
+        <div class="bee-card bee-fade-in">
+            <div class="bee-stat-grid" id="gov-stats"></div>
+        </div>
+
+        {# Active proposals #}
+        <div class="bee-card bee-fade-in">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128203; Активные <span class="bee-badge bee-badge--outline" id="gov-active-count" style="font-size:11px;margin-left:4px;vertical-align:middle"></span></div>
+            </div>
+            <div class="bee-list" id="gov-active-list"></div>
+            <div id="gov-active-empty" style="text-align:center;padding:20px 0;font-size:13px;color:var(--tg-theme-hint-color)">Нет активных предложений</div>
+        </div>
+
+        {# Create button (citizens only) #}
+        <div id="gov-create-wrap" style="display:none;padding:0 0 8px">
+            <button class="bee-btn bee-btn--outline bee-ripple" data-haptic="impact" onclick="openCreateSheet()" style="width:100%;border-style:dashed">&#65291; Новое предложение</button>
+        </div>
+
+        {# Recent decisions #}
+        <div class="bee-card bee-fade-in" id="gov-recent-card" style="display:none">
+            <div class="bee-card-title">&#128202; Решения</div>
+            <div class="bee-list" id="gov-recent-list"></div>
+        </div>
+
+        {# Leaders — podium style #}
+        <div class="bee-card bee-fade-in" id="gov-top-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#127942; Лидеры</div>
+                <span class="gov-link" data-haptic="selection" onclick="openLeaderboardSheet()">все &#8250;</span>
+            </div>
+            <div id="gov-top-podium" class="bee-podium"></div>
+            <div id="gov-top-rest" class="bee-rank-list" style="margin-top:8px"></div>
+        </div>
+
+        {# Constitution — compact preview #}
+        <div class="bee-card bee-fade-in" id="gov-const-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128220; Конституция <span class="bee-badge bee-badge--outline" id="gov-const-count" style="font-size:11px;margin-left:4px;vertical-align:middle"></span></div>
+                <span class="gov-link" data-haptic="selection" onclick="openConstitutionSheet()">все &#8250;</span>
+            </div>
+            <div id="gov-const-preview" class="bee-list"></div>
+        </div>
+
+        {# Treasury — compact row #}
+        <div class="bee-card bee-fade-in bee-ripple" data-haptic="selection" id="gov-treasury" style="display:none;cursor:pointer" onclick="openTreasurySheet()"></div>
+
+        {# Council (for technocracy, demarchy, gerontocracy) #}
+        <div class="bee-card bee-fade-in" id="gov-council-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128101; Совет <span class="bee-badge bee-badge--outline" id="gov-council-count" style="font-size:11px;margin-left:4px;vertical-align:middle"></span></div>
+            </div>
+            <div class="bee-list" id="gov-council-list"></div>
+        </div>
+
+        {# Petitions #}
+        <div class="bee-card bee-fade-in" id="gov-petitions-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128221; Петиции <span class="bee-badge bee-badge--outline" id="gov-petitions-count" style="font-size:11px;margin-left:4px;vertical-align:middle"></span></div>
+                <span class="gov-link" data-haptic="selection" onclick="openCreatePetitionSheet()">+ новая</span>
+            </div>
+            <div class="bee-list" id="gov-petitions-list"></div>
+            <div id="gov-petitions-empty" style="text-align:center;padding:12px 0;font-size:13px;color:var(--tg-theme-hint-color)">Нет активных петиций</div>
+        </div>
+
+        {# Delegations (for liquid_democracy) #}
+        <div class="bee-card bee-fade-in" id="gov-delegations-card" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div class="bee-card-title" style="margin:0">&#128279; Делегирования</div>
+                <span class="gov-link" data-haptic="selection" onclick="openDelegateSheet()">+ делегировать</span>
+            </div>
+            <div id="gov-deleg-power" style="text-align:center;padding:8px 0;font-size:13px"></div>
+            <div class="bee-list" id="gov-delegations-list"></div>
+        </div>
+
+        {# Plugins #}
+        <div class="bee-card bee-fade-in" id="gov-plugins-card" style="display:none">
+            <div class="bee-card-title">&#128268; Плагины</div>
+            <div id="gov-plugins-list" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+        </div>
+    </div>
+</div>
+</div>
+
+{# ═══ Таб 4: Политика — с подвкладками ═══ #}
+<div class="cm-panel" id="panel-politics" style="display:none">
+    {% if governance %}
+
+    {# Подвкладки #}
+    <div class="bee-sub-tabs" id="politics-subtabs">
+        <button class="bee-sub-tab active" data-sub="">🗳 Предложения</button>
+        <button class="bee-sub-tab" data-sub="petitions">📜 Петиции</button>
+        <button class="bee-sub-tab" data-sub="constitution">📜 Конституция</button>
+        {% if gov_regime == 'liquid_democracy' %}
+        <button class="bee-sub-tab" data-sub="delegations">🌊 Делегирования</button>
+        {% endif %}
+    </div>
+
+    {# Подпанель: Предложения #}
+    <div class="pol-subpanel" data-sub="">
+        <div class="bee-card">
+            <div class="bee-card-title">🗳 Предложения
+                <span id="pol-proposals-count" style="color:var(--tg-hint);font-size:13px"></span>
+            </div>
+            <div style="padding:0 16px 8px">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                    <button class="bee-badge bee-badge--active" data-propfilter="active">Активные</button>
+                    <button class="bee-badge" data-propfilter="closed">Завершённые</button>
+                    <button class="bee-badge" data-propfilter="">Все</button>
+                </div>
+            </div>
+            <div class="bee-list" id="pol-proposals-list">
+                <div class="bee-skel" style="height:52px;border-radius:8px;margin:4px 16px"></div>
+            </div>
+            <div style="padding:8px 16px 12px">
+                <button class="bee-btn bee-btn--primary" style="width:100%" onclick="window.openCreateSheet && openCreateSheet()">+ Предложение</button>
+            </div>
+        </div>
+    </div>
+
+    {# Подпанель: Петиции #}
+    <div class="pol-subpanel" data-sub="petitions" style="display:none">
+        <div class="bee-card">
+            <div class="bee-card-title">📜 Петиции</div>
+            <div class="bee-list" id="pol-petitions-list">
+                <div class="bee-skel" style="height:48px;border-radius:8px;margin:4px 16px"></div>
+            </div>
+            <div style="padding:8px 16px 12px">
+                <button class="bee-btn bee-btn--outline" style="width:100%" onclick="window.openCreatePetitionSheet && openCreatePetitionSheet()">+ Петиция</button>
+            </div>
+        </div>
+    </div>
+
+    {# Подпанель: Конституция #}
+    <div class="pol-subpanel" data-sub="constitution" style="display:none">
+        <div class="bee-card" id="pol-constitution-card">
+            <div class="bee-card-title">📜 Конституция</div>
+            <div id="pol-constitution-list" style="padding:0 16px 12px">
+                <div class="cd-empty">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    {# Подпанель: Делегирования (liquid_democracy) #}
+    {% if gov_regime == 'liquid_democracy' %}
+    <div class="pol-subpanel" data-sub="delegations" style="display:none">
+        <div class="bee-card">
+            <div class="bee-card-title">🌊 Делегирования</div>
+            <div id="pol-delegations-list" style="padding:0 16px 12px">
+                <div class="cd-empty">Загрузка...</div>
+            </div>
+            <div style="padding:8px 16px 12px">
+                <button class="bee-btn bee-btn--outline" style="width:100%" onclick="window.openDelegateSheet && openDelegateSheet()">+ Делегировать</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# Governance не настроен #}
+    <div class="bee-card">
+        <div class="bee-card-title">🏛 Управление</div>
+        <div style="padding:0 16px 12px">
+            <div class="cd-empty">Governance ещё не настроен для этого чата</div>
+            <div id="gov-setup-container"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Стабы #}
+    <div class="cm-stubs-section">
+        <div class="cm-stub-card"><span>⚖ Суд</span><span class="cm-stub-desc">Иски, процесс, вердикты, прецеденты</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🌐 Дипломатия</span><span class="cm-stub-desc">Послы, договоры, торговля между городами</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>📰 Медиа</span><span class="cm-stub-desc">Газета, партийные каналы, реклама</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🗺 Карта</span><span class="cm-stub-desc">Визуализация города и инфраструктура</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🧭 Political Compass</span><span class="cm-stub-desc">2D-карта политических позиций</span><span class="cm-stub-soon">Скоро</span></div>
+    </div>
+</div>
+
+{# ═══ Таб 4: Настройки ═══ #}
+<div class="cm-panel" id="panel-settings" style="display:none">
+    {# 4.1 Режим правления #}
+    {% if governance %}
+    <div class="bee-card">
+        <div class="bee-card-title">🏛 Режим правления</div>
+        <div style="padding:0 16px 12px">
+            <div class="cm-regime-info">
+                <div class="cm-regime-info__icon">{{ regime_icons.get(gov_regime, '🏳') }}</div>
+                <div class="cm-regime-info__body">
+                    <div class="cm-regime-info__type">{{ regime_names.get(gov_regime, gov_regime) }}</div>
+                    {% if gov_leader %}<div class="cm-regime-info__leader">Правитель: @{{ gov_leader }}</div>{% endif %}
+                </div>
+            </div>
+            {% set cfg = governance.dashboard.regime.config if governance.dashboard and governance.dashboard.regime else {} %}
+            {% if cfg %}
+            <div class="cm-regime-config">
+                {% if cfg.quorum_pct is defined %}<div class="cm-config-row"><span>Кворум</span><span>{{ (cfg.quorum_pct * 100) | round(0) }}%</span></div>{% endif %}
+                {% if cfg.threshold is defined %}<div class="cm-config-row"><span>Порог</span><span>{{ (cfg.threshold * 100) | round(0) }}%</span></div>{% endif %}
+                {% if cfg.discussion_hours is defined %}<div class="cm-config-row"><span>Обсуждение</span><span>{{ cfg.discussion_hours }}ч</span></div>{% endif %}
+                {% if cfg.voting_hours is defined %}<div class="cm-config-row"><span>Голосование</span><span>{{ cfg.voting_hours }}ч</span></div>{% endif %}
+                {% if cfg.tax_rate is defined %}<div class="cm-config-row"><span>Налог</span><span>{{ (cfg.tax_rate * 100) | round(1) }}%</span></div>{% endif %}
+            </div>
+            {% endif %}
+            <button class="bee-btn bee-btn--outline" style="width:100%;margin-top:10px" id="cm-change-regime-btn">🔄 Сменить режим</button>
+        </div>
+    </div>
+    {% endif %}
+
+    {# 4.2 Синхронизация #}
+    <div class="bee-card">
+        <div class="bee-card-title">🔄 Синхронизация</div>
+        <div style="padding:0 16px 12px">
+            <div style="color:var(--tg-hint);font-size:13px;margin-bottom:10px">
+                Запросить актуальные данные из Telegram: метаданные, администраторы, аватарки.
+            </div>
+            <button class="bee-btn bee-btn--primary" id="sync-btn" style="width:100%">Синхронизировать</button>
+            <div id="sync-status" style="display:none;margin-top:8px;font-size:13px"></div>
+        </div>
+    </div>
+
+    {# 4.3 Расширения #}
+    {% if chat_extensions %}
+    <div class="bee-card">
+        <div class="bee-card-title">🔌 Расширения <span style="color:var(--tg-hint);font-size:13px">({{ chat_extensions | length }})</span></div>
+        <div style="padding:0 16px 12px">
+            {% for ext in chat_extensions %}
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                <span style="flex:1;font-size:13px">{{ ext.name or ext.slug or '' }}</span>
+                <span style="font-size:11px;color:var(--tg-hint)">{{ ext.version or '' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# 4.4 Стабы #}
+    <div class="cm-stubs-section">
+        <div class="cm-stub-card"><span>💰 Cost Matrix</span><span class="cm-stub-desc">Стоимость политических действий в Stars ⭐</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🛡 Anti-abuse</span><span class="cm-stub-desc">Bot-detect, brigading-защита, аудит</span><span class="cm-stub-soon">Скоро</span></div>
+        <div class="cm-stub-card"><span>🏦 Banking</span><span class="cm-stub-desc">Unified accounts, эскроу, контракты</span><span class="cm-stub-soon">Скоро</span></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* ── Табы ── */
+.bee-tabs{display:flex;gap:4px;padding:8px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bee-tabs::-webkit-scrollbar{display:none}
+.bee-tab{flex:0 0 auto;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;
+    background:rgba(255,255,255,0.06);color:var(--tg-hint);border:none;cursor:pointer;
+    transition:all .2s;white-space:nowrap}
+.bee-tab.active{background:var(--accent);color:var(--accent-text)}
+.cm-panel{animation:cmFadeIn .2s ease}
+@keyframes cmFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Regime badge ── */
+.cm-regime-badge{color:var(--accent);font-size:12px;margin-top:4px;font-weight:500}
+
+/* ── Badges & filters ── */
+.bee-badge{cursor:pointer;padding:4px 10px;border-radius:12px;font-size:12px;
+    background:rgba(255,255,255,0.06);color:var(--tg-hint);border:none;transition:all .2s}
+.bee-badge--active,.bee-badge.active{background:var(--accent);color:var(--accent-text)}
+
+/* ── My status ── */
+.cm-citizen-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.cm-role-badge{font-size:13px;padding:3px 10px;border-radius:12px;background:rgba(255,193,7,0.15);color:var(--accent)}
+.cm-balance{font-size:15px;font-weight:600;color:var(--accent)}
+.cm-stubs-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.cm-stub-badge{font-size:11px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,0.04);color:var(--tg-hint);opacity:0.5}
+
+/* ── Regime info ── */
+.cm-regime-info{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.cm-regime-info__icon{font-size:28px}
+.cm-regime-info__type{font-size:16px;font-weight:600;color:var(--tg-text)}
+.cm-regime-info__leader{font-size:13px;color:var(--tg-hint)}
+.cm-regime-config{display:flex;flex-wrap:wrap;gap:0}
+.cm-config-row{display:flex;justify-content:space-between;width:100%;padding:4px 0;font-size:13px;
+    border-bottom:1px solid rgba(255,255,255,0.04)}
+.cm-config-row span:first-child{color:var(--tg-hint)}
+.cm-config-row span:last-child{color:var(--tg-text);font-weight:500}
+
+/* ── Proposal cards ── */
+.cm-proposal{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background .15s}
+.cm-proposal:active{background:rgba(255,255,255,0.04)}
+.cm-proposal__head{display:flex;justify-content:space-between;align-items:center}
+.cm-proposal__title{font-size:14px;font-weight:500;color:var(--tg-text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-proposal__status{font-size:11px;padding:2px 8px;border-radius:10px;flex:0 0 auto;margin-left:8px}
+.cm-proposal__status--discussion{background:rgba(255,193,7,0.15);color:var(--accent)}
+.cm-proposal__status--voting{background:rgba(76,175,80,0.15);color:#81C784}
+.cm-proposal__status--passed{background:rgba(76,175,80,0.25);color:#81C784}
+.cm-proposal__status--rejected{background:rgba(244,67,54,0.15);color:#EF5350}
+.cm-proposal__meta{font-size:12px;color:var(--tg-hint);margin-top:2px}
+.cm-proposal__bar{height:4px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:6px;overflow:hidden}
+.cm-proposal__bar-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .3s}
+
+/* ── Petition cards ── */
+.cm-petition{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer}
+.cm-petition__title{font-size:14px;font-weight:500;color:var(--tg-text)}
+.cm-petition__bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.06);margin-top:6px;overflow:hidden}
+.cm-petition__bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),#FF6B35)}
+.cm-petition__meta{font-size:12px;color:var(--tg-hint);margin-top:4px}
+
+/* ── Constitution ── */
+.cm-article{padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.cm-article__head{display:flex;gap:8px;align-items:center;cursor:pointer}
+.cm-article__num{font-size:12px;color:var(--accent);font-weight:600;flex:0 0 30px}
+.cm-article__title{font-size:14px;color:var(--tg-text);flex:1}
+.cm-article__body{font-size:13px;color:var(--tg-hint);padding:6px 0 0 38px;display:none}
+.cm-article.open .cm-article__body{display:block}
+
+/* ── Members ── */
+.cd-member{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.cd-member__avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,193,7,0.15);
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:var(--accent);flex:0 0 36px;overflow:hidden}
+.cd-member__avatar img{width:100%;height:100%;object-fit:cover}
+.cd-member__body{flex:1;min-width:0}
+.cd-member__name{font-size:14px;font-weight:500;color:var(--tg-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-member__info{font-size:12px;color:var(--tg-hint)}
+.cd-member__badge{font-size:10px;padding:2px 6px;border-radius:8px;background:rgba(255,193,7,0.15);color:var(--accent)}
+.cd-member__link{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;width:100%}
+
+/* ── Stubs "Скоро" ── */
+.cm-stubs-section{padding:8px 16px}
+.cm-stub-card{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;
+    background:rgba(255,255,255,0.03);margin-bottom:6px;opacity:0.5}
+.cm-stub-card span:first-child{font-size:14px}
+.cm-stub-desc{flex:1;font-size:12px;color:var(--tg-hint)}
+.cm-stub-soon{font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(255,193,7,0.1);color:var(--accent);white-space:nowrap}
+
+/* ── Leaderboard ── */
+.cm-lb-item{display:flex;align-items:center;gap:10px;padding:6px 16px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.cm-lb-rank{font-size:16px;flex:0 0 28px;text-align:center}
+.cm-lb-name{flex:1;font-size:14px;color:var(--tg-text)}
+.cm-lb-score{font-size:14px;font-weight:600;color:var(--accent)}
+
+/* ── Empty / util ── */
+.cd-empty{text-align:center;padding:32px 16px;color:var(--tg-hint);font-size:14px}
+
+/* ── Sub-tabs ── */
+.bee-sub-tabs{display:flex;gap:4px;padding:4px 16px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bee-sub-tabs::-webkit-scrollbar{display:none}
+.bee-sub-tab{flex:0 0 auto;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:500;
+    background:rgba(255,255,255,0.04);color:var(--tg-hint);border:none;cursor:pointer;
+    transition:all .2s;white-space:nowrap}
+.bee-sub-tab.active{background:var(--accent);color:var(--accent-text)}
+
+/* ── Governance dashboard (from governance.html) ── */
+.gov-my-row{padding:14px 16px !important}
+.gov-micro-progress{height:3px;border-radius:2px;background:rgba(128,128,128,.15);overflow:hidden}
+.gov-micro-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-light,#FFD54F));border-radius:2px;transition:width .6s ease}
+.gov-proposal-card{transition:background .15s}
+.gov-proposal-card:active{background:var(--accent-glow,rgba(255,193,7,.08))}
+.gov-author-link{color:var(--accent);cursor:pointer}
+.gov-author-link:active{text-decoration:underline}
+.gov-link{font-size:13px;color:var(--accent);cursor:pointer}
+.gov-link:active{opacity:.7}
+.gov-timeline{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px 0}
+.gov-tl{display:flex;flex-direction:column;align-items:center;opacity:.35;transition:opacity .3s}
+.gov-tl--active{opacity:1}
+.gov-tl--done{opacity:.65}
+.gov-tl-icon{font-size:18px}
+.gov-tl-label{font-size:10px;color:var(--tg-theme-hint-color)}
+.gov-tl-conn{flex:1;height:2px;background:var(--tg-theme-hint-color);opacity:.3;max-width:36px;min-width:16px}
+.gov-timer{font-size:13px;color:var(--accent);margin-left:6px;white-space:nowrap}
+.gov-timer--urgent{color:#f44336;font-weight:600;animation:urgentPulse 1.5s ease-in-out infinite}
+.gov-result{text-align:center;padding:16px;border-radius:10px;margin:8px 0}
+.gov-result--passed{background:rgba(76,175,80,.12)}
+.gov-result--rejected{background:rgba(244,67,54,.12)}
+.gov-result--expired{background:rgba(158,158,158,.12)}
+.gov-result-icon{font-size:28px}
+.gov-result-text{font-size:16px;font-weight:700;margin-left:8px;vertical-align:middle}
+.gov-vote-group{display:flex;gap:6px;margin:12px 0}
+.gov-vote-btn{flex:1;min-width:70px;text-align:center;font-size:13px;padding:10px 6px}
+.gov-vote-btn--sel{border-color:var(--accent)!important;background:var(--accent)!important;color:var(--accent-text,#1A1A1A)!important}
+.gov-cancel-btn{background:none;border:none;color:var(--accent);font-size:13px;cursor:pointer;text-decoration:underline;padding:0 4px}
+
+/* ── Toast (from governance.js) ── */
+.bee-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:rgba(0,0,0,0.85);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;
+    z-index:10001;opacity:0;transition:all .3s;pointer-events:none}
+.bee-toast--visible{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+
+<script>
+(function() {
+    'use strict';
+
+    var chatId = '{{ chat.chat_id }}';
+    var tgApp = window.Telegram && window.Telegram.WebApp;
+    var initData = tgApp ? tgApp.initData : '';
+    var userId = {{ user.id if user and user.id else 0 }};
+    var apiBase = '/api/chatdata/' + chatId;
+    var govApiBase = '/api/governance/' + chatId;
+    var headers = { 'X-Init-Data': initData };
+    var hasGovernance = {{ 'true' if governance else 'false' }};
+    var isAdmin = {{ 'true' if is_admin else 'false' }};
+
+    var loaded = {};
+    var membersOffset = 0;
+    var membersFilter = '';
+    var _govData = null;
+
+    // ── Утилиты ──
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function fmtDate(s) {
+        if (!s) return '';
+        var d = new Date(s);
+        var now = new Date();
+        var pad = function(n) { return n < 10 ? '0' + n : n; };
+        if (d.toDateString() === now.toDateString()) return pad(d.getHours()) + ':' + pad(d.getMinutes());
+        return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function fmtNum(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return String(n);
+    }
+    function debounce(fn, delay) {
+        var timer;
+        return function() { var args = arguments, ctx = this; clearTimeout(timer); timer = setTimeout(function() { fn.apply(ctx, args); }, delay); };
+    }
+    function profileHref(uid) {
+        var h = '/u/' + uid;
+        if (initData) h += '?initData=' + encodeURIComponent(initData);
+        return h;
+    }
+
+    // ── URL-aware табы ──
+    var TABS = {
+        '':                      { section: '',           panel: 'panel-overview',    tab: '' },
+        'members':               { section: 'members',    panel: 'panel-people',      tab: 'members' },
+        'governance':            { section: 'governance',  panel: 'panel-governance',  tab: 'governance' },
+        'politics':              { section: 'politics',    panel: 'panel-politics',    tab: 'politics', sub: '' },
+        'politics/petitions':    { section: 'politics',    panel: 'panel-politics',    tab: 'politics', sub: 'petitions' },
+        'politics/constitution': { section: 'politics',    panel: 'panel-politics',    tab: 'politics', sub: 'constitution' },
+        'politics/delegations':  { section: 'politics',    panel: 'panel-politics',    tab: 'politics', sub: 'delegations' },
+        'settings':              { section: 'settings',    panel: 'panel-settings',    tab: 'settings' }
+    };
+    var activeTab = '';
+    var activeSub = '';
+
+    function navigateTo(section) {
+        var route = TABS[section] || TABS[''];
+        var url = '/c/' + chatId + '/manage' + (section ? '/' + section : '');
+        var qs = window.location.search;
+        history.pushState({ section: section }, '', url + qs);
+        activateRoute(route, section);
+    }
+
+    function activateRoute(route, section) {
+        activeTab = route.tab;
+        activeSub = route.sub || '';
+
+        // Main tabs
+        document.querySelectorAll('.bee-tab').forEach(function(t) {
+            t.classList.toggle('active', (t.dataset.section || '') === route.tab);
+        });
+        document.querySelectorAll('.cm-panel').forEach(function(p) {
+            p.style.display = p.id === route.panel ? '' : 'none';
+        });
+
+        // Sub-tabs (politics)
+        if (route.tab === 'politics') activateSubTab(route.sub || '');
+
+        // Lazy load
+        var loadKey = section || '';
+        if (!loaded[loadKey]) {
+            loaded[loadKey] = true;
+            if (route.tab === 'members') { loadMembers(true); loadLeaderboard(); }
+            else if (route.tab === 'politics') loadPolitics();
+        }
+
+        // Lazy BeeGlass: применяем к карточкам, которые стали видимыми
+        if (typeof beeGlass !== 'undefined') {
+            var panel = document.getElementById(route.panel);
+            if (panel) {
+                panel.querySelectorAll('.bee-card').forEach(function(card) {
+                    if (card.closest('#gov-root')) return;
+                    if (card.querySelector('.bee-glass-refract')) return; // уже применено
+                    if (!card.offsetWidth) return;
+                    beeGlass.apply(card, {
+                        effect: 'clear',
+                        borderRadius: 18,
+                        displacementScale: 25,
+                        shadow: false,
+                        specular: false
+                    });
+                });
+            }
+        }
+
+        // GovernanceModule lifecycle
+        if (hasGovernance && typeof GovernanceModule !== 'undefined') {
+            if (route.tab === '' || route.tab === 'governance' || route.tab === 'politics') {
+                GovernanceModule.resume();
+            } else {
+                GovernanceModule.pause();
+            }
+        }
+    }
+
+    function activateSubTab(sub) {
+        document.querySelectorAll('.bee-sub-tab').forEach(function(t) {
+            t.classList.toggle('active', (t.dataset.sub || '') === sub);
+        });
+        document.querySelectorAll('.pol-subpanel').forEach(function(p) {
+            p.style.display = (p.dataset.sub || '') === sub ? '' : 'none';
+        });
+    }
+
+    // Tab click handler
+    document.getElementById('cm-tabs').addEventListener('click', function(e) {
+        var btn = e.target.closest('.bee-tab');
+        if (!btn) return;
+        if (window.haptic) window.haptic('impact', 'light');
+        navigateTo(btn.dataset.section || '');
+    });
+
+    // Sub-tab click handler
+    var subtabs = document.getElementById('politics-subtabs');
+    if (subtabs) {
+        subtabs.addEventListener('click', function(e) {
+            var btn = e.target.closest('.bee-sub-tab');
+            if (!btn) return;
+            if (window.haptic) window.haptic('selection');
+            var sub = btn.dataset.sub || '';
+            navigateTo(sub ? 'politics/' + sub : 'politics');
+        });
+    }
+
+    // Browser back/forward
+    window.addEventListener('popstate', function(e) {
+        var section = (e.state && e.state.section !== undefined) ? e.state.section : '';
+        var route = TABS[section] || TABS[''];
+        activateRoute(route, section);
+    });
+
+    // Initial state from server
+    var initialSection = '{{ active_section }}';
+    var initRoute = TABS[initialSection] || TABS[''];
+    activateRoute(initRoute, initialSection);
+    history.replaceState({ section: initialSection }, '', window.location.href);
+
+    // ═══ GovernanceModule ═══
+    if (hasGovernance && typeof GovernanceModule !== 'undefined') {
+        GovernanceModule.init({
+            apiBase: govApiBase,
+            pollInterval: 15000,
+            containerId: 'gov-root',
+            onData: function(data) {
+                _govData = data;
+                renderOverviewGov(data);
+                if (activeTab === 'politics') renderPoliticsGov(data);
+            }
+        });
+    }
+
+    // ── Рендер governance данных на Обзоре ──
+    function renderOverviewGov(D) {
+        if (!D || !D.dashboard) return;
+        var dash = D.dashboard;
+
+        // Мой статус
+        var me = D.me || {};
+        var roleEl = document.getElementById('cm-my-role');
+        var balEl = document.getElementById('cm-my-balance');
+        if (roleEl) {
+            var status = me.status || 'Guest';
+            var role = me.role || '';
+            var label = status === 'citizen' ? 'Гражданин' : status === 'exile' ? 'Изгнанник' : 'Гость';
+            if (role) label += ' · ' + role;
+            roleEl.textContent = label;
+        }
+        if (balEl) {
+            var bal = me.ip_balance !== undefined ? Math.round(me.ip_balance) : '—';
+            balEl.textContent = bal + ' ⭐';
+        }
+
+        // Активные голосования
+        var proposals = (dash.proposals || []).filter(function(p) {
+            return p.status === 'discussion' || p.status === 'voting';
+        });
+        var countEl = document.getElementById('cm-proposals-count');
+        if (countEl) countEl.textContent = '(' + proposals.length + ')';
+
+        var listEl = document.getElementById('cm-proposals-list');
+        if (listEl && proposals.length > 0) {
+            listEl.innerHTML = '';
+            proposals.slice(0, 5).forEach(function(p) {
+                listEl.appendChild(renderProposalCard(p, D));
+            });
+        } else if (listEl && proposals.length === 0) {
+            listEl.innerHTML = '<div class="cd-empty">Нет активных голосований</div>';
+        }
+
+        // Петиции на overview
+        var petitions = dash.petitions || [];
+        var activePets = petitions.filter(function(p) { return p.status === 'active'; });
+        var petsCard = document.getElementById('cm-petitions-overview');
+        var petsList = document.getElementById('cm-petitions-brief');
+        if (petsCard && activePets.length > 0) {
+            petsCard.style.display = '';
+            petsList.innerHTML = '';
+            activePets.slice(0, 3).forEach(function(pet) {
+                petsList.appendChild(renderPetitionCard(pet));
+            });
+        }
+
+        // Показать proposal card если governance есть
+        var pCard = document.getElementById('cm-proposals-card');
+        if (pCard) pCard.style.display = '';
+    }
+
+    // ── Рендер proposal card ──
+    function renderProposalCard(p, D) {
+        var el = document.createElement('div');
+        el.className = 'cm-proposal';
+        var statusCls = 'cm-proposal__status--' + (p.status || 'discussion');
+        var statusLabel = p.status === 'voting' ? 'Голосование' :
+                          p.status === 'discussion' ? 'Обсуждение' :
+                          p.status === 'passed' ? 'Принято' :
+                          p.status === 'rejected' ? 'Отклонено' : p.status;
+        var vr = (D && D.vote_results) ? D.vote_results[p.id] : null;
+        var quorum = 0;
+        if (vr && vr.quorum_target && vr.quorum_target > 0) {
+            quorum = Math.min(100, Math.round(vr.total_votes / vr.quorum_target * 100));
+        }
+        el.innerHTML =
+            '<div class="cm-proposal__head">' +
+                '<span class="cm-proposal__title">' + esc(p.title || '') + '</span>' +
+                '<span class="cm-proposal__status ' + statusCls + '">' + statusLabel + '</span>' +
+            '</div>' +
+            '<div class="cm-proposal__meta">' + esc(p.author_name || '') + ' · ' + fmtDate(p.created_at) + '</div>' +
+            (quorum > 0 ? '<div class="cm-proposal__bar"><div class="cm-proposal__bar-fill" style="width:' + quorum + '%"></div></div>' : '');
+        el.onclick = function() {
+            if (typeof GovernanceModule !== 'undefined' && window.openProposalSheet) {
+                openProposalSheet(p.id);
+            }
+        };
+        return el;
+    }
+
+    // ── Рендер petition card ──
+    function renderPetitionCard(pet) {
+        var el = document.createElement('div');
+        el.className = 'cm-petition';
+        var pct = pet.threshold > 0 ? Math.round(pet.signatures / pet.threshold * 100) : 0;
+        el.innerHTML =
+            '<div class="cm-petition__title">' + esc(pet.title || '') + '</div>' +
+            '<div class="cm-petition__bar"><div class="cm-petition__bar-fill" style="width:' + Math.min(100, pct) + '%"></div></div>' +
+            '<div class="cm-petition__meta">' + pet.signatures + '/' + pet.threshold + ' подписей (' + pct + '%)</div>';
+        el.onclick = function() {
+            if (typeof GovernanceModule !== 'undefined' && window.openPetitionSheet) {
+                openPetitionSheet(pet.id);
+            }
+        };
+        return el;
+    }
+
+    // ═══ Таб "Политика" ═══
+    function loadPolitics() {
+        // Данные приходят из GovernanceModule.onData
+        if (_govData) renderPoliticsGov(_govData);
+    }
+
+    function renderPoliticsGov(D) {
+        if (!D || !D.dashboard) return;
+        var dash = D.dashboard;
+
+        // Proposals
+        var all = dash.proposals || [];
+        var propFilter = document.querySelector('[data-propfilter].bee-badge--active');
+        var filterVal = propFilter ? propFilter.dataset.propfilter : 'active';
+        var filtered = filterVal === 'active' ?
+            all.filter(function(p) { return p.status === 'discussion' || p.status === 'voting'; }) :
+            filterVal === 'closed' ?
+            all.filter(function(p) { return p.status === 'passed' || p.status === 'rejected' || p.status === 'expired'; }) :
+            all;
+
+        var countEl = document.getElementById('pol-proposals-count');
+        if (countEl) countEl.textContent = '(' + filtered.length + ')';
+        var listEl = document.getElementById('pol-proposals-list');
+        if (listEl) {
+            listEl.innerHTML = '';
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div class="cd-empty">Нет предложений</div>';
+            } else {
+                filtered.forEach(function(p) { listEl.appendChild(renderProposalCard(p, D)); });
+            }
+        }
+
+        // Petitions
+        var petitions = dash.petitions || [];
+        var pList = document.getElementById('pol-petitions-list');
+        if (pList) {
+            pList.innerHTML = '';
+            if (petitions.length === 0) {
+                pList.innerHTML = '<div class="cd-empty">Нет петиций</div>';
+            } else {
+                petitions.forEach(function(pet) { pList.appendChild(renderPetitionCard(pet)); });
+            }
+        }
+
+        // Constitution
+        var articles = D.constitution || [];
+        var cList = document.getElementById('pol-constitution-list');
+        if (cList) {
+            cList.innerHTML = '';
+            if (articles.length === 0) {
+                cList.innerHTML = '<div class="cd-empty">Конституция не установлена</div>';
+            } else {
+                articles.forEach(function(a) {
+                    var div = document.createElement('div');
+                    div.className = 'cm-article';
+                    div.innerHTML =
+                        '<div class="cm-article__head">' +
+                            '<span class="cm-article__num">§' + a.number + '</span>' +
+                            '<span class="cm-article__title">' + esc(a.title || '') + '</span>' +
+                        '</div>' +
+                        '<div class="cm-article__body">' + esc(a.text || '') + '</div>';
+                    div.querySelector('.cm-article__head').onclick = function() {
+                        div.classList.toggle('open');
+                    };
+                    cList.appendChild(div);
+                });
+            }
+        }
+
+        // Delegations (liquid_democracy)
+        var delList = document.getElementById('pol-delegations-list');
+        var delegations = D.delegations || [];
+        if (delList) {
+            delList.innerHTML = '';
+            if (delegations.length === 0) {
+                delList.innerHTML = '<div class="cd-empty">Нет делегирований</div>';
+            } else {
+                delegations.forEach(function(d) {
+                    var row = document.createElement('div');
+                    row.className = 'cd-member';
+                    row.innerHTML =
+                        '<div class="cd-member__avatar">' + esc((d.delegate_name || '?')[0]) + '</div>' +
+                        '<div class="cd-member__body"><div class="cd-member__name">→ ' + esc(d.delegate_name || '') + '</div>' +
+                        '<div class="cd-member__info">' + esc(d.topic || 'all') + '</div></div>';
+                    delList.appendChild(row);
+                });
+            }
+        }
+    }
+
+    // Proposal filter buttons
+    document.querySelectorAll('[data-propfilter]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (window.haptic) window.haptic('selection');
+            document.querySelectorAll('[data-propfilter]').forEach(function(b) { b.classList.remove('bee-badge--active', 'active'); });
+            this.classList.add('bee-badge--active', 'active');
+            if (_govData) renderPoliticsGov(_govData);
+        });
+    });
+
+    // ═══ Топ активности ═══
+    function loadTopActivity() {
+        var period = document.getElementById('cm-top-period').value;
+        fetch(apiBase + '/stats?period=' + period, { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var s = data.stats || data;
+            var authors = s.top_authors || [];
+            var list = document.getElementById('cm-top-list');
+            if (!list) return;
+            list.innerHTML = '';
+            if (!authors.length) {
+                list.innerHTML = '<div class="cd-empty">Нет данных</div>';
+                return;
+            }
+            var medals = ['🥇', '🥈', '🥉'];
+            authors.slice(0, 10).forEach(function(a, i) {
+                var div = document.createElement('a');
+                div.className = 'cm-lb-item';
+                div.href = a.user_id ? profileHref(a.user_id) : '#';
+                div.style.textDecoration = 'none'; div.style.color = 'inherit';
+                div.innerHTML =
+                    '<span class="cm-lb-rank">' + (i < 3 ? medals[i] : (i + 1)) + '</span>' +
+                    '<span class="cm-lb-name">' + esc(a.name || 'user') + '</span>' +
+                    '<span class="cm-lb-score">' + fmtNum(a.count) + ' msg</span>';
+                list.appendChild(div);
+            });
+        })
+        .catch(function() {});
+    }
+    loadTopActivity();
+    document.getElementById('cm-top-period').addEventListener('change', loadTopActivity);
+
+    // ═══ Лидерборд ═══
+    function loadLeaderboard() {
+        if (!_govData) return;
+        var top = _govData.top_citizens || [];
+        var list = document.getElementById('cm-leaderboard-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!top.length) {
+            list.innerHTML = '<div class="cd-empty">Нет данных</div>';
+            return;
+        }
+        var medals = ['🥇', '🥈', '🥉'];
+        top.slice(0, 10).forEach(function(c, i) {
+            var div = document.createElement('a');
+            div.className = 'cm-lb-item';
+            div.href = c.user_id ? profileHref(c.user_id) : '#';
+            div.style.textDecoration = 'none'; div.style.color = 'inherit';
+            div.innerHTML =
+                '<span class="cm-lb-rank">' + (i < 3 ? medals[i] : (i + 1)) + '</span>' +
+                '<span class="cm-lb-name">' + esc((c.first_name || '') + (c.last_name ? ' ' + c.last_name : '')) + '</span>' +
+                '<span class="cm-lb-score">' + Math.round(c.ip_balance || 0) + ' ⭐</span>';
+            list.appendChild(div);
+        });
+    }
+
+    // ═══ УЧАСТНИКИ ═══
+    function loadMembers(reset) {
+        if (reset) { membersOffset = 0; document.getElementById('members-list').innerHTML = ''; }
+
+        var url;
+        if (membersFilter === 'citizen') {
+            url = apiBase + '/citizens?limit=50&offset=' + membersOffset;
+        } else {
+            url = apiBase + '/members?limit=50&offset=' + membersOffset;
+            if (membersFilter) url += '&status=' + membersFilter;
+        }
+        var sv = document.getElementById('members-search').value.trim();
+        if (sv) url += '&search=' + encodeURIComponent(sv);
+
+        fetch(url, { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var list = document.getElementById('members-list');
+            var items = data.items || data.citizens || [];
+            var total = data.total || 0;
+            var label = membersFilter === 'citizen' ? '🏛 Граждане' : '👥 Участники';
+            document.getElementById('members-title').innerHTML = label + ' <span style="color:var(--tg-hint);font-size:13px">(' + total + ')</span>';
+
+            items.forEach(function(m) {
+                var el = document.createElement('div');
+                el.className = 'cd-member';
+                var name = esc(m.first_name || '') + (m.last_name ? ' ' + esc(m.last_name) : '');
+                var info = [];
+                if (m.username) info.push('@' + esc(m.username));
+                if (m.status && m.status !== 'member' && m.status !== 'citizen') info.push(m.status);
+                if (m.role) info.push(m.role);
+
+                var avatarHtml = m.avatar_url
+                    ? '<img src="' + esc(m.avatar_url) + '" onerror="this.parentNode.innerHTML=\'' + esc((m.first_name || '?')[0].toUpperCase()) + '\'">'
+                    : esc((m.first_name || '?')[0].toUpperCase());
+
+                var badgeHtml = '';
+                if (m.status === 'administrator' || m.status === 'creator') {
+                    badgeHtml = '<span class="cd-member__badge">' + (m.status === 'creator' ? '👑' : '⭐') + '</span>';
+                } else if (m.ip_balance !== undefined) {
+                    badgeHtml = '<span class="cd-member__badge" style="background:rgba(76,175,80,0.15);color:#81C784">' + Math.round(m.ip_balance) + ' ⭐</span>';
+                }
+
+                el.innerHTML =
+                    '<a class="cd-member__link" href="' + profileHref(m.user_id) + '">' +
+                    '<div class="cd-member__avatar">' + avatarHtml + '</div>' +
+                    '<div class="cd-member__body"><div class="cd-member__name">' + name + '</div>' +
+                    (info.length ? '<div class="cd-member__info">' + info.join(' · ') + '</div>' : '') + '</div>' +
+                    badgeHtml +
+                    '</a>';
+                list.appendChild(el);
+            });
+
+            membersOffset += items.length;
+            document.getElementById('members-more').style.display = membersOffset < total ? '' : 'none';
+            if (!items.length && membersOffset === 0) list.innerHTML = '<div class="cd-empty">Участники не найдены</div>';
+        })
+        .catch(function() { document.getElementById('members-list').innerHTML = '<div class="cd-empty">Ошибка загрузки</div>'; });
+    }
+
+    document.getElementById('members-more').addEventListener('click', function() { loadMembers(false); });
+    document.getElementById('members-search').addEventListener('input', debounce(function() { loadMembers(true); }, 400));
+    document.querySelectorAll('[data-filter]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (window.haptic) window.haptic('selection');
+            membersFilter = this.dataset.filter;
+            document.querySelectorAll('[data-filter]').forEach(function(b) { b.classList.remove('bee-badge--active', 'active'); });
+            this.classList.add('bee-badge--active', 'active');
+            loadMembers(true);
+        });
+    });
+
+    // ═══ СИНХРОНИЗАЦИЯ ═══
+    document.getElementById('sync-btn').addEventListener('click', function() {
+        var btn = this;
+        var status = document.getElementById('sync-status');
+        if (window.haptic) window.haptic('impact', 'medium');
+        btn.disabled = true;
+        btn.textContent = 'Синхронизация...';
+        status.style.display = 'none';
+
+        fetch(apiBase + '/sync', { method: 'POST', headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.textContent = 'Синхронизировать';
+            status.style.display = '';
+            if (data.error) {
+                status.style.color = 'var(--error)';
+                status.textContent = data.error;
+            } else {
+                status.style.color = 'var(--success)';
+                var parts = [];
+                if (data.admins_synced) parts.push(data.admins_synced + ' админов');
+                if (data.avatars_synced) parts.push(data.avatars_synced + ' аватарок');
+                status.textContent = 'Готово' + (parts.length ? ': ' + parts.join(', ') : '');
+                if (window.haptic) window.haptic('notification', 'success');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Синхронизировать';
+            status.style.display = '';
+            status.style.color = 'var(--error)';
+            status.textContent = 'Ошибка сети';
+        });
+    });
+
+    // ═══ СМЕНА РЕЖИМА ═══
+    var changeBtn = document.getElementById('cm-change-regime-btn');
+    if (changeBtn) {
+        changeBtn.addEventListener('click', function() {
+            if (typeof GovernanceModule !== 'undefined' && window.openChangeRegimeSheet) {
+                openChangeRegimeSheet();
+            }
+        });
+    }
+
+    // ── initData для ссылок ──
+    document.querySelectorAll('.bee-chat-page-link, .bee-bar__back').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (window.haptic) window.haptic('impact', 'light');
+            if (tgApp && initData) {
+                e.preventDefault();
+                var href = link.getAttribute('href');
+                var sep = href.indexOf('?') >= 0 ? '&' : '?';
+                window.location.href = href + sep + 'initData=' + encodeURIComponent(initData);
+            }
+        });
+    });
+
+    // ── BeeGlass + BeeFX ──
+    if (typeof beeGlass !== 'undefined') {
+        document.querySelectorAll('.bee-card').forEach(function(card) {
+            // Пропускаем карточки в gov-root — GovernanceModule рендерит их сам
+            if (card.closest('#gov-root')) return;
+            // Пропускаем скрытые панели — BeeGlass получает 0 размеры
+            if (!card.offsetWidth) return;
+            beeGlass.apply(card, {
+                effect: 'clear',
+                borderRadius: 18,
+                displacementScale: 25,
+                shadow: false,
+                specular: false
+            });
+        });
+    }
+    if (typeof BeeFX !== 'undefined') {
+        BeeFX.initFadeIn();
+        var vals = document.querySelectorAll('#overview-stats .bee-stat-value');
+        vals.forEach(function(el) {
+            var v = parseFloat(el.textContent) || 0;
+            if (v > 0) BeeFX.countUp(el, 0, v, { duration: 800 });
+        });
+    }
+})();
+</script>
+{% endblock %}

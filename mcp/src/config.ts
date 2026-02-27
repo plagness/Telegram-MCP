@@ -8,6 +8,7 @@ const legacyApiBase = "http://telegram-api:8000";
 
 export const config = {
   port: Number.parseInt(process.env.MCP_HTTP_PORT || "3335", 10),
+  mode: (process.env.MCP_MODE || "dual") as "stdio" | "http" | "dual",
   apiBase: explicitApiBase || defaultApiBase,
   apiBaseExplicit: explicitApiBase.length > 0,
   defaultApiBase,
