@@ -1,0 +1,13 @@
+category: ai
+type: opensource
+status: active
+title:
+  en: "Telegram MCP"
+  ru: "Telegram MCP"
+description:
+  en: "Telegram Bot API gateway via MCP"
+  ru: "Шлюз Telegram Bot API через MCP"
+tags: [mcp, python, telegram, bot]
+focus:
+  - backend
+  - ai
